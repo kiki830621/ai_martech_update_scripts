@@ -1,0 +1,151 @@
+# ----
+# Automatically Generated .dropboxignore file at 2025年 7月19日 週六 02時24分25秒 CST
+# ----
+# Ignore Dropbox conflicted copies
+*conflicted copy*
+*Conflicted Copy*
+*衝突的複本*
+*(Conflicted)*
+*\ \(Selective\ Sync\ Conflict\)*
+
+# Ignore RStudio project temporary files
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# Ignore other temporary or cache directories
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# R package files
+*.Rcheck/
+*.tar.gz
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*~
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node modules (if any JS projects)
+node_modules/
+
+# Python virtual environments
+venv/
+env/
+.env
+
+# Database files that might cause sync issues
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Large data files (add specific patterns as needed)
+*.csv
+*.xlsx
+*.xls
+!example*.csv
+!template*.xlsx
+
+# Dropbox
+.dropbox.attr
+.dropbox.cache
+.DS_Store
+*.dropbox.attr
+
+# R/RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# Logs
+logs/
+*.log
+
+# Dependencies
+node_modules/
+venv/
+.env
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# 壓縮檔（避免拖慢速度）
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.bz2
+*.tar.gz
+*.tar.bz2
+
+# PowerPoint 簡報檔案（二進制格式，版本控制效果不佳）
+*.pptx
+*.ppt
+*.potx
+*.ppsx
+
+# 資料檔案 - 只排除特定模式和目錄
+# 大型二進制檔案
+*.sqlite
+*.db
+*.duckdb
+*.rds
+*.feather
+*.parquet
+
+# Excel 檔案（通常較大且不適合版本控制）
+*.xlsx
+*.xls
+
+# 排除特定目錄中的資料檔案
+data/raw/*.csv
+data/raw/*.json
+data/private/
+cache/*.json
+temp/*.csv
+
+# 排除敏感命名模式
+*secret*.json
+*private*.json
+*credentials*.json
+*.env.json
+*password*.csv
+
+# 但 app_data 資料夾的內容需要上傳（應用程式必要檔案）
+!*/app_data/
+!*/app_data/**/*
+!**/app_data/
+!**/app_data/**/*
+
+# 測試和暫存
+*.tmp
+*.temp
+*.cache
+.Renviron
+# ----
