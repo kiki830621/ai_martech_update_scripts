@@ -58,8 +58,9 @@ cat("EBY Product-Line Poisson DRV - Type B Steady-State (MP135 v2.0)\n")
 cat("════════════════════════════════════════════════════════════════════\n")
 cat("Process Date:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
 cat("Input Database:", db_path_list$app_data, "\n")
-cat("Output Database:", db_path_list$app_data, "\n")
-cat("Script Version: v1.0 (2025-11-14) - Type B Implementation + DM_R047\n")
+cat("Output Database (intermediate):", db_path_list$processed_data, "\n")
+cat("Output Database (final):", db_path_list$app_data, "\n")
+cat("Script Version: v2.0 (2025-12-26) - Type B Implementation + DM_R047 + Dual DB\n")
 cat("\n")
 cat("Analytics Classification: TYPE B - Steady-State Analytics\n")
 cat("  • Uses ALL historical data (no period filtering)\n")
@@ -79,10 +80,12 @@ cat("  ✓ MP102: Complete Metadata\n")
 cat("  ✓ R113: Four-Part Script Structure\n")
 cat("\n")
 
-# Connect to database (single connection - input and output in same database)
-cat("Connecting to database...\n")
+# Connect to databases
+cat("Connecting to databases...\n")
 con_app <- dbConnectDuckdb(db_path_list$app_data, read_only = FALSE)
-cat("  ✓ Connected to app_data.duckdb (read-write)\n")
+cat("  ✓ Connected to app_data.duckdb (read-write) - for _all table\n")
+con_processed <- dbConnectDuckdb(db_path_list$processed_data, read_only = FALSE)
+cat("  ✓ Connected to processed_data.duckdb (read-write) - for individual tables\n")
 cat("\n")
 
 # Product lines to process
@@ -228,8 +231,8 @@ for (pl in PRODUCT_LINES) {
 
   if (!is.null(skip_reason)) {
     cat(sprintf("  ⚠️  %s\n", skip_reason))
-    dbWriteTable(con_app, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
+    cat(sprintf("  → Wrote empty schema to processed_data: %s\n\n", output_table_name))
     next
   }
 
@@ -243,8 +246,8 @@ for (pl in PRODUCT_LINES) {
 
   if (!is.null(skip_reason)) {
     cat(sprintf("  ⚠️  %s\n", skip_reason))
-    dbWriteTable(con_app, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
+    cat(sprintf("  → Wrote empty schema to processed_data: %s\n\n", output_table_name))
     next
   }
 
@@ -264,8 +267,8 @@ for (pl in PRODUCT_LINES) {
 
   if (!is.null(skip_reason)) {
     cat(sprintf("  ❌ %s\n", skip_reason))
-    dbWriteTable(con_app, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
+    cat(sprintf("  → Wrote empty schema to processed_data: %s\n\n", output_table_name))
     next
   }
 
@@ -301,8 +304,8 @@ for (pl in PRODUCT_LINES) {
 
   if (!is.null(skip_reason)) {
     cat(sprintf("  ❌ %s\n", skip_reason))
-    dbWriteTable(con_app, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
+    cat(sprintf("  → Wrote empty schema to processed_data: %s\n\n", output_table_name))
     next
   }
 
@@ -326,8 +329,8 @@ for (pl in PRODUCT_LINES) {
 
   if (!is.null(skip_reason)) {
     cat(sprintf("  ❌ %s\n", skip_reason))
-    dbWriteTable(con_app, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
+    cat(sprintf("  → Wrote empty schema to processed_data: %s\n\n", output_table_name))
     next
   }
 
@@ -393,8 +396,8 @@ for (pl in PRODUCT_LINES) {
 
   if (!is.null(skip_reason)) {
     cat(sprintf("  ❌ %s\n", skip_reason))
-    dbWriteTable(con_app, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
+    cat(sprintf("  → Wrote empty schema to processed_data: %s\n\n", output_table_name))
     next
   }
 
@@ -416,8 +419,8 @@ for (pl in PRODUCT_LINES) {
   }
 
   if (!is.null(skip_reason)) {
-    dbWriteTable(con_app, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
+    cat(sprintf("  → Wrote empty schema to processed_data: %s\n\n", output_table_name))
     next
   }
 
@@ -569,9 +572,9 @@ for (pl in PRODUCT_LINES) {
                   paste(names(validation$summary$categories), collapse=", ")))
     }
 
-    # Write to app_data (simple overwrite for Type B)
-    dbWriteTable(con_app, output_table_name, output_table, overwrite = TRUE)
-    cat(sprintf("  ✅ Wrote to: %s\n", output_table_name))
+    # Write to processed_data (intermediate tables for debugging/analysis)
+    dbWriteTable(con_processed, output_table_name, output_table, overwrite = TRUE)
+    cat(sprintf("  ✅ Wrote to processed_data: %s\n", output_table_name))
 
     # Store for merging
     all_results[[pl]] <- output_table
@@ -579,8 +582,8 @@ for (pl in PRODUCT_LINES) {
   }, error = function(e) {
     cat(sprintf("  ❌ Regression failed: %s\n", conditionMessage(e)))
     cat("  → Check for perfect multicollinearity or model specification issues\n")
-    dbWriteTable(con_app, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n", output_table_name))
+    dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
+    cat(sprintf("  → Wrote empty schema to processed_data: %s\n", output_table_name))
   })
 
   cat("\n")
@@ -649,16 +652,18 @@ if (!error_occurred) {
 
 validation_pass <- TRUE
 
+# Validate individual tables in processed_data.duckdb
+cat("Checking individual tables (processed_data.duckdb):\n")
 for (pl in PRODUCT_LINES) {
   table_name <- sprintf("df_eby_poisson_analysis_%s", pl)
-  if (dbExistsTable(con_app, table_name)) {
-    row_count <- tbl2(con_app, table_name) %>%
+  if (dbExistsTable(con_processed, table_name)) {
+    row_count <- tbl2(con_processed, table_name) %>%
       summarise(n = dplyr::n()) %>%
       collect() %>%
       dplyr::pull(n)
 
     # Verify Type B metadata columns exist
-    cols <- dbListFields(con_app, table_name)
+    cols <- dbListFields(con_processed, table_name)
     has_computed_at <- "computed_at" %in% cols
     has_data_version <- "data_version" %in% cols
     has_display_name <- "display_name" %in% cols  # DM_R047 check
@@ -682,6 +687,8 @@ for (pl in PRODUCT_LINES) {
 
 cat("\n")
 
+# Validate merged table in app_data.duckdb
+cat("Checking merged table (app_data.duckdb):\n")
 if (dbExistsTable(con_app, "df_eby_poisson_analysis_all")) {
   row_count <- tbl2(con_app, "df_eby_poisson_analysis_all") %>%
     summarise(n = dplyr::n()) %>%
@@ -762,10 +769,12 @@ cat("  - poissonCommentAnalysis: Rating coefficients\n")
 cat("  - poissonTimeAnalysis: Time feature coefficients\n")
 cat("\n")
 cat("Output Tables Created:\n")
+cat("  processed_data.duckdb (intermediate):\n")
 for (pl in PRODUCT_LINES) {
-  cat(sprintf("  - df_eby_poisson_analysis_%s\n", pl))
+  cat(sprintf("    - df_eby_poisson_analysis_%s\n", pl))
 }
-cat("  - df_eby_poisson_analysis_all (merged)\n")
+cat("  app_data.duckdb (for UI):\n")
+cat("    - df_eby_poisson_analysis_all (merged)\n")
 cat("\n")
 cat("Type B Metadata Added:\n")
 cat("  - computed_at: Timestamp when DRV ran\n")
@@ -786,9 +795,13 @@ cat("\n")
 
 # 5.1: Close database connections
 cat("Cleaning up...\n")
+if (exists("con_processed") && inherits(con_processed, "DBIConnection")) {
+  dbDisconnect(con_processed, shutdown = TRUE)
+  cat("  - Disconnected from processed_data.duckdb\n")
+}
 if (exists("con_app") && inherits(con_app, "DBIConnection")) {
   dbDisconnect(con_app, shutdown = TRUE)
-  cat("  - Disconnected from database\n")
+  cat("  - Disconnected from app_data.duckdb\n")
 }
 
 # 5.2: Autodeinit (MUST be last statement)
