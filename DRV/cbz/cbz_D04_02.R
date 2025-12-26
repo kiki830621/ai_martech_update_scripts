@@ -408,12 +408,16 @@ for (pl in PRODUCT_LINES) {
   cat(sprintf("  → Sales distribution: %.1f%% zeros, %d non-zero observations\n",
               zero_pct, non_zero_count))
 
-  if (zero_pct > 99 || non_zero_count < 20) {
-    cat(sprintf("  ⚠️  SKIPPING %s: Extreme sparsity (%.1f%% zeros, %d non-zero)\n",
-                toupper(pl), zero_pct, non_zero_count))
-    cat("     Poisson regression requires sufficient non-zero observations for convergence\n")
-    cat("     This product line needs special handling (penalized regression or zero-inflation)\n\n")
-    skip_reason <- "Extreme sparsity - insufficient non-zero observations"
+  # Only skip when truly no data - let model attempt to fit otherwise
+  # User theory: each time cell is an observation, zeros contribute to likelihood
+  if (non_zero_count == 0) {
+    cat(sprintf("  ⚠️  SKIPPING %s: No non-zero observations - cannot fit model\n\n",
+                toupper(pl)))
+    skip_reason <- "No non-zero observations - cannot fit model"
+  } else if (zero_pct > 99) {
+    # Warn but continue - model should still be estimable
+    cat(sprintf("  ⚠️  Warning: High sparsity (%.1f%% zeros) - estimates may have large standard errors\n",
+                zero_pct))
   }
 
   if (!is.null(skip_reason)) {
