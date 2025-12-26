@@ -426,166 +426,240 @@ for (pl in PRODUCT_LINES) {
     next
   }
 
-  # Run Poisson regression
-  # Outcome: sales (transaction count), Predictors: all time and product features
-  formula_str <- paste("sales ~", paste(predictor_cols, collapse = " + "))
+  # ============================================================================
+  # UNIVARIATE POISSON REGRESSION (MK04)
+  # ============================================================================
+  # Each predictor is estimated independently: sales ~ x_j for each j
+  # This avoids multicollinearity issues and ensures all predictors are estimable
+  # See: MK04_univariate_poisson_regression.qmd for methodology
+  # ============================================================================
 
-  cat("  → Running Poisson regression (this may take a few minutes)...\n")
+  cat(sprintf("  → Running UNIVARIATE Poisson regression for %d predictors...\n", length(predictor_cols)))
 
-  tryCatch({
+  # TYPE B METADATA: Only 2 columns needed (MP135 v2.0)
+  computed_timestamp <- Sys.time()
 
-    # Fit Poisson model
-    poisson_model <- glm(as.formula(formula_str),
-                         data = model_data_final,
-                         family = poisson())
+  # Store results for each predictor
+  univariate_results <- list()
+  n_success <- 0
+  n_failed <- 0
 
-    # Extract results using broom (R118 compliance)
-    coef_summary <- tidy(poisson_model, conf.int = TRUE, conf.level = 0.95)
+  for (pred_idx in seq_along(predictor_cols)) {
+    predictor <- predictor_cols[pred_idx]
 
-    # Remove intercept (not interpretable in this context)
-    coef_summary <- coef_summary %>% filter(term != "(Intercept)")
+    # Progress indicator every 50 predictors
+    if (pred_idx %% 50 == 1 || pred_idx == length(predictor_cols)) {
+      cat(sprintf("  → Processing predictor %d/%d: %s\n", pred_idx, length(predictor_cols), predictor))
+    }
 
-    # Calculate Incidence Rate Ratio (IRR = exp(coefficient))
-    # IRR interpretation: multiplicative effect on expected count
-    coef_summary <- coef_summary %>%
-      mutate(
-        incidence_rate_ratio = exp(estimate),
-        irr_conf_low = exp(conf.low),
-        irr_conf_high = exp(conf.high)
-      )
+    tryCatch({
+      # Fit univariate Poisson model: sales ~ predictor
+      formula_str <- paste("sales ~", predictor)
+      univariate_model <- glm(as.formula(formula_str),
+                               data = model_data_final,
+                               family = poisson())
 
-    # Get model statistics
-    model_stats <- glance(poisson_model)
+      # Extract coefficient for this predictor (R118 compliance)
+      coef_info <- tidy(univariate_model, conf.int = TRUE, conf.level = 0.95) %>%
+        filter(term == predictor)
 
-    # TYPE B METADATA: Only 2 columns needed (MP135 v2.0)
-    computed_timestamp <- Sys.time()
-
-    # Calculate predictor range metadata (R120)
-    predictor_terms <- coef_summary$term
-    predictor_min_vals <- numeric(length(predictor_terms))
-    predictor_max_vals <- numeric(length(predictor_terms))
-
-    for (i in seq_along(predictor_terms)) {
-      term <- predictor_terms[i]
-      if (term %in% names(model_data_final)) {
-        vals <- model_data_final[[term]]
-        predictor_min_vals[i] <- min(vals, na.rm = TRUE)
-        predictor_max_vals[i] <- max(vals, na.rm = TRUE)
+      if (nrow(coef_info) == 0) {
+        # Predictor dropped (e.g., contrasts issue)
+        univariate_results[[predictor]] <- tibble(
+          predictor = predictor,
+          coefficient = NA_real_,
+          std_error = NA_real_,
+          z_value = NA_real_,
+          p_value = NA_real_,
+          conf_low = NA_real_,
+          conf_high = NA_real_,
+          incidence_rate_ratio = NA_real_,
+          irr_conf_low = NA_real_,
+          irr_conf_high = NA_real_,
+          deviance = NA_real_,
+          aic = NA_real_,
+          convergence = "dropped",
+          estimation_status = "not_estimable"
+        )
+        n_failed <- n_failed + 1
       } else {
-        # For factor levels, assume 0/1 range
+        # Get model statistics
+        model_stats <- glance(univariate_model)
+
+        # Calculate IRR
+        irr <- exp(coef_info$estimate)
+        irr_conf_low <- exp(coef_info$conf.low)
+        irr_conf_high <- exp(coef_info$conf.high)
+
+        univariate_results[[predictor]] <- tibble(
+          predictor = predictor,
+          coefficient = coef_info$estimate,
+          std_error = coef_info$std.error,
+          z_value = coef_info$statistic,
+          p_value = coef_info$p.value,
+          conf_low = coef_info$conf.low,
+          conf_high = coef_info$conf.high,
+          incidence_rate_ratio = irr,
+          irr_conf_low = irr_conf_low,
+          irr_conf_high = irr_conf_high,
+          deviance = model_stats$deviance,
+          aic = model_stats$AIC,
+          convergence = ifelse(isTRUE(univariate_model$converged), "converged", "not_converged"),
+          estimation_status = "estimated"
+        )
+        n_success <- n_success + 1
+      }
+
+    }, error = function(e) {
+      # Model fitting failed for this predictor
+      univariate_results[[predictor]] <<- tibble(
+        predictor = predictor,
+        coefficient = NA_real_,
+        std_error = NA_real_,
+        z_value = NA_real_,
+        p_value = NA_real_,
+        conf_low = NA_real_,
+        conf_high = NA_real_,
+        incidence_rate_ratio = NA_real_,
+        irr_conf_low = NA_real_,
+        irr_conf_high = NA_real_,
+        deviance = NA_real_,
+        aic = NA_real_,
+        convergence = "error",
+        estimation_status = "not_estimable"
+      )
+      n_failed <<- n_failed + 1
+    })
+  }
+
+  # Combine all univariate results
+  coef_summary <- bind_rows(univariate_results)
+
+  cat(sprintf("  ✅ Univariate regression complete: %d estimated, %d failed\n", n_success, n_failed))
+
+  # Calculate predictor range metadata (R120)
+  predictor_terms <- coef_summary$predictor
+  predictor_min_vals <- numeric(length(predictor_terms))
+  predictor_max_vals <- numeric(length(predictor_terms))
+
+  for (i in seq_along(predictor_terms)) {
+    term <- predictor_terms[i]
+    if (term %in% names(model_data_final)) {
+      vals <- model_data_final[[term]]
+      # Handle factor/character columns - convert to numeric for range calculation
+      if (is.factor(vals) || is.character(vals)) {
+        # For categorical variables, assume 0/1 range (dummy coding)
         predictor_min_vals[i] <- 0
         predictor_max_vals[i] <- 1
+      } else {
+        predictor_min_vals[i] <- min(vals, na.rm = TRUE)
+        predictor_max_vals[i] <- max(vals, na.rm = TRUE)
       }
-    }
-
-    predictor_range_vals <- predictor_max_vals - predictor_min_vals
-    predictor_is_binary_vals <- (predictor_min_vals == 0) & (predictor_max_vals == 1)
-    track_multiplier_vals <- ifelse(predictor_range_vals > 0, 100 / predictor_range_vals, 100)
-
-    # Calculate DM_R043 v2.0 classification fields
-    source_var_vals <- vapply(predictor_terms, infer_source_variable, character(1))
-    data_type_vals <- mapply(classify_data_type, predictor_is_binary_vals, source_var_vals)
-
-    # Create output table (schema-compliant with Type B metadata + DM_R043 v2.0)
-    output_table <- tibble(
-      # IDENTIFIERS
-      product_line_id = pl,
-      platform = "cbz",
-      predictor = predictor_terms,
-      predictor_type = vapply(predictor_terms, classify_predictor_type, character(1)),
-
-      # DM_R043 v2.0 CLASSIFICATION
-      data_type = as.character(data_type_vals),
-      source_variable = source_var_vals,
-      estimation_status = ifelse(is.na(coef_summary$estimate), "not_estimable", "estimated"),
-
-      # REGRESSION COEFFICIENTS (R118 compliance)
-      coefficient = coef_summary$estimate,
-      incidence_rate_ratio = coef_summary$incidence_rate_ratio,
-      std_error = coef_summary$std.error,
-      z_value = coef_summary$statistic,
-      p_value = coef_summary$p.value,
-
-      # CONFIDENCE INTERVALS (R118 compliance)
-      conf_low = coef_summary$conf.low,
-      conf_high = coef_summary$conf.high,
-      irr_conf_low = coef_summary$irr_conf_low,
-      irr_conf_high = coef_summary$irr_conf_high,
-
-      # PREDICTOR RANGE METADATA (R120)
-      predictor_min = predictor_min_vals,
-      predictor_max = predictor_max_vals,
-      predictor_range = predictor_range_vals,
-      predictor_is_binary = predictor_is_binary_vals,
-      track_multiplier = track_multiplier_vals,
-
-      # MODEL STATISTICS (MP102 compliance)
-      deviance = model_stats$deviance,
-      aic = model_stats$AIC,
-      sample_size = nrow(model_data_final),
-      convergence = ifelse(isTRUE(poisson_model$converged), "converged", "not_converged"),
-
-      # EXISTING METADATA (MP102 compliance)
-      analysis_date = Sys.Date(),
-      analysis_version = DRV_VERSION,
-
-      # TYPE B METADATA (MP135 v2.0 + UI_R024)
-      computed_at = computed_timestamp,
-      data_version = latest_data_date
-    )
-
-    # Count significant predictors (R118 requirement)
-    n_significant <- sum(output_table$p_value < 0.05, na.rm = TRUE)
-    n_highly_sig <- sum(output_table$p_value < 0.001, na.rm = TRUE)
-    n_estimated <- sum(output_table$estimation_status == "estimated")
-    n_not_estimable <- sum(output_table$estimation_status == "not_estimable")
-
-    cat(sprintf("  ✅ Regression complete: %d predictors\n", nrow(output_table)))
-    cat(sprintf("  ✅ Estimated: %d (%.1f%%) | Not estimable: %d (%.1f%%)\n",
-                n_estimated, 100 * n_estimated / nrow(output_table),
-                n_not_estimable, 100 * n_not_estimable / nrow(output_table)))
-    cat(sprintf("  ✅ Highly significant (p<0.001): %d (%.1f%%)\n",
-                n_highly_sig, 100 * n_highly_sig / nrow(output_table)))
-    cat(sprintf("  ✅ Significant (p<0.05): %d (%.1f%%)\n",
-                n_significant, 100 * n_significant / nrow(output_table)))
-    cat(sprintf("  ✅ Model AIC: %.2f\n", model_stats$AIC))
-    cat(sprintf("  ✅ Deviance: %.2f\n", model_stats$deviance))
-    cat(sprintf("  ✅ Converged: %s\n", ifelse(poisson_model$converged, "Yes", "No")))
-    cat(sprintf("  ✅ Computed at: %s\n", format(computed_timestamp, "%Y-%m-%d %H:%M:%S")))
-    cat(sprintf("  ✅ Data version: %s\n", latest_data_date))
-
-    # DM_R046: Enrich with display names
-    cat("  → Enriching with display names (DM_R046)...\n")
-    output_table <- fn_enrich_with_display_names(
-      output_table,
-      con = con_app,
-      metadata_table = "tbl_variable_display_names",
-      locale = "zh_TW"
-    )
-
-    # Validate enrichment
-    validation <- fn_validate_display_name_enrichment(output_table)
-    if (!validation$valid) {
-      warning("[DM_R046] Enrichment validation failed: ", validation$error)
     } else {
-      cat(sprintf("  ✅ Display names: %d categories (%s)\n",
-                  length(validation$summary$categories),
-                  paste(names(validation$summary$categories), collapse=", ")))
+      # For factor levels, assume 0/1 range
+      predictor_min_vals[i] <- 0
+      predictor_max_vals[i] <- 1
     }
+  }
 
-    # Write to processed_data (intermediate tables for debugging/analysis)
-    dbWriteTable(con_processed, output_table_name, output_table, overwrite = TRUE)
-    cat(sprintf("  ✅ Wrote to processed_data: %s\n", output_table_name))
+  predictor_range_vals <- predictor_max_vals - predictor_min_vals
+  predictor_is_binary_vals <- (predictor_min_vals == 0) & (predictor_max_vals == 1)
+  track_multiplier_vals <- ifelse(predictor_range_vals > 0, 100 / predictor_range_vals, 100)
 
-    # Store for merging
-    all_results[[pl]] <- output_table
+  # Calculate DM_R043 v2.0 classification fields
+  source_var_vals <- vapply(predictor_terms, infer_source_variable, character(1))
+  data_type_vals <- mapply(classify_data_type, predictor_is_binary_vals, source_var_vals)
 
-  }, error = function(e) {
-    cat(sprintf("  ❌ Regression failed: %s\n", conditionMessage(e)))
-    cat("  → Check for perfect multicollinearity or model specification issues\n")
-    dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n", output_table_name))
-  })
+  # Create output table (schema-compliant with Type B metadata + DM_R043 v2.0)
+  output_table <- tibble(
+    # IDENTIFIERS
+    product_line_id = pl,
+    platform = "cbz",
+    predictor = predictor_terms,
+    predictor_type = vapply(predictor_terms, classify_predictor_type, character(1)),
+
+    # DM_R043 v2.0 CLASSIFICATION
+    data_type = as.character(data_type_vals),
+    source_variable = source_var_vals,
+    estimation_status = coef_summary$estimation_status,
+
+    # REGRESSION COEFFICIENTS (R118 compliance)
+    coefficient = coef_summary$coefficient,
+    incidence_rate_ratio = coef_summary$incidence_rate_ratio,
+    std_error = coef_summary$std_error,
+    z_value = coef_summary$z_value,
+    p_value = coef_summary$p_value,
+
+    # CONFIDENCE INTERVALS (R118 compliance)
+    conf_low = coef_summary$conf_low,
+    conf_high = coef_summary$conf_high,
+    irr_conf_low = coef_summary$irr_conf_low,
+    irr_conf_high = coef_summary$irr_conf_high,
+
+    # PREDICTOR RANGE METADATA (R120)
+    predictor_min = predictor_min_vals,
+    predictor_max = predictor_max_vals,
+    predictor_range = predictor_range_vals,
+    predictor_is_binary = predictor_is_binary_vals,
+    track_multiplier = track_multiplier_vals,
+
+    # MODEL STATISTICS (per-predictor for univariate)
+    deviance = coef_summary$deviance,
+    aic = coef_summary$aic,
+    sample_size = nrow(model_data_final),
+    convergence = coef_summary$convergence,
+
+    # EXISTING METADATA (MP102 compliance)
+    analysis_date = Sys.Date(),
+    analysis_version = DRV_VERSION,
+
+    # TYPE B METADATA (MP135 v2.0 + UI_R024)
+    computed_at = computed_timestamp,
+    data_version = latest_data_date
+  )
+
+  # Count significant predictors (R118 requirement)
+  n_significant <- sum(output_table$p_value < 0.05, na.rm = TRUE)
+  n_highly_sig <- sum(output_table$p_value < 0.001, na.rm = TRUE)
+  n_estimated <- sum(output_table$estimation_status == "estimated")
+  n_not_estimable <- sum(output_table$estimation_status == "not_estimable")
+
+  cat(sprintf("  ✅ Total predictors: %d\n", nrow(output_table)))
+  cat(sprintf("  ✅ Estimated: %d (%.1f%%) | Not estimable: %d (%.1f%%)\n",
+              n_estimated, 100 * n_estimated / nrow(output_table),
+              n_not_estimable, 100 * n_not_estimable / nrow(output_table)))
+  cat(sprintf("  ✅ Highly significant (p<0.001): %d (%.1f%%)\n",
+              n_highly_sig, 100 * n_highly_sig / nrow(output_table)))
+  cat(sprintf("  ✅ Significant (p<0.05): %d (%.1f%%)\n",
+              n_significant, 100 * n_significant / nrow(output_table)))
+  cat(sprintf("  ✅ Computed at: %s\n", format(computed_timestamp, "%Y-%m-%d %H:%M:%S")))
+  cat(sprintf("  ✅ Data version: %s\n", latest_data_date))
+
+  # DM_R046: Enrich with display names
+  cat("  → Enriching with display names (DM_R046)...\n")
+  output_table <- fn_enrich_with_display_names(
+    output_table,
+    con = con_app,
+    metadata_table = "tbl_variable_display_names",
+    locale = "zh_TW"
+  )
+
+  # Validate enrichment
+  validation <- fn_validate_display_name_enrichment(output_table)
+  if (!validation$valid) {
+    warning("[DM_R046] Enrichment validation failed: ", validation$error)
+  } else {
+    cat(sprintf("  ✅ Display names: %d categories (%s)\n",
+                length(validation$summary$categories),
+                paste(names(validation$summary$categories), collapse=", ")))
+  }
+
+  # Write to processed_data (intermediate tables for debugging/analysis)
+  dbWriteTable(con_processed, output_table_name, output_table, overwrite = TRUE)
+  cat(sprintf("  ✅ Wrote to processed_data: %s\n", output_table_name))
+
+  # Store for merging
+  all_results[[pl]] <- output_table
 
   cat("\n")
 }
