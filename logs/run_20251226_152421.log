@@ -1,0 +1,8 @@
++ eby_D01_06 dispatched
+✖ eby_D01_06 errored
+✖ errored pipeline [99ms, 0 completed, 0 skipped]
+Error:
+! Error in tar_make():
+  object 'eby_ETL_sales_2TR' not found
+  See https://books.ropensci.org/targets/debugging.html
+Execution halted

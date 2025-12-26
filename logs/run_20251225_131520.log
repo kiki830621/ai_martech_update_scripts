@@ -1,0 +1,11 @@
++ D00_app_data_init dispatched
+[DRV:all] all/D00_app_data_init.R
+sh: -c: line 0: syntax error near unexpected token `('
+sh: -c: line 0: `'/usr/local/bin/R' --vanilla -e source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('./DRV/all/all/D00_app_data_init.R')'
+✖ D00_app_data_init errored
+✖ errored pipeline [98ms, 0 completed, 0 skipped]
+Error:
+! Error in tar_make():
+  DRV failed (all/D00_app_data_init.R)
+  See https://books.ropensci.org/targets/debugging.html
+Execution halted

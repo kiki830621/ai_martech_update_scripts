@@ -1,0 +1,407 @@
+> source("scripts/global_scripts/22_initializations/sc_Rprofile.R"); .InitEnv$get_mode <- function(path) "APP_MODE"; autoinit(); source("scripts/global_scripts/10_rshinyapp_components/unions/union_production_test.R")
+>> OPERATION_MODE = APP_MODE
+Initialization already completed – skipping.
+
+Attaching package: ‘stringr’
+
+The following object is masked _by_ ‘.GlobalEnv’:
+
+    str_count
+
+✅ Loaded package 'stringr' successfully.
+✅ Loaded package 'glue' successfully.
+✅ Loaded package 'tools' successfully.
+✅ Loaded package 'yaml' successfully.
+✅ Loaded package 'future' successfully.
+✅ Loaded package 'promises' successfully.
+✅ Loaded package 'later' successfully.
+✅ Loaded package 'dotenv' successfully.
+✅ Loaded package 'DBI' successfully.
+✅ Loaded package 'duckdb' successfully.
+
+Attaching package: ‘arrow’
+
+The following object is masked from ‘package:utils’:
+
+    timestamp
+
+✅ Loaded package 'arrow' successfully.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+✅ Loaded package 'dplyr' successfully.
+✅ Loaded package 'tidyr' successfully.
+✅ Loaded package 'readr' successfully.
+✅ Loaded package 'readxl' successfully.
+
+Attaching package: ‘scales’
+
+The following object is masked from ‘package:readr’:
+
+    col_factor
+
+✅ Loaded package 'scales' successfully.
+✅ Loaded package 'fs' successfully.
+
+Attaching package: ‘janitor’
+
+The following objects are masked from ‘package:stats’:
+
+    chisq.test, fisher.test
+
+✅ Loaded package 'janitor' successfully.
+✅ Loaded package 'shiny' successfully.
+
+Attaching package: ‘bs4Dash’
+
+The following objects are masked from ‘package:shiny’:
+
+    actionButton, column, insertTab, navbarMenu, tabsetPanel
+
+The following object is masked from ‘package:graphics’:
+
+    box
+
+✅ Loaded package 'bs4Dash' successfully.
+
+Attaching package: ‘bslib’
+
+The following objects are masked from ‘package:bs4Dash’:
+
+    accordion, popover, tooltip
+
+The following object is masked from ‘package:utils’:
+
+    page
+
+✅ Loaded package 'bslib' successfully.
+
+Attaching package: ‘shinyjs’
+
+The following object is masked from ‘package:shiny’:
+
+    runExample
+
+The following object is masked from ‘package:duckdb’:
+
+    show
+
+The following object is masked from ‘package:DBI’:
+
+    show
+
+The following object is masked from ‘package:future’:
+
+    reset
+
+The following objects are masked from ‘package:methods’:
+
+    removeClass, show
+
+✅ Loaded package 'shinyjs' successfully.
+
+Attaching package: ‘shinyWidgets’
+
+The following object is masked from ‘package:shinyjs’:
+
+    alert
+
+The following object is masked from ‘package:bs4Dash’:
+
+    progressBar
+
+✅ Loaded package 'shinyWidgets' successfully.
+✅ Loaded package 'htmltools' successfully.
+✅ Loaded package 'fontawesome' successfully.
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+✅ Loaded package 'DT' successfully.
+Loading required package: ggplot2
+
+Attaching package: ‘ggplot2’
+
+The following object is masked _by_ ‘.GlobalEnv’:
+
+    %+%
+
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:arrow’:
+
+    schema
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+✅ Loaded package 'plotly' successfully.
+Package initialization complete for APP_MODE:
+- 27 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+
+Attaching package: ‘purrr’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    %||%, is_empty
+
+The following object is masked from ‘package:scales’:
+
+    discard
+
+
+Attaching package: ‘jsonlite’
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+The following object is masked from ‘package:shiny’:
+
+    validate
+
+
+Attaching package: ‘httr’
+
+The following object is masked from ‘package:plotly’:
+
+    config
+
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:arrow’:
+
+    duration
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+
+Attaching package: ‘data.table’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    %between%, %notin%
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:httr’:
+
+    progress
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+The following object is masked from ‘package:future’:
+
+    cluster
+
+
+Attaching package: ‘forcats’
+
+The following object is masked _by_ ‘.GlobalEnv’:
+
+    fct_na_value_to_level
+
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ data.table::between()   masks dplyr::between()
+✖ scales::col_factor()    masks readr::col_factor()
+✖ httr::config()          masks plotly::config()
+✖ purrr::discard()        masks scales::discard()
+✖ lubridate::duration()   masks arrow::duration()
+✖ plotly::filter()        masks dplyr::filter(), stats::filter()
+✖ data.table::first()     masks dplyr::first()
+✖ jsonlite::flatten()     masks purrr::flatten()
+✖ data.table::hour()      masks lubridate::hour()
+✖ data.table::isoweek()   masks lubridate::isoweek()
+✖ dplyr::lag()            masks stats::lag()
+✖ data.table::last()      masks dplyr::last()
+✖ caret::lift()           masks purrr::lift()
+✖ data.table::mday()      masks lubridate::mday()
+✖ data.table::minute()    masks lubridate::minute()
+✖ data.table::month()     masks lubridate::month()
+✖ caret::progress()       masks httr::progress()
+✖ data.table::quarter()   masks lubridate::quarter()
+✖ data.table::second()    masks lubridate::second()
+✖ lubridate::show()       masks shinyjs::show(), duckdb::show(), DBI::show(), methods::show()
+✖ data.table::transpose() masks purrr::transpose()
+✖ jsonlite::validate()    masks shiny::validate()
+✖ data.table::wday()      masks lubridate::wday()
+✖ data.table::week()      masks lubridate::week()
+✖ data.table::yday()      masks lubridate::yday()
+✖ data.table::year()      masks lubridate::year()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, transformed_data, processed_data, cleansed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+There were 29 warnings (use warnings() to see them)
+Working directory set to: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA
+>> OPERATION_MODE = APP_MODE
+Initialization already completed – skipping.
+✅ Package 'stringr' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'glue' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'tools' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'yaml' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'future' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'promises' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'later' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'dotenv' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'DBI' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'duckdb' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'arrow' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'dplyr' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'tidyr' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'readr' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'readxl' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'scales' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'fs' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'janitor' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'shiny' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'bs4Dash' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'bslib' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'shinyjs' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'shinyWidgets' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'htmltools' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'fontawesome' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'DT' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+✅ Package 'plotly' already attached.
+Warning in library2(pkg, force_update = force_update) :
+  ⛔ Invalid package name: 'FALSE'. Skipping.
+Package initialization complete for APP_MODE:
+- 27 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+Warning in readLines(file, warn = readLines.warn) :
+  incomplete final line found on '/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/global_scripts/global_data/parameters/scd_type2/list_brandname_aliases.yaml'
+Warning in readLines(file, warn = readLines.warn) :
+  incomplete final line found on '/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/global_scripts/global_data/parameters/scd_type2/variable_chinese_labels.yaml'
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, transformed_data, processed_data, cleansed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+Resource path 'css' added for: scripts/global_scripts/19_CSS
+> 

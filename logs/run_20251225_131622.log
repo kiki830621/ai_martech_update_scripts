@@ -1,0 +1,34 @@
++ D00_app_data_init dispatched
+[DRV:all] all/D00_app_data_init.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/update_scripts/DRV/all/D00_app_data_init.R')
+Error in file(filename, "r", encoding = encoding) : 
+  cannot open the connection
+Calls: source -> withVisible -> eval -> eval -> source -> file
+In addition: Warning message:
+In file(filename, "r", encoding = encoding) :
+  cannot open file 'scripts/global_scripts/22_initializations/sc_Rprofile.R': No such file or directory
+Execution halted
+✖ D00_app_data_init errored
+✖ errored pipeline [256ms, 0 completed, 0 skipped]
+Error:
+! Error in tar_make():
+  DRV failed (all/D00_app_data_init.R)
+  See https://books.ropensci.org/targets/debugging.html
+Execution halted

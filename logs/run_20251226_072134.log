@@ -1,0 +1,362 @@
++ cbz_D01_07 dispatched
+[DRV:cbz] cbz_D01_07.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> setwd('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA'); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/update_scripts/DRV/cbz/cbz_D01_07.R')
+>> OPERATION_MODE = APP_MODE
+✅ Loaded package 'stringr' successfully.
+✅ Loaded package 'glue' successfully.
+✅ Loaded package 'tools' successfully.
+✅ Loaded package 'yaml' successfully.
+✅ Loaded package 'future' successfully.
+✅ Loaded package 'promises' successfully.
+✅ Loaded package 'later' successfully.
+✅ Loaded package 'dotenv' successfully.
+✅ Loaded package 'DBI' successfully.
+✅ Loaded package 'duckdb' successfully.
+
+Attaching package: ‘arrow’
+
+The following object is masked from ‘package:utils’:
+
+    timestamp
+
+✅ Loaded package 'arrow' successfully.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+✅ Loaded package 'dplyr' successfully.
+✅ Loaded package 'tidyr' successfully.
+✅ Loaded package 'readr' successfully.
+✅ Loaded package 'readxl' successfully.
+
+Attaching package: ‘scales’
+
+The following object is masked from ‘package:readr’:
+
+    col_factor
+
+✅ Loaded package 'scales' successfully.
+✅ Loaded package 'fs' successfully.
+
+Attaching package: ‘janitor’
+
+The following objects are masked from ‘package:stats’:
+
+    chisq.test, fisher.test
+
+✅ Loaded package 'janitor' successfully.
+✅ Loaded package 'shiny' successfully.
+
+Attaching package: ‘bs4Dash’
+
+The following objects are masked from ‘package:shiny’:
+
+    actionButton, column, insertTab, navbarMenu, tabsetPanel
+
+The following object is masked from ‘package:graphics’:
+
+    box
+
+✅ Loaded package 'bs4Dash' successfully.
+
+Attaching package: ‘bslib’
+
+The following objects are masked from ‘package:bs4Dash’:
+
+    accordion, popover, tooltip
+
+The following object is masked from ‘package:utils’:
+
+    page
+
+✅ Loaded package 'bslib' successfully.
+
+Attaching package: ‘shinyjs’
+
+The following object is masked from ‘package:shiny’:
+
+    runExample
+
+The following object is masked from ‘package:duckdb’:
+
+    show
+
+The following object is masked from ‘package:DBI’:
+
+    show
+
+The following object is masked from ‘package:future’:
+
+    reset
+
+The following objects are masked from ‘package:methods’:
+
+    removeClass, show
+
+✅ Loaded package 'shinyjs' successfully.
+
+Attaching package: ‘shinyWidgets’
+
+The following object is masked from ‘package:shinyjs’:
+
+    alert
+
+The following object is masked from ‘package:bs4Dash’:
+
+    progressBar
+
+✅ Loaded package 'shinyWidgets' successfully.
+✅ Loaded package 'htmltools' successfully.
+✅ Loaded package 'fontawesome' successfully.
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+✅ Loaded package 'DT' successfully.
+Loading required package: ggplot2
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:arrow’:
+
+    schema
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+✅ Loaded package 'plotly' successfully.
+Package initialization complete for APP_MODE:
+- 27 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+
+Attaching package: ‘purrr’
+
+The following object is masked from ‘package:scales’:
+
+    discard
+
+
+Attaching package: ‘jsonlite’
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+The following object is masked from ‘package:shiny’:
+
+    validate
+
+
+Attaching package: ‘httr’
+
+The following object is masked from ‘package:plotly’:
+
+    config
+
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:arrow’:
+
+    duration
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+
+Attaching package: ‘data.table’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    %between%, %notin%
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:httr’:
+
+    progress
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+The following object is masked from ‘package:future’:
+
+    cluster
+
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ data.table::between()   masks dplyr::between()
+✖ scales::col_factor()    masks readr::col_factor()
+✖ httr::config()          masks plotly::config()
+✖ purrr::discard()        masks scales::discard()
+✖ lubridate::duration()   masks arrow::duration()
+✖ plotly::filter()        masks dplyr::filter(), stats::filter()
+✖ data.table::first()     masks dplyr::first()
+✖ jsonlite::flatten()     masks purrr::flatten()
+✖ data.table::hour()      masks lubridate::hour()
+✖ data.table::isoweek()   masks lubridate::isoweek()
+✖ dplyr::lag()            masks stats::lag()
+✖ data.table::last()      masks dplyr::last()
+✖ caret::lift()           masks purrr::lift()
+✖ data.table::mday()      masks lubridate::mday()
+✖ data.table::minute()    masks lubridate::minute()
+✖ data.table::month()     masks lubridate::month()
+✖ caret::progress()       masks httr::progress()
+✖ data.table::quarter()   masks lubridate::quarter()
+✖ data.table::second()    masks lubridate::second()
+✖ lubridate::show()       masks shinyjs::show(), duckdb::show(), DBI::show(), methods::show()
+✖ data.table::transpose() masks purrr::transpose()
+✖ jsonlite::validate()    masks shiny::validate()
+✖ data.table::wday()      masks lubridate::wday()
+✖ data.table::week()      masks lubridate::week()
+✖ data.table::yday()      masks lubridate::yday()
+✖ data.table::year()      masks lubridate::year()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case loaded successfully
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, transformed_data, processed_data, cleansed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+There were 29 warnings (use warnings() to see them)
+════════════════════════════════════════════════════════════════════
+CBZ Sales DRV - Comprehensive Analysis
+════════════════════════════════════════════════════════════════════
+Process Date: 2025-12-26 07:21:37.629061
+Input Database: data/local_data/transformed_data.duckdb
+Output Database: data/local_data/processed_data.duckdb
+
+[Phase 1/6] Database validation...
+  ✓ Found df_cbz_sales___transformed
+
+[Phase 2/6] Product Features Aggregation (R116)...
+  Loaded 1222 sales transactions
+  ✓ Aggregated 670 products
+  ✓ R116: Calculated actual ranges for price, quantity
+  ✓ R116: Calculated track_multipliers for UI scaling
+  ✓ Wrote to df_cbz_product_features
+
+[Phase 3/6] Time Series Creation (R117)...
+  Found 133 days with sales data
+  ✓ Completed time series: 133 days total
+  ✓ R117: REAL data: 100.0% (133 days)
+  ✓ R117: FILLED data: 0.0% (0 days)
+  ✓ Wrote to df_cbz_time_series
+
+[Phase 4/6] Poisson Regression Analysis (R118)...
+  Prepared 670 products for regression
+  ✓ Regression complete: 2 predictors
+  ✓ R118: Significant predictors (p<0.05): 2
+  ✓ R118: Significant predictors:
+    - avg_price: coef=0.0001 * (p=0.0415)
+    - sales_days: coef=0.1402 *** (p=0.0000)
+  ✓ R116: Calculated actual ranges for all predictors
+  ✓ R116: Calculated track_multipliers from ranges
+  ✓ Wrote to df_cbz_poisson_analysis
+
+[Phase 5/6] Cross-DRV Validation...
+  ✓ df_cbz_product_features: 670 rows
+  ✓ df_cbz_time_series: 133 rows
+  ✓ df_cbz_poisson_analysis: 2 rows
+  ✓ R116: 670 products with complete range metadata
+  ✓ R117: 133 REAL days, 0 FILLED days (100.0% real)
+  ✓ R118: 2 predictors with complete significance metadata
+
+[Phase 6/6] Final Summary...
+
+════════════════════════════════════════════════════════════════════
+✅ CBZ Sales DRV - Analysis Complete
+════════════════════════════════════════════════════════════════════
+Input Source:            df_cbz_sales___transformed
+Input Transactions:      1222
+Date Range:              2025-08-15 to 2025-12-25
+
+DRV Outputs:
+  1. df_cbz_product_features: 670 products
+  2. df_cbz_time_series: 133 days
+  3. df_cbz_poisson_analysis: 2 predictors
+
+Principle Compliance:
+  ✓ R116: Actual variable ranges calculated (not guessed)
+  ✓ R117: Time series transparency markers present
+  ✓ R118: Statistical significance documented
+  ✓ MP029: No fake data (all from real CBZ sales)
+  ✓ MP102: Complete metadata for all outputs
+
+Core Innovation Validated:
+  ✓ Range metadata calculated from actual data
+  ✓ Track multipliers computed for UI scaling
+  ✓ Zero regex-based guessing required
+  ✓ 100% accuracy (vs 0-94% error with guessing)
+════════════════════════════════════════════════════════════════════
+
+
+✅ Script completed successfully
+✔ cbz_D01_07 completed [2.6s, 138 B]
+✔ ended pipeline [2.9s, 1 completed, 8 skipped]

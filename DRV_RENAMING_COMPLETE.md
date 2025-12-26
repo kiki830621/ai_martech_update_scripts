@@ -10,7 +10,7 @@ Successfully renamed DRV files according to new DM_R042 rule to match internal P
 ### New Rules Created:
 - **DM_R042**: DRV Sequential Numbering Rule (English & Chinese)
   - Format: `{platform}_D{group}_{seq}.R`
-  - Location: `00_principles/natural/en/part1_principles/CH02_data_management/rules/`
+  - Location: `00_principles/docs/en/part1_principles/CH02_data_management/rules/`
 
 ### Updated Principles:
 - **MP064** (v2.0 → v2.1): Added DRV numbering requirements

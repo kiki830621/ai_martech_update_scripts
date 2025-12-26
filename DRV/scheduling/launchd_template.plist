@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+MAMBA DRV Weekly Schedule Template
+==================================
+This template is used by `make schedule` to set up automatic weekly execution.
+Placeholders __DRV_PATH__ and __RSCRIPT_PATH__ are replaced automatically.
+
+Manual setup (if needed):
+1. Copy this file to ~/Library/LaunchAgents/com.mamba.drv-weekly.plist
+2. Replace __DRV_PATH__ with full path to DRV directory
+3. Replace __RSCRIPT_PATH__ with output of `which Rscript`
+4. Run: launchctl load ~/Library/LaunchAgents/com.mamba.drv-weekly.plist
+
+Schedule: Every Sunday at 2:00 AM (Weekday=0, Hour=2)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.mamba.drv-weekly</string>
+
+    <key>WorkingDirectory</key>
+    <string>__DRV_PATH__</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__RSCRIPT_PATH__</string>
+        <string>-e</string>
+        <string>targets::tar_make()</string>
+    </array>
+
+    <!-- Schedule: Sunday at 2:00 AM -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>2</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- Logging -->
+    <key>StandardOutPath</key>
+    <string>/tmp/mamba-drv.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/mamba-drv-error.log</string>
+
+    <!-- Environment -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
