@@ -100,6 +100,7 @@ empty_output_table <- tibble(
   predictor_type = character(),
   data_type = character(),           # NEW: DM_R043 v2.0
   source_variable = character(),     # NEW: DM_R043 v2.0
+  estimation_status = character(),   # NEW: estimated/not_estimable/dropped
   coefficient = numeric(),
   incidence_rate_ratio = numeric(),
   std_error = numeric(),
@@ -489,6 +490,7 @@ for (pl in PRODUCT_LINES) {
       # DM_R043 v2.0 CLASSIFICATION
       data_type = as.character(data_type_vals),
       source_variable = source_var_vals,
+      estimation_status = ifelse(is.na(coef_summary$estimate), "not_estimable", "estimated"),
 
       # REGRESSION COEFFICIENTS (R118 compliance)
       coefficient = coef_summary$estimate,
@@ -528,8 +530,13 @@ for (pl in PRODUCT_LINES) {
     # Count significant predictors (R118 requirement)
     n_significant <- sum(output_table$p_value < 0.05, na.rm = TRUE)
     n_highly_sig <- sum(output_table$p_value < 0.001, na.rm = TRUE)
+    n_estimated <- sum(output_table$estimation_status == "estimated")
+    n_not_estimable <- sum(output_table$estimation_status == "not_estimable")
 
     cat(sprintf("  ✅ Regression complete: %d predictors\n", nrow(output_table)))
+    cat(sprintf("  ✅ Estimated: %d (%.1f%%) | Not estimable: %d (%.1f%%)\n",
+                n_estimated, 100 * n_estimated / nrow(output_table),
+                n_not_estimable, 100 * n_not_estimable / nrow(output_table)))
     cat(sprintf("  ✅ Highly significant (p<0.001): %d (%.1f%%)\n",
                 n_highly_sig, 100 * n_highly_sig / nrow(output_table)))
     cat(sprintf("  ✅ Significant (p<0.05): %d (%.1f%%)\n",
