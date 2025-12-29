@@ -51,6 +51,8 @@ message(sprintf("INITIALIZE: ✅ Libraries loaded successfully (%.2fs)", lib_ela
 # Source required functions
 message("INITIALIZE: 📥 Loading database utilities...")
 source("scripts/global_scripts/02_db_utils/duckdb/fn_dbConnectDuckdb.R")
+source("scripts/global_scripts/04_utils/fn_get_or_create_customer_id.R")
+message("INITIALIZE: ✅ Loaded unified customer ID lookup function")
 
 # Establish database connections
 message("INITIALIZE: 🔗 Connecting to databases...")
@@ -136,6 +138,41 @@ tryCatch({
       dt_sales[, platform_id := "cbz"]
       message("    ✅ Created: platform_id = 'cbz'")
     }
+  }
+
+  # Unified customer_id assignment for cross-platform matching (DM_P003, DM_P006)
+  # If customer_email is available, use it for unified ID lookup
+  # Otherwise, keep existing customer_id (CBZ API provides stable numeric IDs)
+  if ("customer_email" %in% names(dt_sales)) {
+    message("MAIN: 🔗 Assigning unified customer IDs from email lookup...")
+    lookup_start <- Sys.time()
+
+    # Get unique emails and their IDs
+    unique_emails <- unique(dt_sales$customer_email)
+    customer_ids <- get_or_create_customer_ids(
+      emails = unique_emails,
+      platform = "cbz",
+      con = transformed_data
+    )
+
+    # Create mapping and apply to data
+    email_to_id <- data.table(
+      customer_email = unique_emails,
+      unified_customer_id = customer_ids
+    )
+    dt_sales <- merge(dt_sales, email_to_id, by = "customer_email", all.x = TRUE)
+
+    # Replace customer_id with unified ID
+    dt_sales[, customer_id := unified_customer_id]
+    dt_sales[, unified_customer_id := NULL]
+
+    lookup_elapsed <- as.numeric(Sys.time() - lookup_start, units = "secs")
+    message(sprintf("    ✅ Assigned %d unified customer IDs (%.2fs)",
+                    sum(!is.na(customer_ids)), lookup_elapsed))
+  } else if ("customer_id" %in% names(dt_sales)) {
+    message("    ℹ️ No customer_email available, keeping existing customer_id")
+  } else {
+    stop("No customer_email or customer_id column found - cannot proceed")
   }
 
   # Verify required columns for D01

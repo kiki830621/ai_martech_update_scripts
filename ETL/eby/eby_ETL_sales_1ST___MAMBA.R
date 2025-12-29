@@ -212,11 +212,13 @@ stage_mamba_eby_sales <- function(raw_conn) {
   
   # 6. Create additional derived fields
   message("MAIN: Creating additional derived fields...")
-  
-  # Customer ID generation (anonymized) - use buyer_ebay if available
-  dt_staging[, customer_id := as.character(as.integer(factor(
+
+  # Customer email for unified ID assignment in 2TS layer
+  # Following plan: customer_id will be assigned via unified lookup in 2TS
+  # This preserves the email for cross-platform customer matching
+  dt_staging[, customer_email := tolower(trimws(
     ifelse(!is.na(buyer_ebay), buyer_ebay, seller_ebay_email)
-  )))]
+  ))]
   
   # Product SKU normalization - use erp_product_number
   dt_staging[, product_sku := toupper(trimws(erp_product_number))]
@@ -240,7 +242,8 @@ stage_mamba_eby_sales <- function(raw_conn) {
   message("MAIN: Validating staged data...")
   
   # Check for required fields (using renamed columns)
-  required_fields <- c("order_number", "customer_id", "order_date", 
+  # Note: customer_id will be assigned in 2TS via unified lookup
+  required_fields <- c("order_number", "customer_email", "order_date",
                        "product_sku", "quantity", "unit_price")
   
   missing_fields <- setdiff(required_fields, names(dt_staging))
@@ -290,7 +293,7 @@ save_staged_data <- function(df_staged) {
   DBI::dbExecute(staged_conn, 
     "CREATE INDEX IF NOT EXISTS idx_order_date ON df_eby_sales___staged(order_date)")
   DBI::dbExecute(staged_conn,
-    "CREATE INDEX IF NOT EXISTS idx_customer_id ON df_eby_sales___staged(customer_id)")
+    "CREATE INDEX IF NOT EXISTS idx_customer_email ON df_eby_sales___staged(customer_email)")
   DBI::dbExecute(staged_conn,
     "CREATE INDEX IF NOT EXISTS idx_product_sku ON df_eby_sales___staged(product_sku)")
   
@@ -358,7 +361,7 @@ tryCatch({
                              "SELECT column_name FROM information_schema.columns
                               WHERE table_name = 'df_eby_sales___staged'")
     
-    derived_fields <- c("customer_id", "product_sku", "order_year", "order_month",
+    derived_fields <- c("customer_email", "product_sku", "order_year", "order_month",
                        "gross_revenue", "net_revenue", "mamba_net_profit")
     
     missing_fields <- setdiff(derived_fields, schema$column_name)
@@ -374,19 +377,19 @@ tryCatch({
   # Test 3: Verify data quality
   if (test_passed) {
     quality_check <- DBI::dbGetQuery(test_conn,
-      "SELECT 
+      "SELECT
         COUNT(*) as total_records,
         COUNT(DISTINCT order_number) as unique_orders,
-        COUNT(DISTINCT customer_id) as unique_customers,
+        COUNT(DISTINCT customer_email) as unique_customers,
         COUNT(CASE WHEN mamba_fulfillment_type = 'UNKNOWN' THEN 1 END) as unknown_fulfillment,
         MIN(order_date) as earliest_order,
         MAX(order_date) as latest_order
       FROM df_eby_sales___staged")
-    
+
     message("TEST: Data Quality Metrics:")
     message(sprintf("  - Total records: %d", quality_check$total_records))
     message(sprintf("  - Unique orders: %d", quality_check$unique_orders))
-    message(sprintf("  - Unique customers: %d", quality_check$unique_customers))
+    message(sprintf("  - Unique customers (emails): %d", quality_check$unique_customers))
     message(sprintf("  - Unknown fulfillment: %d", quality_check$unknown_fulfillment))
     message(sprintf("  - Date range: %s to %s", 
                    quality_check$earliest_order, quality_check$latest_order))

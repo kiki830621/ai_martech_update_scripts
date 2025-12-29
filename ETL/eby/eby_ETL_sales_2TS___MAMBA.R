@@ -51,6 +51,8 @@ message(sprintf("INITIALIZE: ✅ Libraries loaded successfully (%.2fs)", lib_ela
 # Source required functions
 message("INITIALIZE: 📥 Loading database utilities...")
 source("scripts/global_scripts/02_db_utils/duckdb/fn_dbConnectDuckdb.R")
+source("scripts/global_scripts/04_utils/fn_get_or_create_customer_id.R")
+message("INITIALIZE: ✅ Loaded unified customer ID lookup function")
 
 # Establish database connections
 message("INITIALIZE: 🔗 Connecting to databases...")
@@ -77,7 +79,8 @@ tryCatch({
   message("MAIN: 📊 Phase progress: Step 1/3 - Loading transformed data...")
   load_start <- Sys.time()
 
-  input_table <- "df_eby_sales___transformed"
+  # Following DM_R037: Company-specific naming with ___MAMBA suffix
+  input_table <- "df_eby_sales___transformed___MAMBA"
   output_table <- "df_eby_sales___standardized"
 
   # Check if source table exists
@@ -154,6 +157,46 @@ tryCatch({
       dt_sales[, platform_id := "eby"]
       message("    ✅ Created: platform_id = 'eby'")
     }
+  }
+
+  # Standardize customer email column for eBay
+  # eBay 2TR outputs seller_ebay_email or buyer_ebay, need to map to customer_email
+  if ("customer_email" %in% names(dt_sales)) {
+    message("    ℹ️ customer_email column already exists")
+  } else if ("seller_ebay_email" %in% names(dt_sales)) {
+    dt_sales[, customer_email := seller_ebay_email]
+    message("    ✅ Created: customer_email from seller_ebay_email")
+  } else if ("buyer_ebay" %in% names(dt_sales)) {
+    dt_sales[, customer_email := buyer_ebay]
+    message("    ✅ Created: customer_email from buyer_ebay")
+  }
+
+  # Assign unified customer_id from customer_email using centralized lookup
+  # This enables cross-platform customer matching (DM_P003, DM_P006)
+  if ("customer_email" %in% names(dt_sales)) {
+    message("MAIN: 🔗 Assigning unified customer IDs from email lookup...")
+    lookup_start <- Sys.time()
+
+    # Get unique emails and their IDs
+    unique_emails <- unique(dt_sales$customer_email)
+    customer_ids <- get_or_create_customer_ids(
+      emails = unique_emails,
+      platform = "eby",
+      con = transformed_data
+    )
+
+    # Create mapping and apply to data
+    email_to_id <- data.table(
+      customer_email = unique_emails,
+      customer_id = customer_ids
+    )
+    dt_sales <- merge(dt_sales, email_to_id, by = "customer_email", all.x = TRUE)
+
+    lookup_elapsed <- as.numeric(Sys.time() - lookup_start, units = "secs")
+    message(sprintf("    ✅ Assigned %d unique customer IDs (%.2fs)",
+                    sum(!is.na(customer_ids)), lookup_elapsed))
+  } else if (!"customer_id" %in% names(dt_sales)) {
+    stop("No customer_email, seller_ebay_email, buyer_ebay, or customer_id column found - cannot create unified IDs")
   }
 
   # Verify required columns for D01

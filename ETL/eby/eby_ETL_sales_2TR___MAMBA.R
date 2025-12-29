@@ -264,19 +264,23 @@ tryCatch({
   message("MAIN: Transforming to final sales schema...")
   
   # Calculate derived fields
+  # Note: Using order_id and line_item_number from staged tables
   dt_sales[, `:=`(
     # Create unique transaction ID
-    transaction_id = paste0(order_number, "_", serial_number),
-    
+    transaction_id = paste0(order_id, "_", line_item_number),
+
     # Calculate line-level totals
     line_total = quantity * unit_price,
-    
+
     # Add transformation metadata
     transformation_timestamp = Sys.time(),
     transformation_version = script_version,
     etl_pipeline = "DERIVED_SALES"
   )]
-  
+
+  # Add convenience alias for legacy compatibility
+  dt_sales[, order_number := order_id]
+
   # Add time dimensions if order_date exists
   if ("order_date" %in% names(dt_sales)) {
     dt_sales[, `:=`(
@@ -286,10 +290,10 @@ tryCatch({
       order_weekday = weekdays(as.Date(order_date))
     )]
   }
-  
+
   # Select and order final columns
   # Keep all columns but ensure key columns are first
-  setcolorder(dt_sales, c("transaction_id", "order_number", "serial_number"))
+  setcolorder(dt_sales, c("transaction_id", "order_id", "line_item_number"))
   
   # ------------------------------------------------------------------------------
   # 2.4: Store Transformed Data
