@@ -133,7 +133,7 @@ message("INITIALIZE: 🎯 Purpose: Single API call, multiple data type outputs")
 mutate(
   import_source = "SHARED_API",  # 標記來源為共享 API
   import_timestamp = Sys.time(),
-  platform_code = "cbz"
+  platform_id = "cbz"
 )
 
 # 分發至多個原始數據表
@@ -184,14 +184,14 @@ customers_transformed:
     customer_id: {type: "VARCHAR", nullable: false}
     customer_email: {type: "VARCHAR", nullable: true}
     registration_date: {type: "DATE", nullable: true}
-    platform_code: {type: "VARCHAR", nullable: false}
+    platform_id: {type: "VARCHAR", nullable: false}
 ```
 
 **實施符合度**: ✅ 100%
 - ✅ customer_id 作為主鍵，唯一性驗證
 - ✅ customer_email 標準化為小寫
 - ✅ registration_date 轉換為 DATE 類型
-- ✅ platform_code 固定為 "cbz"
+- ✅ platform_id 固定為 "cbz"
 - ✅ transformation_timestamp 自動添加
 
 #### Orders Transformed Schema

@@ -1,3 +1,11 @@
+
+#' @title amz_D03_07
+#' @description Derivation task
+#' @business_rules See script comments for business logic.
+#' @platform amz
+#' @author MAMBA Development Team
+#' @date 2025-12-30
+
 # amz_D03_04.R - Query Comment Property Ratings by ASIN for Amazon
 # D03_04: Creates property ratings by ASIN for positioning analysis
 #

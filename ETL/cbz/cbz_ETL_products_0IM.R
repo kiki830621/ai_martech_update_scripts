@@ -3,7 +3,7 @@
 # Following MP104: ETL Data Flow Separation Principle
 # Following DM_R028: ETL Data Type Separation Rule 
 # Following MP064: ETL-Derivation Separation Principle
-# Following MP092: Platform Code Standard (cbz = Cyberbiz)
+# Following MP092: Platform ID Standard (cbz = Cyberbiz)
 # Following DEV_R032: Five-Part Script Structure Standard
 # Following MP103: Proper autodeinit() usage as absolute last statement
 # Following MP099: Real-Time Progress Reporting
@@ -168,7 +168,7 @@ tryCatch({
                   product_id = as.character(id),
                   import_source = "API",
                   import_timestamp = Sys.time(),
-                  platform_code = "cbz"
+                  platform_id = "cbz"
                 )
               
               # Handle any list columns per DM_R026: JSON Serialization Strategy
@@ -368,7 +368,7 @@ tryCatch({
           list(name = "updated_date", type = "VARCHAR"),
           list(name = "import_source", type = "VARCHAR", not_null = TRUE),
           list(name = "import_timestamp", type = "TIMESTAMP"),
-          list(name = "platform_code", type = "VARCHAR"),
+          list(name = "platform_id", type = "VARCHAR"),
           list(name = "path", type = "VARCHAR")
         )
       )
@@ -402,7 +402,7 @@ tryCatch({
             mutate(
               import_source = "FILE",
               import_timestamp = Sys.time(),
-              platform_code = "cbz"
+              platform_id = "cbz"
             )
 
           # Write to database
@@ -462,7 +462,7 @@ if (script_success) {
                         length(columns), paste(columns, collapse = ", ")))
 
         # Validate product-specific columns
-        required_product_columns <- c("product_id", "import_source", "import_timestamp", "platform_code")
+        required_product_columns <- c("product_id", "import_source", "import_timestamp", "platform_id")
         missing_columns <- setdiff(required_product_columns, columns)
         if (length(missing_columns) > 0) {
           message(sprintf("TEST: ⚠️ Missing required product columns: %s", 

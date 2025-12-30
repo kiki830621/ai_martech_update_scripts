@@ -109,7 +109,7 @@ tryCatch({
   dt_sales <- as.data.table(sales_transformed)
 
   # Column mapping for D01 compatibility
-  # D01_03 expects: customer_id, payment_time, lineproduct_price, platform_code, platform_id
+  # D01_03 expects: customer_id, payment_time, lineproduct_price, platform_id
 
   # Map order_date → payment_time
   if ("order_date" %in% names(dt_sales)) {
@@ -142,21 +142,10 @@ tryCatch({
     stop("No price column found (line_total, total_price, or item_price)")
   }
 
-  # Ensure platform_code exists
-  if (!"platform_code" %in% names(dt_sales)) {
-    dt_sales[, platform_code := "eby"]
-    message("    ✅ Created: platform_code = 'eby'")
-  }
-
-  # Ensure platform_id exists (D01 expects it)
+  # Ensure platform_id exists
   if (!"platform_id" %in% names(dt_sales)) {
-    if ("platform_code" %in% names(dt_sales)) {
-      dt_sales[, platform_id := platform_code]
-      message("    ✅ Created: platform_id from platform_code")
-    } else {
-      dt_sales[, platform_id := "eby"]
-      message("    ✅ Created: platform_id = 'eby'")
-    }
+    dt_sales[, platform_id := "eby"]
+    message("    ✅ Created: platform_id = 'eby'")
   }
 
   # Standardize customer email column for eBay
@@ -200,7 +189,7 @@ tryCatch({
   }
 
   # Verify required columns for D01
-  required_cols <- c("customer_id", "payment_time", "lineproduct_price", "platform_code", "platform_id")
+  required_cols <- c("customer_id", "payment_time", "lineproduct_price", "platform_id")
   missing_cols <- setdiff(required_cols, names(dt_sales))
   if (length(missing_cols) > 0) {
     stop(sprintf("Missing required columns for D01: %s", paste(missing_cols, collapse = ", ")))
@@ -287,7 +276,7 @@ if (script_success) {
     # Test 3: Verify D01 required columns exist
     columns <- dbListFields(transformed_data, output_table)
     required_cols <- c("customer_id", "payment_time", "lineproduct_price",
-                       "platform_code", "platform_id")
+                       "platform_id")
     missing_cols <- setdiff(required_cols, columns)
 
     if (length(missing_cols) > 0) {
@@ -323,7 +312,7 @@ if (script_success) {
     # Test 6: Sample data verification
     message("TEST: 📋 Sample verification (D01 required columns):")
     sample_check <- dbGetQuery(transformed_data, sprintf("
-      SELECT customer_id, payment_time, lineproduct_price, platform_code, platform_id
+      SELECT customer_id, payment_time, lineproduct_price, platform_id
       FROM %s
       LIMIT 3
     ", output_table))

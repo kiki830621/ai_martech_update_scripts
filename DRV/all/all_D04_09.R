@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 #####
+#P09_D04_09
 # DERIVATION: Precision Marketing Feature Preparation
 # VERSION: 2.0
 # PLATFORM: all
@@ -10,7 +11,17 @@
 # PRODUCES: processed_data.duckdb/df_precision_features
 # PRINCIPLE: DM_R044, MP064, MP109, MP029, MP102, DM_R039, DM_R023
 #####
+
 #all_D04_09
+#' @title Precision Marketing DRV - Feature Preparation
+#' @description Aggregate product features across product lines for Poisson analysis.
+#' @requires duckdb, dplyr, tidyr, tibble
+#' @input_tables transformed_data.duckdb (ETL 2TR stage)
+#' @output_tables processed_data.duckdb/df_precision_features
+#' @business_rules If no transformed_precision tables, write empty schema; else aggregate features across lines.
+#' @platform all
+#' @author MAMBA Development Team
+#' @date 2025-12-30
 # ==============================================================================
 # Precision Marketing DRV - Feature Preparation
 # ==============================================================================
@@ -99,6 +110,27 @@ CONTINUOUS_FEATURES <- c(
 
 # Aggregation functions
 AGG_FUNCTIONS <- c("mean", "median", "sd", "min", "max")
+
+# Placeholder schema for MP029 when no input data exists
+build_empty_precision_features_schema <- function() {
+  empty <- tibble(
+    product_line = character(),
+    country = character()
+  )
+  agg_cols <- unlist(lapply(CONTINUOUS_FEATURES, function(feat) {
+    paste0(feat, "_", AGG_FUNCTIONS)
+  }))
+  for (col in agg_cols) {
+    empty[[col]] <- numeric()
+  }
+  empty$n_products <- integer()
+  empty$aggregation_level <- character()
+  empty$aggregation_timestamp <- as.POSIXct(character())
+  empty$aggregation_method <- character()
+  empty$source_table <- character()
+  empty$total_source_products <- integer()
+  empty
+}
 
 # 1.5: Connect to databases
 if (!file.exists(DB_TRANSFORMED)) {
@@ -202,7 +234,23 @@ precision_drv_feature_preparation <- function(con_transformed, con_processed) {
   }
 
   if (is.null(all_products) || nrow(all_products) == 0) {
-    stop("ERROR: No product data found in transformed_data.duckdb")
+    message("  ⚠️ No product data found; writing empty schema (MP029)")
+    empty_output <- build_empty_precision_features_schema()
+    dbWriteTable(
+      conn = con_processed,
+      name = "df_precision_features",
+      value = empty_output,
+      overwrite = TRUE
+    )
+    message("  ✓ Wrote empty schema to df_precision_features")
+    return(list(
+      success = TRUE,
+      rows_written = 0,
+      features_aggregated = 0,
+      product_lines = PRODUCT_LINES,
+      output_table = "df_precision_features",
+      empty_schema = TRUE
+    ))
   }
 
   total_products <- nrow(all_products)
@@ -393,10 +441,10 @@ if (!error_occurred) {
       dplyr::pull(n)
 
     if (row_count < 1) {
-      stop("Output table df_precision_features is empty")
+      message("  ⚠️ Output table is empty (placeholder schema)")
+    } else {
+      message(sprintf("  ✓ Rows written: %d", row_count))
     }
-
-    message(sprintf("  ✓ Rows written: %d", row_count))
     message("  ✅ All tests passed")
     test_passed <- TRUE
 
@@ -445,3 +493,4 @@ if (exists("connection_created_processed") && connection_created_processed) {
 
 # 5.2: Autodeinit (MUST be last statement)
 autodeinit()
+# End of file

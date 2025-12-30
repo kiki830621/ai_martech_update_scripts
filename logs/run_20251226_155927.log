@@ -1,0 +1,3147 @@
++ eby_ETL_order_details_1ST___MAMBA dispatched
+[ETL:eby] eby_ETL_order_details_1ST___MAMBA.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> setwd('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA'); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/update_scripts/ETL/eby/eby_ETL_order_details_1ST___MAMBA.R')
+>> OPERATION_MODE = APP_MODE
+✅ Loaded package 'stringr' successfully.
+✅ Loaded package 'glue' successfully.
+✅ Loaded package 'tools' successfully.
+✅ Loaded package 'yaml' successfully.
+✅ Loaded package 'future' successfully.
+✅ Loaded package 'future.mirai' successfully.
+✅ Loaded package 'promises' successfully.
+✅ Loaded package 'later' successfully.
+✅ Loaded package 'dotenv' successfully.
+✅ Loaded package 'DBI' successfully.
+✅ Loaded package 'duckdb' successfully.
+
+Attaching package: ‘arrow’
+
+The following object is masked from ‘package:utils’:
+
+    timestamp
+
+✅ Loaded package 'arrow' successfully.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+✅ Loaded package 'dplyr' successfully.
+✅ Loaded package 'tidyr' successfully.
+✅ Loaded package 'readr' successfully.
+✅ Loaded package 'readxl' successfully.
+
+Attaching package: ‘scales’
+
+The following object is masked from ‘package:readr’:
+
+    col_factor
+
+✅ Loaded package 'scales' successfully.
+✅ Loaded package 'fs' successfully.
+
+Attaching package: ‘janitor’
+
+The following objects are masked from ‘package:stats’:
+
+    chisq.test, fisher.test
+
+✅ Loaded package 'janitor' successfully.
+✅ Loaded package 'shiny' successfully.
+
+Attaching package: ‘bs4Dash’
+
+The following objects are masked from ‘package:shiny’:
+
+    actionButton, column, insertTab, navbarMenu, tabsetPanel
+
+The following object is masked from ‘package:graphics’:
+
+    box
+
+✅ Loaded package 'bs4Dash' successfully.
+
+Attaching package: ‘bslib’
+
+The following objects are masked from ‘package:bs4Dash’:
+
+    accordion, popover, tooltip
+
+The following object is masked from ‘package:utils’:
+
+    page
+
+✅ Loaded package 'bslib' successfully.
+
+Attaching package: ‘shinyjs’
+
+The following object is masked from ‘package:shiny’:
+
+    runExample
+
+The following object is masked from ‘package:duckdb’:
+
+    show
+
+The following object is masked from ‘package:DBI’:
+
+    show
+
+The following object is masked from ‘package:future’:
+
+    reset
+
+The following objects are masked from ‘package:methods’:
+
+    removeClass, show
+
+✅ Loaded package 'shinyjs' successfully.
+
+Attaching package: ‘shinyWidgets’
+
+The following object is masked from ‘package:shinyjs’:
+
+    alert
+
+The following object is masked from ‘package:bs4Dash’:
+
+    progressBar
+
+✅ Loaded package 'shinyWidgets' successfully.
+✅ Loaded package 'htmltools' successfully.
+✅ Loaded package 'fontawesome' successfully.
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+✅ Loaded package 'DT' successfully.
+Loading required package: ggplot2
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:arrow’:
+
+    schema
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+✅ Loaded package 'plotly' successfully.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+
+Attaching package: ‘purrr’
+
+The following object is masked from ‘package:scales’:
+
+    discard
+
+
+Attaching package: ‘jsonlite’
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+The following object is masked from ‘package:shiny’:
+
+    validate
+
+
+Attaching package: ‘httr’
+
+The following object is masked from ‘package:plotly’:
+
+    config
+
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:arrow’:
+
+    duration
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+
+Attaching package: ‘data.table’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    %between%, %notin%
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:httr’:
+
+    progress
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+The following object is masked from ‘package:future’:
+
+    cluster
+
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ data.table::between()   masks dplyr::between()
+✖ scales::col_factor()    masks readr::col_factor()
+✖ httr::config()          masks plotly::config()
+✖ purrr::discard()        masks scales::discard()
+✖ lubridate::duration()   masks arrow::duration()
+✖ plotly::filter()        masks dplyr::filter(), stats::filter()
+✖ data.table::first()     masks dplyr::first()
+✖ jsonlite::flatten()     masks purrr::flatten()
+✖ data.table::hour()      masks lubridate::hour()
+✖ data.table::isoweek()   masks lubridate::isoweek()
+✖ dplyr::lag()            masks stats::lag()
+✖ data.table::last()      masks dplyr::last()
+✖ caret::lift()           masks purrr::lift()
+✖ data.table::mday()      masks lubridate::mday()
+✖ data.table::minute()    masks lubridate::minute()
+✖ data.table::month()     masks lubridate::month()
+✖ caret::progress()       masks httr::progress()
+✖ data.table::quarter()   masks lubridate::quarter()
+✖ data.table::second()    masks lubridate::second()
+✖ lubridate::show()       masks shinyjs::show(), duckdb::show(), DBI::show(), methods::show()
+✖ data.table::transpose() masks purrr::transpose()
+✖ jsonlite::validate()    masks shiny::validate()
+✖ data.table::wday()      masks lubridate::wday()
+✖ data.table::week()      masks lubridate::week()
+✖ data.table::yday()      masks lubridate::yday()
+✖ data.table::year()      masks lubridate::year()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case loaded successfully
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+There were 30 warnings (use warnings() to see them)
+================================================================================
+INITIALIZE: Starting MAMBA eBay Order Details Staging
+INITIALIZE: Script: eby_ETL_order_details_1ST___MAMBA.R
+INITIALIZE: Company-specific implementation for MAMBA
+INITIALIZE: Data type: Order Details (BAYORE staging)
+================================================================================
+>> OPERATION_MODE = APP_MODE
+Initialization already completed – skipping.
+✅ Package 'stringr' already attached.
+✅ Package 'glue' already attached.
+✅ Package 'tools' already attached.
+✅ Package 'yaml' already attached.
+✅ Package 'future' already attached.
+✅ Package 'future.mirai' already attached.
+✅ Package 'promises' already attached.
+✅ Package 'later' already attached.
+✅ Package 'dotenv' already attached.
+✅ Package 'DBI' already attached.
+✅ Package 'duckdb' already attached.
+✅ Package 'arrow' already attached.
+✅ Package 'dplyr' already attached.
+✅ Package 'tidyr' already attached.
+✅ Package 'readr' already attached.
+✅ Package 'readxl' already attached.
+✅ Package 'scales' already attached.
+✅ Package 'fs' already attached.
+✅ Package 'janitor' already attached.
+✅ Package 'shiny' already attached.
+✅ Package 'bs4Dash' already attached.
+✅ Package 'bslib' already attached.
+✅ Package 'shinyjs' already attached.
+✅ Package 'shinyWidgets' already attached.
+✅ Package 'htmltools' already attached.
+✅ Package 'fontawesome' already attached.
+✅ Package 'DT' already attached.
+✅ Package 'plotly' already attached.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+INITIALIZE: [OK] Global initialization complete
+INITIALIZE: Script: eby_ETL_order_details_1ST___MAMBA v2.0.0
+INITIALIZE: Following MP064 ETL-Derivation Separation
+INITIALIZE: Following MP104 ETL Data Flow Separation
+INITIALIZE: Establishing database connections...
+INITIALIZE: ✅ Database connections established
+INITIALIZE: Source: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/data/local_data/raw_data.duckdb
+INITIALIZE: Target: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/data/local_data/staged_data.duckdb
+MAIN: Starting MAMBA eBay ORDER DETAILS staging process
+[001 @ 0.00s] Reading raw BAYORE data...
+[002 @ 0.39s] Loaded 193820 raw order details
+[003 @ 0.39s] Standardizing column names...
+MAIN: Found 14 columns in raw data
+MAIN: Columns: ORE001, ORE002, ORE003, ORE004, ORE005, ORE006, ORE007, ORE008, ORE009, ORE010, ORE011, ORE012, ORE013, ORE014
+MAIN: Renaming 14 columns
+[004 @ 0.39s] Converting data types and cleaning...
+MAIN: Processed 16 columns
+[005 @ 0.48s] Performing data quality checks...
+MAIN: Missing order_ids: 0
+MAIN: Missing line_item_numbers: 0
+MAIN: Missing batch_keys: 0 (critical for JOIN)
+MAIN: Available expected columns: 5/8
+MAIN: Missing expected columns: product_sku, line_total, transaction_date
+[006 @ 2.72s] Storing staged BAYORE data...
+MAIN: Dropped existing table: df_eby_order_details___staged___MAMBA
+MAIN: ✅ Stored 82145 staged order details in df_eby_order_details___staged___MAMBA
+MAIN: Sample of staged BAYORE data:
+# A tibble: 3 × 6
+  order_id line_item_number batch_key         product_name   quantity unit_price
+     <int> <chr>            <chr>             <chr>             <int>      <dbl>
+1        0 001              ukmamba           Adjustable Tu…        1       90.8
+2      100 001              ming@mambatek.com Oil Water Pre…        1       11.0
+3      101 001              ming@mambatek.com MAMBA Sensor …        1       11.0
+MAIN: ✅ Order details staging completed in 2.80 seconds
+TEST: Starting validation tests...
+TEST: ✅ Table exists
+TEST: ✅ Data staged (82145 rows)
+TEST: ✅ Essential standardized columns present
+TEST: Found 8/8 expected columns
+TEST: ✅ All columns standardized (no ORE* columns)
+TEST: Records ready for JOIN: 82145
+TEST: ✅ All tests passed in 0.02 seconds
+DEINITIALIZE: Starting cleanup...
+DEINITIALIZE: Disconnected from raw_data
+DEINITIALIZE: Disconnected from staged_data
+DEINITIALIZE: Total execution time: 3.20 seconds
+AUTODEINIT: Executing final cleanup...
+Scanning 686 objects for DBI connections...
+No DBI connections found in global environment
+>> De-init completed ‒ GlobalEnv 已清空並重建薄殼
+There were 31 warnings (use warnings() to see them)
+> 
+✔ eby_ETL_order_details_1ST___MAMBA completed [5.1s, 160 B]
++ eby_ETL_order_details_0IM___MAMBA dispatched
+[ETL:eby] eby_ETL_order_details_0IM___MAMBA.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> setwd('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA'); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/update_scripts/ETL/eby/eby_ETL_order_details_0IM___MAMBA.R')
+>> OPERATION_MODE = APP_MODE
+✅ Loaded package 'stringr' successfully.
+✅ Loaded package 'glue' successfully.
+✅ Loaded package 'tools' successfully.
+✅ Loaded package 'yaml' successfully.
+✅ Loaded package 'future' successfully.
+✅ Loaded package 'future.mirai' successfully.
+✅ Loaded package 'promises' successfully.
+✅ Loaded package 'later' successfully.
+✅ Loaded package 'dotenv' successfully.
+✅ Loaded package 'DBI' successfully.
+✅ Loaded package 'duckdb' successfully.
+
+Attaching package: ‘arrow’
+
+The following object is masked from ‘package:utils’:
+
+    timestamp
+
+✅ Loaded package 'arrow' successfully.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+✅ Loaded package 'dplyr' successfully.
+✅ Loaded package 'tidyr' successfully.
+✅ Loaded package 'readr' successfully.
+✅ Loaded package 'readxl' successfully.
+
+Attaching package: ‘scales’
+
+The following object is masked from ‘package:readr’:
+
+    col_factor
+
+✅ Loaded package 'scales' successfully.
+✅ Loaded package 'fs' successfully.
+
+Attaching package: ‘janitor’
+
+The following objects are masked from ‘package:stats’:
+
+    chisq.test, fisher.test
+
+✅ Loaded package 'janitor' successfully.
+✅ Loaded package 'shiny' successfully.
+
+Attaching package: ‘bs4Dash’
+
+The following objects are masked from ‘package:shiny’:
+
+    actionButton, column, insertTab, navbarMenu, tabsetPanel
+
+The following object is masked from ‘package:graphics’:
+
+    box
+
+✅ Loaded package 'bs4Dash' successfully.
+
+Attaching package: ‘bslib’
+
+The following objects are masked from ‘package:bs4Dash’:
+
+    accordion, popover, tooltip
+
+The following object is masked from ‘package:utils’:
+
+    page
+
+✅ Loaded package 'bslib' successfully.
+
+Attaching package: ‘shinyjs’
+
+The following object is masked from ‘package:shiny’:
+
+    runExample
+
+The following object is masked from ‘package:duckdb’:
+
+    show
+
+The following object is masked from ‘package:DBI’:
+
+    show
+
+The following object is masked from ‘package:future’:
+
+    reset
+
+The following objects are masked from ‘package:methods’:
+
+    removeClass, show
+
+✅ Loaded package 'shinyjs' successfully.
+
+Attaching package: ‘shinyWidgets’
+
+The following object is masked from ‘package:shinyjs’:
+
+    alert
+
+The following object is masked from ‘package:bs4Dash’:
+
+    progressBar
+
+✅ Loaded package 'shinyWidgets' successfully.
+✅ Loaded package 'htmltools' successfully.
+✅ Loaded package 'fontawesome' successfully.
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+✅ Loaded package 'DT' successfully.
+Loading required package: ggplot2
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:arrow’:
+
+    schema
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+✅ Loaded package 'plotly' successfully.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+
+Attaching package: ‘purrr’
+
+The following object is masked from ‘package:scales’:
+
+    discard
+
+
+Attaching package: ‘jsonlite’
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+The following object is masked from ‘package:shiny’:
+
+    validate
+
+
+Attaching package: ‘httr’
+
+The following object is masked from ‘package:plotly’:
+
+    config
+
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:arrow’:
+
+    duration
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+
+Attaching package: ‘data.table’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    %between%, %notin%
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:httr’:
+
+    progress
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+The following object is masked from ‘package:future’:
+
+    cluster
+
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ data.table::between()   masks dplyr::between()
+✖ scales::col_factor()    masks readr::col_factor()
+✖ httr::config()          masks plotly::config()
+✖ purrr::discard()        masks scales::discard()
+✖ lubridate::duration()   masks arrow::duration()
+✖ plotly::filter()        masks dplyr::filter(), stats::filter()
+✖ data.table::first()     masks dplyr::first()
+✖ jsonlite::flatten()     masks purrr::flatten()
+✖ data.table::hour()      masks lubridate::hour()
+✖ data.table::isoweek()   masks lubridate::isoweek()
+✖ dplyr::lag()            masks stats::lag()
+✖ data.table::last()      masks dplyr::last()
+✖ caret::lift()           masks purrr::lift()
+✖ data.table::mday()      masks lubridate::mday()
+✖ data.table::minute()    masks lubridate::minute()
+✖ data.table::month()     masks lubridate::month()
+✖ caret::progress()       masks httr::progress()
+✖ data.table::quarter()   masks lubridate::quarter()
+✖ data.table::second()    masks lubridate::second()
+✖ lubridate::show()       masks shinyjs::show(), duckdb::show(), DBI::show(), methods::show()
+✖ data.table::transpose() masks purrr::transpose()
+✖ jsonlite::validate()    masks shiny::validate()
+✖ data.table::wday()      masks lubridate::wday()
+✖ data.table::week()      masks lubridate::week()
+✖ data.table::yday()      masks lubridate::yday()
+✖ data.table::year()      masks lubridate::year()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case loaded successfully
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+There were 30 warnings (use warnings() to see them)
+================================================================================
+INITIALIZE: Starting MAMBA eBay Order Details Import
+INITIALIZE: Script: eby_ETL_order_details_0IM___MAMBA.R
+INITIALIZE: Company-specific implementation for MAMBA
+INITIALIZE: Data type: Order Details (BAYORE table only)
+================================================================================
+>> OPERATION_MODE = APP_MODE
+Initialization already completed – skipping.
+✅ Package 'stringr' already attached.
+✅ Package 'glue' already attached.
+✅ Package 'tools' already attached.
+✅ Package 'yaml' already attached.
+✅ Package 'future' already attached.
+✅ Package 'future.mirai' already attached.
+✅ Package 'promises' already attached.
+✅ Package 'later' already attached.
+✅ Package 'dotenv' already attached.
+✅ Package 'DBI' already attached.
+✅ Package 'duckdb' already attached.
+✅ Package 'arrow' already attached.
+✅ Package 'dplyr' already attached.
+✅ Package 'tidyr' already attached.
+✅ Package 'readr' already attached.
+✅ Package 'readxl' already attached.
+✅ Package 'scales' already attached.
+✅ Package 'fs' already attached.
+✅ Package 'janitor' already attached.
+✅ Package 'shiny' already attached.
+✅ Package 'bs4Dash' already attached.
+✅ Package 'bslib' already attached.
+✅ Package 'shinyjs' already attached.
+✅ Package 'shinyWidgets' already attached.
+✅ Package 'htmltools' already attached.
+✅ Package 'fontawesome' already attached.
+✅ Package 'DT' already attached.
+✅ Package 'plotly' already attached.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+INITIALIZE: [OK] Global initialization complete
+INITIALIZE: Script: eby_ETL_order_details_0IM___MAMBA v2.0.0
+INITIALIZE: Following MP064 ETL-Derivation Separation
+INITIALIZE: Following MP104 ETL Data Flow Separation
+INITIALIZE: Following MP099 Real-time Progress Reporting
+INITIALIZE: Checking environment variables...
+INITIALIZE:   ✓ EBY_SSH_HOST = 220.128.138.146
+INITIALIZE:   ✓ EBY_SSH_USER = kylelin
+INITIALIZE:   ✓ EBY_SSH_PASSWORD = [REDACTED]
+INITIALIZE:   ✓ EBY_SQL_HOST = 125.227.84.85
+INITIALIZE:   ✓ EBY_SQL_PORT = 1433
+INITIALIZE:   ✓ EBY_SQL_USER = sa
+INITIALIZE:   ✓ EBY_SQL_PASSWORD = [REDACTED]
+INITIALIZE:   ✓ EBY_SQL_DATABASE = MAMBATEK
+INITIALIZE: ✅ All environment variables loaded successfully
+INITIALIZE: 0IM Phase - Raw BAYORE import only (MP064 compliance)
+INITIALIZE: Establishing database connections...
+INITIALIZE: ✅ Database connections established
+INITIALIZE: Connected to: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/data/local_data/raw_data.duckdb
+MAIN: Starting MAMBA eBay ORDER DETAILS import process
+MAIN: Connecting to MAMBA SQL Server...
+MAIN: SSH Target: kylelin@220.128.138.146
+MAIN: SQL Target: 125.227.84.85:1433/MAMBATEK
+MAIN: Establishing SSH tunnel...
+🔄 No SSH tunnel found, establishing connection...
+🔐 Attempting SSH connection to kylelin@220.128.138.146...
+   Local port: 1433 -> Remote: 125.227.84.85:1433
+✅ SSH tunnel established automatically
+MAIN: ✅ Connected to SQL Server successfully
+MAIN: Querying BAYORE (order details) table...
+MAIN: No JOIN operations in 0IM phase (MP064 compliance)
+MAIN: Executing BAYORE query...
+MAIN: Retrieved 185485 order details from BAYORE
+MAIN: Disconnected from SQL Server
+MAIN: SSH tunnel kept alive for subsequent ETL scripts
+MAIN: Storing raw BAYORE data...
+MAIN: Dropped existing table: df_eby_order_details___raw___MAMBA
+MAIN: ✅ Stored 185485 order details in df_eby_order_details___raw___MAMBA
+MAIN: Sample of imported BAYORE data:
+  ORE001 ORE002 ORE006          ORE013
+1  22086    001        uk@mambatek.com
+2  53451    001            eiji-takada
+3  55330    001            eiji-takada
+MAIN: ✅ Order details import completed in 23.39 seconds
+TEST: Starting validation tests...
+TEST: ✅ Table exists
+TEST: ✅ Data imported (185485 rows)
+TEST: ✅ All required columns present
+TEST: ✅ No BAYORD data mixed - MP104 compliant
+TEST: ✅ JOIN keys present for future derivation
+TEST: ✅ All tests passed in 0.00 seconds
+DEINITIALIZE: Starting cleanup...
+DEINITIALIZE: Disconnected from raw_data
+DEINITIALIZE: Total execution time: 23.60 seconds
+AUTODEINIT: Executing final cleanup...
+Scanning 670 objects for DBI connections...
+No DBI connections found in global environment
+>> De-init completed ‒ GlobalEnv 已清空並重建薄殼
+There were 31 warnings (use warnings() to see them)
+> 
+✔ eby_ETL_order_details_0IM___MAMBA completed [25.4s, 160 B]
++ precision_ETL_product_profiles_0IM dispatched
+[ETL:precision] precision_ETL_product_profiles_0IM.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> setwd('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA'); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/update_scripts/ETL/precision/precision_ETL_product_profiles_0IM.R')
+>> OPERATION_MODE = APP_MODE
+✅ Loaded package 'stringr' successfully.
+✅ Loaded package 'glue' successfully.
+✅ Loaded package 'tools' successfully.
+✅ Loaded package 'yaml' successfully.
+✅ Loaded package 'future' successfully.
+✅ Loaded package 'future.mirai' successfully.
+✅ Loaded package 'promises' successfully.
+✅ Loaded package 'later' successfully.
+✅ Loaded package 'dotenv' successfully.
+✅ Loaded package 'DBI' successfully.
+✅ Loaded package 'duckdb' successfully.
+
+Attaching package: ‘arrow’
+
+The following object is masked from ‘package:utils’:
+
+    timestamp
+
+✅ Loaded package 'arrow' successfully.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+✅ Loaded package 'dplyr' successfully.
+✅ Loaded package 'tidyr' successfully.
+✅ Loaded package 'readr' successfully.
+✅ Loaded package 'readxl' successfully.
+
+Attaching package: ‘scales’
+
+The following object is masked from ‘package:readr’:
+
+    col_factor
+
+✅ Loaded package 'scales' successfully.
+✅ Loaded package 'fs' successfully.
+
+Attaching package: ‘janitor’
+
+The following objects are masked from ‘package:stats’:
+
+    chisq.test, fisher.test
+
+✅ Loaded package 'janitor' successfully.
+✅ Loaded package 'shiny' successfully.
+
+Attaching package: ‘bs4Dash’
+
+The following objects are masked from ‘package:shiny’:
+
+    actionButton, column, insertTab, navbarMenu, tabsetPanel
+
+The following object is masked from ‘package:graphics’:
+
+    box
+
+✅ Loaded package 'bs4Dash' successfully.
+
+Attaching package: ‘bslib’
+
+The following objects are masked from ‘package:bs4Dash’:
+
+    accordion, popover, tooltip
+
+The following object is masked from ‘package:utils’:
+
+    page
+
+✅ Loaded package 'bslib' successfully.
+
+Attaching package: ‘shinyjs’
+
+The following object is masked from ‘package:shiny’:
+
+    runExample
+
+The following object is masked from ‘package:duckdb’:
+
+    show
+
+The following object is masked from ‘package:DBI’:
+
+    show
+
+The following object is masked from ‘package:future’:
+
+    reset
+
+The following objects are masked from ‘package:methods’:
+
+    removeClass, show
+
+✅ Loaded package 'shinyjs' successfully.
+
+Attaching package: ‘shinyWidgets’
+
+The following object is masked from ‘package:shinyjs’:
+
+    alert
+
+The following object is masked from ‘package:bs4Dash’:
+
+    progressBar
+
+✅ Loaded package 'shinyWidgets' successfully.
+✅ Loaded package 'htmltools' successfully.
+✅ Loaded package 'fontawesome' successfully.
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+✅ Loaded package 'DT' successfully.
+Loading required package: ggplot2
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:arrow’:
+
+    schema
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+✅ Loaded package 'plotly' successfully.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+
+Attaching package: ‘purrr’
+
+The following object is masked from ‘package:scales’:
+
+    discard
+
+
+Attaching package: ‘jsonlite’
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+The following object is masked from ‘package:shiny’:
+
+    validate
+
+
+Attaching package: ‘httr’
+
+The following object is masked from ‘package:plotly’:
+
+    config
+
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:arrow’:
+
+    duration
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+
+Attaching package: ‘data.table’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    %between%, %notin%
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:httr’:
+
+    progress
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+The following object is masked from ‘package:future’:
+
+    cluster
+
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ data.table::between()   masks dplyr::between()
+✖ scales::col_factor()    masks readr::col_factor()
+✖ httr::config()          masks plotly::config()
+✖ purrr::discard()        masks scales::discard()
+✖ lubridate::duration()   masks arrow::duration()
+✖ plotly::filter()        masks dplyr::filter(), stats::filter()
+✖ data.table::first()     masks dplyr::first()
+✖ jsonlite::flatten()     masks purrr::flatten()
+✖ data.table::hour()      masks lubridate::hour()
+✖ data.table::isoweek()   masks lubridate::isoweek()
+✖ dplyr::lag()            masks stats::lag()
+✖ data.table::last()      masks dplyr::last()
+✖ caret::lift()           masks purrr::lift()
+✖ data.table::mday()      masks lubridate::mday()
+✖ data.table::minute()    masks lubridate::minute()
+✖ data.table::month()     masks lubridate::month()
+✖ caret::progress()       masks httr::progress()
+✖ data.table::quarter()   masks lubridate::quarter()
+✖ data.table::second()    masks lubridate::second()
+✖ lubridate::show()       masks shinyjs::show(), duckdb::show(), DBI::show(), methods::show()
+✖ data.table::transpose() masks purrr::transpose()
+✖ jsonlite::validate()    masks shiny::validate()
+✖ data.table::wday()      masks lubridate::wday()
+✖ data.table::week()      masks lubridate::week()
+✖ data.table::yday()      masks lubridate::yday()
+✖ data.table::year()      masks lubridate::year()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case loaded successfully
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+There were 30 warnings (use warnings() to see them)
+====================================================================
+Precision Marketing ETL - Stage 0IM (Import)
+====================================================================
+Import Date: 2025-12-26 16:00:00.964506
+Data Source: Google Sheets (ID: 1aKyyOMpIJtDtpqe7Iz0AfSU0W9aAdpSdPDD1zgnqO30)
+Product Lines: 開罐器, 奶泡器, 研磨罐, 鍋鏟, 撕肉爪, 油刷
+
+✓ Google Sheets authentication complete (public mode)
+✓ Connected to database: data/raw_data.duckdb
+
+====================================================================
+Importing product line: 開罐器 (electric_can_opener)
+====================================================================
+  → Reading sheet: 開罐器
+✔ Reading from "Kitchen Mama".
+✔ Range ''開罐器''.
+  ✓ Retrieved 133 rows, 72 columns
+  → Converting list columns to character...
+    Found 4 list columns: 重量, 充電/電池, 刀片可清洗, 可開多種罐型
+  → Adding metadata columns...
+  → Writing to table: raw_precision_electric_can_opener
+  ✓ Successfully imported 133 rows to raw_precision_electric_can_opener
+
+====================================================================
+Importing product line: 奶泡器 (milk_frother)
+====================================================================
+  → Reading sheet: 奶泡器
+✔ Reading from "Kitchen Mama".
+✔ Range ''奶泡器''.
+New names:
+• `攪拌器` -> `攪拌器...55`
+• `廚房必需品` -> `廚房必需品...58`
+• `咖啡攪拌器` -> `咖啡攪拌器...62`
+• `攪拌器` -> `攪拌器...63`
+• `手持式奶泡器` -> `手持式奶泡器...64`
+• `飲料攪拌機` -> `飲料攪拌機...65`
+• `電動打蛋器` -> `電動打蛋器...69`
+• `廚房用品` -> `廚房用品...70`
+• `電動攪拌器` -> `電動攪拌器...78`
+• `廚房必需品` -> `廚房必需品...89`
+• `電動攪拌器` -> `電動攪拌器...90`
+• `手持式攪拌棒` -> `手持式攪拌棒...91`
+• `手持式奶泡器` -> `手持式奶泡器...93`
+• `電動打蛋器` -> `電動打蛋器...100`
+• `咖啡攪拌器` -> `咖啡攪拌器...106`
+• `攪拌器` -> `攪拌器...110`
+• `咖啡攪拌器` -> `咖啡攪拌器...115`
+• `手持式攪拌棒` -> `手持式攪拌棒...136`
+• `手動攪拌器` -> `手動攪拌器...141`
+• `廚房用品` -> `廚房用品...145`
+• `手持式奶泡器` -> `手持式奶泡器...146`
+• `手動攪拌器` -> `手動攪拌器...154`
+• `手持式攪拌棒` -> `手持式攪拌棒...170`
+• `電動打蛋器` -> `電動打蛋器...177`
+• `飲料攪拌機` -> `飲料攪拌機...179`
+  ✓ Retrieved 111 rows, 183 columns
+  → Converting list columns to character...
+  → Adding metadata columns...
+  → Writing to table: raw_precision_milk_frother
+  ✓ Successfully imported 111 rows to raw_precision_milk_frother
+
+====================================================================
+Importing product line: 研磨罐 (salt_and_pepper_grinder)
+====================================================================
+  → Reading sheet: 研磨罐
+✔ Reading from "Kitchen Mama".
+✔ Range ''研磨罐''.
+  ✓ Retrieved 111 rows, 79 columns
+  → Converting list columns to character...
+  → Adding metadata columns...
+  → Writing to table: raw_precision_salt_and_pepper_grinder
+  ✓ Successfully imported 111 rows to raw_precision_salt_and_pepper_grinder
+
+====================================================================
+Importing product line: 鍋鏟 (silicone_spatula)
+====================================================================
+  → Reading sheet: 鍋鏟
+✔ Reading from "Kitchen Mama".
+✔ Range ''鍋鏟''.
+  ✓ Retrieved 103 rows, 76 columns
+  → Converting list columns to character...
+  → Adding metadata columns...
+  → Writing to table: raw_precision_silicone_spatula
+  ✓ Successfully imported 103 rows to raw_precision_silicone_spatula
+
+====================================================================
+Importing product line: 撕肉爪 (meat_claw)
+====================================================================
+  → Reading sheet: 撕肉爪
+✔ Reading from "Kitchen Mama".
+✔ Range ''撕肉爪''.
+New names:
+• `美國製造` -> `美國製造...43`
+• `男性燒烤禮物` -> `男性燒烤禮物...82`
+• `男性燒烤禮物` -> `男性燒烤禮物...101`
+• `美國製造` -> `美國製造...111`
+  ✓ Retrieved 55 rows, 113 columns
+  → Converting list columns to character...
+    Found 1 list columns: 烤肉抓排名
+  → Adding metadata columns...
+  → Writing to table: raw_precision_meat_claw
+  ✓ Successfully imported 55 rows to raw_precision_meat_claw
+
+====================================================================
+Importing product line: 油刷 (pastry_brush)
+====================================================================
+  → Reading sheet: 油刷
+✔ Reading from "Kitchen Mama".
+✔ Range ''油刷''.
+  ✓ Retrieved 100 rows, 62 columns
+  → Converting list columns to character...
+  → Adding metadata columns...
+  → Writing to table: raw_precision_pastry_brush
+  ✓ Successfully imported 100 rows to raw_precision_pastry_brush
+
+✓ Database connection closed
+
+====================================================================
+ETL 0IM Import Summary
+====================================================================
+Total product lines: 6
+Successfully imported: 6
+Failed imports: 0
+
+Successful imports:
+  ✓ electric_can_opener: 133 rows → raw_precision_electric_can_opener
+  ✓ milk_frother: 111 rows → raw_precision_milk_frother
+  ✓ salt_and_pepper_grinder: 111 rows → raw_precision_salt_and_pepper_grinder
+  ✓ silicone_spatula: 103 rows → raw_precision_silicone_spatula
+  ✓ meat_claw: 55 rows → raw_precision_meat_claw
+  ✓ pastry_brush: 100 rows → raw_precision_pastry_brush
+
+====================================================================
+ETL 0IM Complete
+====================================================================
+Output database: data/raw_data.duckdb
+Next step: Run precision_ETL_product_profiles_1ST.R
+
+✔ precision_ETL_product_profiles_0IM completed [14.8s, 161 B]
++ all_ETL_item_profile_0IM dispatched
+[ETL:all] all_ETL_item_profile_0IM.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> setwd('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA'); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/update_scripts/ETL/all/all_ETL_item_profile_0IM.R')
+>> OPERATION_MODE = APP_MODE
+✅ Loaded package 'stringr' successfully.
+✅ Loaded package 'glue' successfully.
+✅ Loaded package 'tools' successfully.
+✅ Loaded package 'yaml' successfully.
+✅ Loaded package 'future' successfully.
+✅ Loaded package 'future.mirai' successfully.
+✅ Loaded package 'promises' successfully.
+✅ Loaded package 'later' successfully.
+✅ Loaded package 'dotenv' successfully.
+✅ Loaded package 'DBI' successfully.
+✅ Loaded package 'duckdb' successfully.
+
+Attaching package: ‘arrow’
+
+The following object is masked from ‘package:utils’:
+
+    timestamp
+
+✅ Loaded package 'arrow' successfully.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+✅ Loaded package 'dplyr' successfully.
+✅ Loaded package 'tidyr' successfully.
+✅ Loaded package 'readr' successfully.
+✅ Loaded package 'readxl' successfully.
+
+Attaching package: ‘scales’
+
+The following object is masked from ‘package:readr’:
+
+    col_factor
+
+✅ Loaded package 'scales' successfully.
+✅ Loaded package 'fs' successfully.
+
+Attaching package: ‘janitor’
+
+The following objects are masked from ‘package:stats’:
+
+    chisq.test, fisher.test
+
+✅ Loaded package 'janitor' successfully.
+✅ Loaded package 'shiny' successfully.
+
+Attaching package: ‘bs4Dash’
+
+The following objects are masked from ‘package:shiny’:
+
+    actionButton, column, insertTab, navbarMenu, tabsetPanel
+
+The following object is masked from ‘package:graphics’:
+
+    box
+
+✅ Loaded package 'bs4Dash' successfully.
+
+Attaching package: ‘bslib’
+
+The following objects are masked from ‘package:bs4Dash’:
+
+    accordion, popover, tooltip
+
+The following object is masked from ‘package:utils’:
+
+    page
+
+✅ Loaded package 'bslib' successfully.
+
+Attaching package: ‘shinyjs’
+
+The following object is masked from ‘package:shiny’:
+
+    runExample
+
+The following object is masked from ‘package:duckdb’:
+
+    show
+
+The following object is masked from ‘package:DBI’:
+
+    show
+
+The following object is masked from ‘package:future’:
+
+    reset
+
+The following objects are masked from ‘package:methods’:
+
+    removeClass, show
+
+✅ Loaded package 'shinyjs' successfully.
+
+Attaching package: ‘shinyWidgets’
+
+The following object is masked from ‘package:shinyjs’:
+
+    alert
+
+The following object is masked from ‘package:bs4Dash’:
+
+    progressBar
+
+✅ Loaded package 'shinyWidgets' successfully.
+✅ Loaded package 'htmltools' successfully.
+✅ Loaded package 'fontawesome' successfully.
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+✅ Loaded package 'DT' successfully.
+Loading required package: ggplot2
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:arrow’:
+
+    schema
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+✅ Loaded package 'plotly' successfully.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+
+Attaching package: ‘purrr’
+
+The following object is masked from ‘package:scales’:
+
+    discard
+
+
+Attaching package: ‘jsonlite’
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+The following object is masked from ‘package:shiny’:
+
+    validate
+
+
+Attaching package: ‘httr’
+
+The following object is masked from ‘package:plotly’:
+
+    config
+
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:arrow’:
+
+    duration
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+
+Attaching package: ‘data.table’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    %between%, %notin%
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:httr’:
+
+    progress
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+The following object is masked from ‘package:future’:
+
+    cluster
+
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ data.table::between()   masks dplyr::between()
+✖ scales::col_factor()    masks readr::col_factor()
+✖ httr::config()          masks plotly::config()
+✖ purrr::discard()        masks scales::discard()
+✖ lubridate::duration()   masks arrow::duration()
+✖ plotly::filter()        masks dplyr::filter(), stats::filter()
+✖ data.table::first()     masks dplyr::first()
+✖ jsonlite::flatten()     masks purrr::flatten()
+✖ data.table::hour()      masks lubridate::hour()
+✖ data.table::isoweek()   masks lubridate::isoweek()
+✖ dplyr::lag()            masks stats::lag()
+✖ data.table::last()      masks dplyr::last()
+✖ caret::lift()           masks purrr::lift()
+✖ data.table::mday()      masks lubridate::mday()
+✖ data.table::minute()    masks lubridate::minute()
+✖ data.table::month()     masks lubridate::month()
+✖ caret::progress()       masks httr::progress()
+✖ data.table::quarter()   masks lubridate::quarter()
+✖ data.table::second()    masks lubridate::second()
+✖ lubridate::show()       masks shinyjs::show(), duckdb::show(), DBI::show(), methods::show()
+✖ data.table::transpose() masks purrr::transpose()
+✖ jsonlite::validate()    masks shiny::validate()
+✖ data.table::wday()      masks lubridate::wday()
+✖ data.table::week()      masks lubridate::week()
+✖ data.table::yday()      masks lubridate::yday()
+✖ data.table::year()      masks lubridate::year()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case loaded successfully
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+There were 30 warnings (use warnings() to see them)
+>> OPERATION_MODE = APP_MODE
+Initialization already completed – skipping.
+✅ Package 'stringr' already attached.
+✅ Package 'glue' already attached.
+✅ Package 'tools' already attached.
+✅ Package 'yaml' already attached.
+✅ Package 'future' already attached.
+✅ Package 'future.mirai' already attached.
+✅ Package 'promises' already attached.
+✅ Package 'later' already attached.
+✅ Package 'dotenv' already attached.
+✅ Package 'DBI' already attached.
+✅ Package 'duckdb' already attached.
+✅ Package 'arrow' already attached.
+✅ Package 'dplyr' already attached.
+✅ Package 'tidyr' already attached.
+✅ Package 'readr' already attached.
+✅ Package 'readxl' already attached.
+✅ Package 'scales' already attached.
+✅ Package 'fs' already attached.
+✅ Package 'janitor' already attached.
+✅ Package 'shiny' already attached.
+✅ Package 'bs4Dash' already attached.
+✅ Package 'bslib' already attached.
+✅ Package 'shinyjs' already attached.
+✅ Package 'shinyWidgets' already attached.
+✅ Package 'htmltools' already attached.
+✅ Package 'fontawesome' already attached.
+✅ Package 'DT' already attached.
+✅ Package 'plotly' already attached.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+Derived g_project_root: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA
+============================================================
+Item Profile ETL - Import from Google Sheets
+Following: MP064, SO_P010, DM_R028
+============================================================
+
+--- Loading Configuration ---
+Google Sheet ID: 1DADOOtwUuWqB3azFPmTcFSDunyACx_RsNpKlGoL2ta4
+
+--- Connecting to Databases ---
+Connected to app_data: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/data/app_data/app_data.duckdb
+Connected to raw_data: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/data/local_data/raw_data.duckdb
+
+--- Loading Product Lines ---
+df_product_line not found, using hardcoded list
+  product_line_id product_line_name_chinese
+1             tur                      渦輪
+2             pre                    洩壓閥
+3             irn            鐵葉(渦輪葉輪)
+4             alu            鋁葉(壓縮葉輪)
+5             kit                    修理包
+6             pip                  油水管包
+
+--- Importing from Google Sheets ---
+
+  Processing: 渦輪 (tur)
+    Sheet: item_profile_渦輪
+    Table: df_all_item_profile_tur
+✔ Reading from "coding_MAMBA".
+✔ Range ''item_profile_渦輪''.
+New names:
+• `` -> `...15`
+    SUCCESS: 73 rows imported
+
+  Processing: 洩壓閥 (pre)
+    Sheet: item_profile_洩壓閥
+    Table: df_all_item_profile_pre
+✔ Reading from "coding_MAMBA".
+✔ Range ''item_profile_洩壓閥''.
+    SUCCESS: 45 rows imported
+
+  Processing: 鐵葉(渦輪葉輪) (irn)
+    Sheet: item_profile_鐵葉(渦輪葉輪)
+    Table: df_all_item_profile_irn
+✔ Reading from "coding_MAMBA".
+✔ Range ''item_profile_鐵葉(渦輪葉輪)''.
+    SUCCESS: 29 rows imported
+
+  Processing: 鋁葉(壓縮葉輪) (alu)
+    Sheet: item_profile_鋁葉(壓縮葉輪)
+    Table: df_all_item_profile_alu
+✔ Reading from "coding_MAMBA".
+✔ Range ''item_profile_鋁葉(壓縮葉輪)''.
+    SUCCESS: 33 rows imported
+
+  Processing: 修理包 (kit)
+    Sheet: item_profile_修理包
+    Table: df_all_item_profile_kit
+✔ Reading from "coding_MAMBA".
+✔ Range ''item_profile_修理包''.
+    SUCCESS: 34 rows imported
+
+  Processing: 油水管包 (pip)
+    Sheet: item_profile_油水管包
+    Table: df_all_item_profile_pip
+✔ Reading from "coding_MAMBA".
+✔ Range ''item_profile_油水管包''.
+    SUCCESS: 24 rows imported
+
+============================================================
+Import Summary
+============================================================
+  Successful: 6
+  Failed: 0
+
+--- Verification ---
+Item profile tables in raw_data:
+  df_all_item_profile_alf: 33 rows, 40 columns
+  df_all_item_profile_alu: 33 rows, 41 columns
+  df_all_item_profile_irf: 29 rows, 44 columns
+  df_all_item_profile_irn: 29 rows, 45 columns
+  df_all_item_profile_kit: 34 rows, 61 columns
+  df_all_item_profile_pip: 24 rows, 50 columns
+  df_all_item_profile_pre: 45 rows, 88 columns
+  df_all_item_profile_rek: 34 rows, 60 columns
+  df_all_item_profile_tur: 73 rows, 199 columns
+  df_all_item_profile_wak: 24 rows, 49 columns
+
+============================================================
+Item Profile ETL Complete
+============================================================
+  Source: Google Sheets (1DADOOtwUuWqB3azFPmTcFSDunyACx_RsNpKlGoL2ta4)
+  Target: raw_data.duckdb/df_all_item_profile_*
+  Status: Complete
+Scanning 667 objects for DBI connections...
+Disconnected: app_con (duckdb_connection)
+Removed variable: app_con
+Disconnected: raw_con (duckdb_connection)
+Removed variable: raw_con
+Connection summary: 2 found, 2 disconnected, 0 failed
+>> De-init completed ‒ GlobalEnv 已清空並重建薄殼
+There were 30 warnings (use warnings() to see them)
+> 
+✔ all_ETL_item_profile_0IM completed [12.9s, 152 B]
++ cbz_ETL_products_0IM dispatched
+[ETL:cbz] cbz_ETL_products_0IM.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> setwd('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA'); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/update_scripts/ETL/cbz/cbz_ETL_products_0IM.R')
+>> OPERATION_MODE = APP_MODE
+✅ Loaded package 'stringr' successfully.
+✅ Loaded package 'glue' successfully.
+✅ Loaded package 'tools' successfully.
+✅ Loaded package 'yaml' successfully.
+✅ Loaded package 'future' successfully.
+✅ Loaded package 'future.mirai' successfully.
+✅ Loaded package 'promises' successfully.
+✅ Loaded package 'later' successfully.
+✅ Loaded package 'dotenv' successfully.
+✅ Loaded package 'DBI' successfully.
+✅ Loaded package 'duckdb' successfully.
+
+Attaching package: ‘arrow’
+
+The following object is masked from ‘package:utils’:
+
+    timestamp
+
+✅ Loaded package 'arrow' successfully.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+✅ Loaded package 'dplyr' successfully.
+✅ Loaded package 'tidyr' successfully.
+✅ Loaded package 'readr' successfully.
+✅ Loaded package 'readxl' successfully.
+
+Attaching package: ‘scales’
+
+The following object is masked from ‘package:readr’:
+
+    col_factor
+
+✅ Loaded package 'scales' successfully.
+✅ Loaded package 'fs' successfully.
+
+Attaching package: ‘janitor’
+
+The following objects are masked from ‘package:stats’:
+
+    chisq.test, fisher.test
+
+✅ Loaded package 'janitor' successfully.
+✅ Loaded package 'shiny' successfully.
+
+Attaching package: ‘bs4Dash’
+
+The following objects are masked from ‘package:shiny’:
+
+    actionButton, column, insertTab, navbarMenu, tabsetPanel
+
+The following object is masked from ‘package:graphics’:
+
+    box
+
+✅ Loaded package 'bs4Dash' successfully.
+
+Attaching package: ‘bslib’
+
+The following objects are masked from ‘package:bs4Dash’:
+
+    accordion, popover, tooltip
+
+The following object is masked from ‘package:utils’:
+
+    page
+
+✅ Loaded package 'bslib' successfully.
+
+Attaching package: ‘shinyjs’
+
+The following object is masked from ‘package:shiny’:
+
+    runExample
+
+The following object is masked from ‘package:duckdb’:
+
+    show
+
+The following object is masked from ‘package:DBI’:
+
+    show
+
+The following object is masked from ‘package:future’:
+
+    reset
+
+The following objects are masked from ‘package:methods’:
+
+    removeClass, show
+
+✅ Loaded package 'shinyjs' successfully.
+
+Attaching package: ‘shinyWidgets’
+
+The following object is masked from ‘package:shinyjs’:
+
+    alert
+
+The following object is masked from ‘package:bs4Dash’:
+
+    progressBar
+
+✅ Loaded package 'shinyWidgets' successfully.
+✅ Loaded package 'htmltools' successfully.
+✅ Loaded package 'fontawesome' successfully.
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+✅ Loaded package 'DT' successfully.
+Loading required package: ggplot2
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:arrow’:
+
+    schema
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+✅ Loaded package 'plotly' successfully.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+
+Attaching package: ‘purrr’
+
+The following object is masked from ‘package:scales’:
+
+    discard
+
+
+Attaching package: ‘jsonlite’
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+The following object is masked from ‘package:shiny’:
+
+    validate
+
+
+Attaching package: ‘httr’
+
+The following object is masked from ‘package:plotly’:
+
+    config
+
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:arrow’:
+
+    duration
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+
+Attaching package: ‘data.table’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    %between%, %notin%
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:httr’:
+
+    progress
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+The following object is masked from ‘package:future’:
+
+    cluster
+
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ data.table::between()   masks dplyr::between()
+✖ scales::col_factor()    masks readr::col_factor()
+✖ httr::config()          masks plotly::config()
+✖ purrr::discard()        masks scales::discard()
+✖ lubridate::duration()   masks arrow::duration()
+✖ plotly::filter()        masks dplyr::filter(), stats::filter()
+✖ data.table::first()     masks dplyr::first()
+✖ jsonlite::flatten()     masks purrr::flatten()
+✖ data.table::hour()      masks lubridate::hour()
+✖ data.table::isoweek()   masks lubridate::isoweek()
+✖ dplyr::lag()            masks stats::lag()
+✖ data.table::last()      masks dplyr::last()
+✖ caret::lift()           masks purrr::lift()
+✖ data.table::mday()      masks lubridate::mday()
+✖ data.table::minute()    masks lubridate::minute()
+✖ data.table::month()     masks lubridate::month()
+✖ caret::progress()       masks httr::progress()
+✖ data.table::quarter()   masks lubridate::quarter()
+✖ data.table::second()    masks lubridate::second()
+✖ lubridate::show()       masks shinyjs::show(), duckdb::show(), DBI::show(), methods::show()
+✖ data.table::transpose() masks purrr::transpose()
+✖ jsonlite::validate()    masks shiny::validate()
+✖ data.table::wday()      masks lubridate::wday()
+✖ data.table::week()      masks lubridate::week()
+✖ data.table::yday()      masks lubridate::yday()
+✖ data.table::year()      masks lubridate::year()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case loaded successfully
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+There were 30 warnings (use warnings() to see them)
+INITIALIZE: ⚡ Starting Cyberbiz ETL Product Import (Data Type Separated)
+INITIALIZE: 🕐 Start time: 2025-12-26 16:00:28
+INITIALIZE: 📋 Compliance: MP104 (ETL Data Flow Separation) + DM_R028 (Data Type Separation)
+>> OPERATION_MODE = APP_MODE
+Initialization already completed – skipping.
+✅ Package 'stringr' already attached.
+✅ Package 'glue' already attached.
+✅ Package 'tools' already attached.
+✅ Package 'yaml' already attached.
+✅ Package 'future' already attached.
+✅ Package 'future.mirai' already attached.
+✅ Package 'promises' already attached.
+✅ Package 'later' already attached.
+✅ Package 'dotenv' already attached.
+✅ Package 'DBI' already attached.
+✅ Package 'duckdb' already attached.
+✅ Package 'arrow' already attached.
+✅ Package 'dplyr' already attached.
+✅ Package 'tidyr' already attached.
+✅ Package 'readr' already attached.
+✅ Package 'readxl' already attached.
+✅ Package 'scales' already attached.
+✅ Package 'fs' already attached.
+✅ Package 'janitor' already attached.
+✅ Package 'shiny' already attached.
+✅ Package 'bs4Dash' already attached.
+✅ Package 'bslib' already attached.
+✅ Package 'shinyjs' already attached.
+✅ Package 'shinyWidgets' already attached.
+✅ Package 'htmltools' already attached.
+✅ Package 'fontawesome' already attached.
+✅ Package 'DT' already attached.
+✅ Package 'plotly' already attached.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+INITIALIZE: 📦 Loading required libraries...
+INITIALIZE: ✅ Libraries loaded successfully (0.00s)
+INITIALIZE: 🔗 Connecting to raw_data database...
+INITIALIZE: ✅ Database connection established (0.04s)
+INITIALIZE: ✅ Initialization completed successfully (0.16s)
+MAIN: 🚀 Starting ETL Product Import - Cyberbiz product data only...
+MAIN: 📊 Phase progress: Step 1/5 - API credential validation...
+MAIN: 🔐 API credentials: ✅ Available
+MAIN: 📊 Phase progress: Step 2/5 - API configuration...
+MAIN: ⚠️ SAFE MODE - Limiting to 20 pages per endpoint
+MAIN: ⏱️ Rate limiting: 0.20s delay between requests (5.0 req/sec)
+MAIN: 📊 Phase progress: Step 3/5 - Product catalog data extraction...
+    🌐 Starting product data fetch from /products endpoint...
+    🛍️ Fetching products page 1/20 (0.0% | 0 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.50s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 1: 50 products (1.54s) | Total: 50 | ETA: 30.5s
+    🛍️ Fetching products page 2/20 (5.0% | 50 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (0.92s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 2: 50 products (0.96s) | Total: 100 | ETA: 23.5s
+    🛍️ Fetching products page 3/20 (10.0% | 100 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (0.97s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 3: 50 products (1.00s) | Total: 150 | ETA: 20.8s
+    🛍️ Fetching products page 4/20 (15.0% | 150 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (0.84s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 4: 50 products (0.87s) | Total: 200 | ETA: 18.3s
+    🛍️ Fetching products page 5/20 (20.0% | 200 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.23s)
+      🔄 Handling 7 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+    ✅ Page 5: 50 products (1.25s) | Total: 250 | ETA: 17.7s
+    🛍️ Fetching products page 6/20 (25.0% | 250 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (0.88s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 6: 50 products (0.94s) | Total: 300 | ETA: 16.0s
+    🛍️ Fetching products page 7/20 (30.0% | 300 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.93s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 7: 50 products (1.96s) | Total: 350 | ETA: 16.5s
+    🛍️ Fetching products page 8/20 (35.0% | 350 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.03s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 8: 50 products (1.06s) | Total: 400 | ETA: 15.0s
+    🛍️ Fetching products page 9/20 (40.0% | 400 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.43s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 9: 50 products (1.46s) | Total: 450 | ETA: 14.1s
+    🛍️ Fetching products page 10/20 (45.0% | 450 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (0.83s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 10: 50 products (0.87s) | Total: 500 | ETA: 12.5s
+    🛍️ Fetching products page 11/20 (50.0% | 500 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (0.99s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 11: 50 products (1.02s) | Total: 550 | ETA: 11.1s
+    🛍️ Fetching products page 12/20 (55.0% | 550 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.59s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 12: 50 products (1.63s) | Total: 600 | ETA: 10.2s
+    🛍️ Fetching products page 13/20 (60.0% | 600 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.32s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 13: 50 products (1.34s) | Total: 650 | ETA: 9.0s
+    🛍️ Fetching products page 14/20 (65.0% | 650 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.09s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 14: 50 products (1.11s) | Total: 700 | ETA: 7.6s
+    🛍️ Fetching products page 15/20 (70.0% | 700 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.03s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 15: 50 products (1.06s) | Total: 750 | ETA: 6.3s
+    🛍️ Fetching products page 16/20 (75.0% | 750 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (0.91s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 16: 50 products (0.94s) | Total: 800 | ETA: 5.0s
+    🛍️ Fetching products page 17/20 (80.0% | 800 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.52s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 17: 50 products (1.55s) | Total: 850 | ETA: 3.8s
+    🛍️ Fetching products page 18/20 (85.0% | 850 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.82s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 18: 50 products (1.86s) | Total: 900 | ETA: 2.6s
+    🛍️ Fetching products page 19/20 (90.0% | 900 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.91s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 19: 50 products (1.93s) | Total: 950 | ETA: 1.3s
+    🛍️ Fetching products page 20/20 (95.0% | 950 products so far)...
+    ⏳ Rate limiting: waiting 0.20s before API call...
+    ✅ API call completed (1.11s)
+      🔄 Handling 8 list columns per DM_R026...
+        ✅ Serialized column: custom_collections -> custom_collections_json
+        ✅ Serialized column: tags -> tags_json
+        ✅ Serialized column: product_variants -> product_variants_json
+        ✅ Serialized column: product_options -> product_options_json
+        ✅ Serialized column: photos -> photos_json
+        ✅ Serialized column: related_collections -> related_collections_json
+        ✅ Serialized column: temperature_types -> temperature_types_json
+        ✅ Serialized column: special_collection.type_rules -> special_collection.type_rules_json
+    ✅ Page 20: 50 products (1.14s) | Total: 1000 | ETA: 0.0s
+    ✅ Product fetch completed: 20 pages, 1000 products (26.76s)
+    🔄 Combining product data...
+    ✅ Product data combined: 1000 rows × 52 columns (0.00s)
+MAIN: 📊 Phase progress: Step 4/5 - Database storage...
+MAIN: ✅ Product data: 1000 records written and verified (total: 26.79s, db_write: 0.02s)
+MAIN: ✅ ETL Product Import completed successfully (26.81s)
+TEST: 🧪 Starting ETL Product Import verification...
+TEST: ✅ Product table verification: 1000 records
+TEST: 📝 Product table structure (52 columns): title, english_title, product_url, published, sell_from, sell_to, product_type, product_type_code, slogan, brief, brief_text, brief_includes_html, body_html, vendor, price, sell_weight, tax_type_id, pos_shop, channel, branch_store, created_at, updated_at, searchable, google_product_category_id, id, special_collection.title, special_collection.handle, special_collection.published, special_collection.start_date, special_collection.end_date, special_collection.body_html, special_collection.position, special_collection.rest_include_discount, special_collection.id, special_collection.special_collection_type.name, special_collection.special_collection_type.code, seo_meta_tags.title, seo_meta_tags.description, seo_meta_tags.keywords, product_id, import_source, import_timestamp, platform_code, custom_collections_json, tags_json, product_variants_json, product_options_json, photos_json, related_collections_json, temperature_types_json, special_collection.type_rules_json, special_collection
+TEST: ✅ All required product columns present
+TEST: 🛍️ Unique products: 1000
+TEST: 💰 Product prices: min=9.00, max=5200.00, avg=586.17
+TEST: 📊 Product data sources:
+  import_source count
+1           API  1000
+TEST: ✅ Product verification completed (0.01s)
+SUMMARIZE: ✅ ETL Product Import completed successfully
+SUMMARIZE: 📊 PRODUCT ETL SUMMARY
+=====================================
+🏷️  Data Type: products
+🌐 Platform: cbz
+🕐 Total time: 26.97s
+📈 Status: SUCCESS ✅
+📋 Compliance: MP104, DM_R028, MP064, MP092, DEV_R032, MP103
+=====================================
+SUMMARIZE: ✅ ETL Product Import (cbz_ETL_products_0IM.R) completed
+SUMMARIZE: 🏁 Final completion time: 2025-12-26 16:00:55
+SUMMARIZE: ✅ Summary completed (0.00s)
+DEINITIALIZE: 🧹 Starting cleanup...
+DEINITIALIZE: 🔌 Disconnecting database...
+DEINITIALIZE: ✅ Cleanup completed (0.06s)
+DEINITIALIZE: 🧹 Executing autodeinit()...
+Scanning 686 objects for DBI connections...
+No DBI connections found in global environment
+>> De-init completed ‒ GlobalEnv 已清空並重建薄殼
+There were 30 warnings (use warnings() to see them)
+> 
+✔ cbz_ETL_products_0IM completed [28.7s, 148 B]
++ eby_ETL_sales_1ST___MAMBA dispatched
+[ETL:eby] eby_ETL_sales_1ST___MAMBA.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> setwd('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA'); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/update_scripts/ETL/eby/eby_ETL_sales_1ST___MAMBA.R')
+>> OPERATION_MODE = APP_MODE
+✅ Loaded package 'stringr' successfully.
+✅ Loaded package 'glue' successfully.
+✅ Loaded package 'tools' successfully.
+✅ Loaded package 'yaml' successfully.
+✅ Loaded package 'future' successfully.
+✅ Loaded package 'future.mirai' successfully.
+✅ Loaded package 'promises' successfully.
+✅ Loaded package 'later' successfully.
+✅ Loaded package 'dotenv' successfully.
+✅ Loaded package 'DBI' successfully.
+✅ Loaded package 'duckdb' successfully.
+
+Attaching package: ‘arrow’
+
+The following object is masked from ‘package:utils’:
+
+    timestamp
+
+✅ Loaded package 'arrow' successfully.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+✅ Loaded package 'dplyr' successfully.
+✅ Loaded package 'tidyr' successfully.
+✅ Loaded package 'readr' successfully.
+✅ Loaded package 'readxl' successfully.
+
+Attaching package: ‘scales’
+
+The following object is masked from ‘package:readr’:
+
+    col_factor
+
+✅ Loaded package 'scales' successfully.
+✅ Loaded package 'fs' successfully.
+
+Attaching package: ‘janitor’
+
+The following objects are masked from ‘package:stats’:
+
+    chisq.test, fisher.test
+
+✅ Loaded package 'janitor' successfully.
+✅ Loaded package 'shiny' successfully.
+
+Attaching package: ‘bs4Dash’
+
+The following objects are masked from ‘package:shiny’:
+
+    actionButton, column, insertTab, navbarMenu, tabsetPanel
+
+The following object is masked from ‘package:graphics’:
+
+    box
+
+✅ Loaded package 'bs4Dash' successfully.
+
+Attaching package: ‘bslib’
+
+The following objects are masked from ‘package:bs4Dash’:
+
+    accordion, popover, tooltip
+
+The following object is masked from ‘package:utils’:
+
+    page
+
+✅ Loaded package 'bslib' successfully.
+
+Attaching package: ‘shinyjs’
+
+The following object is masked from ‘package:shiny’:
+
+    runExample
+
+The following object is masked from ‘package:duckdb’:
+
+    show
+
+The following object is masked from ‘package:DBI’:
+
+    show
+
+The following object is masked from ‘package:future’:
+
+    reset
+
+The following objects are masked from ‘package:methods’:
+
+    removeClass, show
+
+✅ Loaded package 'shinyjs' successfully.
+
+Attaching package: ‘shinyWidgets’
+
+The following object is masked from ‘package:shinyjs’:
+
+    alert
+
+The following object is masked from ‘package:bs4Dash’:
+
+    progressBar
+
+✅ Loaded package 'shinyWidgets' successfully.
+✅ Loaded package 'htmltools' successfully.
+✅ Loaded package 'fontawesome' successfully.
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+✅ Loaded package 'DT' successfully.
+Loading required package: ggplot2
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:arrow’:
+
+    schema
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+✅ Loaded package 'plotly' successfully.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+
+Attaching package: ‘purrr’
+
+The following object is masked from ‘package:scales’:
+
+    discard
+
+
+Attaching package: ‘jsonlite’
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+The following object is masked from ‘package:shiny’:
+
+    validate
+
+
+Attaching package: ‘httr’
+
+The following object is masked from ‘package:plotly’:
+
+    config
+
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:arrow’:
+
+    duration
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+
+Attaching package: ‘data.table’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    %between%, %notin%
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:httr’:
+
+    progress
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+The following object is masked from ‘package:future’:
+
+    cluster
+
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ data.table::between()   masks dplyr::between()
+✖ scales::col_factor()    masks readr::col_factor()
+✖ httr::config()          masks plotly::config()
+✖ purrr::discard()        masks scales::discard()
+✖ lubridate::duration()   masks arrow::duration()
+✖ plotly::filter()        masks dplyr::filter(), stats::filter()
+✖ data.table::first()     masks dplyr::first()
+✖ jsonlite::flatten()     masks purrr::flatten()
+✖ data.table::hour()      masks lubridate::hour()
+✖ data.table::isoweek()   masks lubridate::isoweek()
+✖ dplyr::lag()            masks stats::lag()
+✖ data.table::last()      masks dplyr::last()
+✖ caret::lift()           masks purrr::lift()
+✖ data.table::mday()      masks lubridate::mday()
+✖ data.table::minute()    masks lubridate::minute()
+✖ data.table::month()     masks lubridate::month()
+✖ caret::progress()       masks httr::progress()
+✖ data.table::quarter()   masks lubridate::quarter()
+✖ data.table::second()    masks lubridate::second()
+✖ lubridate::show()       masks shinyjs::show(), duckdb::show(), DBI::show(), methods::show()
+✖ data.table::transpose() masks purrr::transpose()
+✖ jsonlite::validate()    masks shiny::validate()
+✖ data.table::wday()      masks lubridate::wday()
+✖ data.table::week()      masks lubridate::week()
+✖ data.table::yday()      masks lubridate::yday()
+✖ data.table::year()      masks lubridate::year()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case loaded successfully
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+There were 30 warnings (use warnings() to see them)
+================================================================================
+INITIALIZE: Starting MAMBA eBay Sales Staging (eby_ETL_sales_1ST___MAMBA.R)
+INITIALIZE: Company-specific staging for MAMBA
+================================================================================
+>> OPERATION_MODE = APP_MODE
+Initialization already completed – skipping.
+✅ Package 'stringr' already attached.
+✅ Package 'glue' already attached.
+✅ Package 'tools' already attached.
+✅ Package 'yaml' already attached.
+✅ Package 'future' already attached.
+✅ Package 'future.mirai' already attached.
+✅ Package 'promises' already attached.
+✅ Package 'later' already attached.
+✅ Package 'dotenv' already attached.
+✅ Package 'DBI' already attached.
+✅ Package 'duckdb' already attached.
+✅ Package 'arrow' already attached.
+✅ Package 'dplyr' already attached.
+✅ Package 'tidyr' already attached.
+✅ Package 'readr' already attached.
+✅ Package 'readxl' already attached.
+✅ Package 'scales' already attached.
+✅ Package 'fs' already attached.
+✅ Package 'janitor' already attached.
+✅ Package 'shiny' already attached.
+✅ Package 'bs4Dash' already attached.
+✅ Package 'bslib' already attached.
+✅ Package 'shinyjs' already attached.
+✅ Package 'shinyWidgets' already attached.
+✅ Package 'htmltools' already attached.
+✅ Package 'fontawesome' already attached.
+✅ Package 'DT' already attached.
+✅ Package 'plotly' already attached.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+INITIALIZE: ✓ Global initialization complete
+INITIALIZE: Operation mode: APP_MODE
+INITIALIZE: Script: eby_ETL_sales_1ST___MAMBA v1.0.0
+INITIALIZE: 1ST Phase - Column renaming and transformations (MP064 compliance)
+MAIN: Starting MAMBA eBay sales staging process
+MAIN: Connecting to raw database...
+MAIN: ✓ Connected to raw database (data/local_data/raw_data.duckdb)
+MAIN: Loading raw data from df_eby_sales___raw...
+MAIN: Loaded 3887 raw records
+MAIN: Raw data columns: 40
+MAIN: Starting 1ST phase transformations...
+MAIN: Applying column renaming (moved from 0IM phase for MP064 compliance)...
+MAIN:  Renamed ORD001 -> order_number
+MAIN:  Renamed ORD002 -> other_order_number
+MAIN:  Renamed ORD003 -> order_date
+MAIN:  Renamed ORD004 -> payment_date
+MAIN:  Renamed ORD005 -> total_payment
+MAIN:  Renamed ORD006 -> payment_method
+MAIN:  Renamed ORD007 -> payment_currency
+MAIN:  Renamed ORD008 -> seller_ebay_account
+MAIN:  Renamed ORD009 -> seller_ebay_email
+MAIN:  Renamed ORD010 -> recipient
+MAIN:  Renamed ORD011 -> street1
+MAIN:  Renamed ORD012 -> street2
+MAIN:  Renamed ORD013 -> city_name
+MAIN:  Renamed ORD014 -> state_or_province
+MAIN:  Renamed ORD015 -> postal_code
+MAIN:  Renamed ORD016 -> country_name
+MAIN:  Renamed ORD020 -> buyer_ebay
+MAIN:  Renamed ORD021 -> shipping_fee
+MAIN:  Renamed ORD046 -> tax_code_type
+MAIN:  Renamed ORD047 -> tax_code
+MAIN:  Renamed ORD048 -> vat_amount
+MAIN:  Renamed ORE002 -> serial_number
+MAIN:  Renamed ORE003 -> ebay_item_number
+MAIN:  Renamed ORE004 -> product_name
+MAIN:  Renamed ORE005 -> erp_product_number
+MAIN:  Renamed ORE006 -> application_data
+MAIN:  Renamed ORE007 -> item_condition
+MAIN:  Renamed ORE008 -> quantity
+MAIN:  Renamed ORE009 -> unit_price
+MAIN:  Renamed ORE010 -> transaction_price
+MAIN:  Renamed ORE011 -> ebay_transaction_id
+MAIN:  Renamed ORE012 -> purchase_date
+MAIN:  Renamed ORE014 -> variation
+MAIN:  Renamed ORE015 -> payment_status
+MAIN: Performing data cleaning...
+MAIN:  Parsing MAMBA date format (YYYYMMDD HHMMSS) for date columns...
+MAIN:  Skipping advanced datetime parsing and NA handling for basic transformation
+MAIN: Adding MAMBA-specific calculated fields (moved from 0IM phase for MP064 compliance)...
+MAIN: Creating additional derived fields...
+MAIN: Validating staged data...
+MAIN: ✓ Staged 3701 records
+MAIN: Total columns after transformations: 56
+MAIN: MAMBA-specific fields added: 4
+MAIN: 1ST Phase complete - All renaming and basic transformations applied (MP064)
+MAIN: Saving staged data...
+MAIN: ✓ Data saved to df_eby_sales___staged with indices
+MAIN: ✓ Staged data written to data/local_data/staged_data.duckdb (MAMBA 7-Layer compliant)
+MAIN: Main process completed in 0.34 seconds
+TEST: Starting validation tests
+TEST: ✓ Staging table contains 3701 records
+TEST: ✓ All derived fields present
+TEST: Data Quality Metrics:
+  - Total records: 3701
+  - Unique orders: 3701
+  - Unique customers: 1
+  - Unknown fulfillment: 0
+  - Date range: 2025-05-29 to 2025-08-28
+TEST: ✓ No duplicate orders found
+TEST: Tests completed in 0.04 seconds
+SUMMARIZE: Generating staging summary
+================================================================================
+📊 MAMBA EBY SALES STAGING SUMMARY
+================================================================================
+🏢 Company: MAMBA
+🌐 Platform: eby
+📦 Data Type: sales
+🔄 Phase: 1ST (Staging)
+📝 Records Staged: 3701
+🕐 Total Time: 0.51 seconds
+✅ Status: SUCCESS
+📋 Compliance: DM_R037, MP104, DM_R028, DEV_R032, MP030
+📈 Data Quality Summary:
+  • Unique Customers: 1
+  • Data Completeness: 100.0%
+================================================================================
+DEINITIALIZE: 🧹 Cleaning up resources...
+DEINITIALIZE: ✅ MAMBA eBay Sales Staging completed
+DEINITIALIZE: 🏁 Script finished at: 2025-12-26 16:00:57
+Scanning 665 objects for DBI connections...
+No DBI connections found in global environment
+>> De-init completed ‒ GlobalEnv 已清空並重建薄殼
+There were 30 warnings (use warnings() to see them)
+> 
+✔ eby_ETL_sales_1ST___MAMBA completed [2.2s, 152 B]
++ eby_ETL_orders_1ST___MAMBA dispatched
+[ETL:eby] eby_ETL_orders_1ST___MAMBA.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> setwd('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA'); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/update_scripts/ETL/eby/eby_ETL_orders_1ST___MAMBA.R')
+>> OPERATION_MODE = APP_MODE
+✅ Loaded package 'stringr' successfully.
+✅ Loaded package 'glue' successfully.
+✅ Loaded package 'tools' successfully.
+✅ Loaded package 'yaml' successfully.
+✅ Loaded package 'future' successfully.
+✅ Loaded package 'future.mirai' successfully.
+✅ Loaded package 'promises' successfully.
+✅ Loaded package 'later' successfully.
+✅ Loaded package 'dotenv' successfully.
+✅ Loaded package 'DBI' successfully.
+✅ Loaded package 'duckdb' successfully.
+
+Attaching package: ‘arrow’
+
+The following object is masked from ‘package:utils’:
+
+    timestamp
+
+✅ Loaded package 'arrow' successfully.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+✅ Loaded package 'dplyr' successfully.
+✅ Loaded package 'tidyr' successfully.
+✅ Loaded package 'readr' successfully.
+✅ Loaded package 'readxl' successfully.
+
+Attaching package: ‘scales’
+
+The following object is masked from ‘package:readr’:
+
+    col_factor
+
+✅ Loaded package 'scales' successfully.
+✅ Loaded package 'fs' successfully.
+
+Attaching package: ‘janitor’
+
+The following objects are masked from ‘package:stats’:
+
+    chisq.test, fisher.test
+
+✅ Loaded package 'janitor' successfully.
+✅ Loaded package 'shiny' successfully.
+
+Attaching package: ‘bs4Dash’
+
+The following objects are masked from ‘package:shiny’:
+
+    actionButton, column, insertTab, navbarMenu, tabsetPanel
+
+The following object is masked from ‘package:graphics’:
+
+    box
+
+✅ Loaded package 'bs4Dash' successfully.
+
+Attaching package: ‘bslib’
+
+The following objects are masked from ‘package:bs4Dash’:
+
+    accordion, popover, tooltip
+
+The following object is masked from ‘package:utils’:
+
+    page
+
+✅ Loaded package 'bslib' successfully.
+
+Attaching package: ‘shinyjs’
+
+The following object is masked from ‘package:shiny’:
+
+    runExample
+
+The following object is masked from ‘package:duckdb’:
+
+    show
+
+The following object is masked from ‘package:DBI’:
+
+    show
+
+The following object is masked from ‘package:future’:
+
+    reset
+
+The following objects are masked from ‘package:methods’:
+
+    removeClass, show
+
+✅ Loaded package 'shinyjs' successfully.
+
+Attaching package: ‘shinyWidgets’
+
+The following object is masked from ‘package:shinyjs’:
+
+    alert
+
+The following object is masked from ‘package:bs4Dash’:
+
+    progressBar
+
+✅ Loaded package 'shinyWidgets' successfully.
+✅ Loaded package 'htmltools' successfully.
+✅ Loaded package 'fontawesome' successfully.
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+✅ Loaded package 'DT' successfully.
+Loading required package: ggplot2
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:arrow’:
+
+    schema
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+✅ Loaded package 'plotly' successfully.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+
+Attaching package: ‘purrr’
+
+The following object is masked from ‘package:scales’:
+
+    discard
+
+
+Attaching package: ‘jsonlite’
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+The following object is masked from ‘package:shiny’:
+
+    validate
+
+
+Attaching package: ‘httr’
+
+The following object is masked from ‘package:plotly’:
+
+    config
+
+
+Attaching package: ‘lubridate’
+
+The following object is masked from ‘package:arrow’:
+
+    duration
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+
+Attaching package: ‘data.table’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    %between%, %notin%
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:httr’:
+
+    progress
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+The following object is masked from ‘package:future’:
+
+    cluster
+
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ data.table::between()   masks dplyr::between()
+✖ scales::col_factor()    masks readr::col_factor()
+✖ httr::config()          masks plotly::config()
+✖ purrr::discard()        masks scales::discard()
+✖ lubridate::duration()   masks arrow::duration()
+✖ plotly::filter()        masks dplyr::filter(), stats::filter()
+✖ data.table::first()     masks dplyr::first()
+✖ jsonlite::flatten()     masks purrr::flatten()
+✖ data.table::hour()      masks lubridate::hour()
+✖ data.table::isoweek()   masks lubridate::isoweek()
+✖ dplyr::lag()            masks stats::lag()
+✖ data.table::last()      masks dplyr::last()
+✖ caret::lift()           masks purrr::lift()
+✖ data.table::mday()      masks lubridate::mday()
+✖ data.table::minute()    masks lubridate::minute()
+✖ data.table::month()     masks lubridate::month()
+✖ caret::progress()       masks httr::progress()
+✖ data.table::quarter()   masks lubridate::quarter()
+✖ data.table::second()    masks lubridate::second()
+✖ lubridate::show()       masks shinyjs::show(), duckdb::show(), DBI::show(), methods::show()
+✖ data.table::transpose() masks purrr::transpose()
+✖ jsonlite::validate()    masks shiny::validate()
+✖ data.table::wday()      masks lubridate::wday()
+✖ data.table::week()      masks lubridate::week()
+✖ data.table::yday()      masks lubridate::yday()
+✖ data.table::year()      masks lubridate::year()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case loaded successfully
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+There were 30 warnings (use warnings() to see them)
+================================================================================
+INITIALIZE: Starting MAMBA eBay Orders Staging (eby_ETL_orders_1ST___MAMBA.R)
+INITIALIZE: Company-specific implementation for MAMBA
+INITIALIZE: Data type: Orders (BAYORD staging)
+================================================================================
+>> OPERATION_MODE = APP_MODE
+Initialization already completed – skipping.
+✅ Package 'stringr' already attached.
+✅ Package 'glue' already attached.
+✅ Package 'tools' already attached.
+✅ Package 'yaml' already attached.
+✅ Package 'future' already attached.
+✅ Package 'future.mirai' already attached.
+✅ Package 'promises' already attached.
+✅ Package 'later' already attached.
+✅ Package 'dotenv' already attached.
+✅ Package 'DBI' already attached.
+✅ Package 'duckdb' already attached.
+✅ Package 'arrow' already attached.
+✅ Package 'dplyr' already attached.
+✅ Package 'tidyr' already attached.
+✅ Package 'readr' already attached.
+✅ Package 'readxl' already attached.
+✅ Package 'scales' already attached.
+✅ Package 'fs' already attached.
+✅ Package 'janitor' already attached.
+✅ Package 'shiny' already attached.
+✅ Package 'bs4Dash' already attached.
+✅ Package 'bslib' already attached.
+✅ Package 'shinyjs' already attached.
+✅ Package 'shinyWidgets' already attached.
+✅ Package 'htmltools' already attached.
+✅ Package 'fontawesome' already attached.
+✅ Package 'DT' already attached.
+✅ Package 'plotly' already attached.
+Package initialization complete for APP_MODE:
+- 28 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, cleansed_data, transformed_data, processed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+INITIALIZE: [OK] Global initialization complete
+INITIALIZE: Script: eby_ETL_orders_1ST___MAMBA v2.0.0
+INITIALIZE: Following MP064 ETL-Derivation Separation
+INITIALIZE: Following MP104 ETL Data Flow Separation
+INITIALIZE: Establishing database connections...
+INITIALIZE: ✅ Database connections established
+INITIALIZE: Source: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/data/local_data/raw_data.duckdb
+INITIALIZE: Target: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/data/local_data/staged_data.duckdb
+MAIN: Starting MAMBA eBay ORDERS staging process
+MAIN: Reading raw BAYORD data...
+MAIN: Loaded 187782 raw orders
+MAIN: Standardizing column names...
+MAIN: ❌ Error during orders staging: 
+Error in rename(., order_id = ORD001, other_order_number = ORD002, order_date = ORD003,  : 
+  Can't rename columns that don't exist.
+✖ Column `ORD017` doesn't exist.
+Calls: source ... tryCatch -> tryCatchList -> tryCatchOne -> <Anonymous>
+In addition: There were 30 warnings (use warnings() to see them)
+Execution halted
+✖ eby_ETL_orders_1ST___MAMBA errored
+✖ errored pipeline [1m 31.8s, 6 completed, 0 skipped]
+Error:
+! Error in tar_make():
+  ETL failed (eby_ETL_orders_1ST___MAMBA.R)
+  See https://books.ropensci.org/targets/debugging.html
+Execution halted

@@ -15,7 +15,7 @@ Successfully integrated newer ETL scripts from `update_scripts_20250929` into th
 - **MP062**: Remove Obsolete Code - Replaced outdated mixed-type ETL scripts
 
 ### Secondary Principles
-- **MP092**: Platform Code Standard (cbz/eby/amz prefixes maintained)
+- **MP092**: Platform ID Standard (cbz/eby/amz prefixes maintained)
 - **DEV_R032**: Five-Part Script Structure Standard
 - **MP103**: Proper autodeinit() usage patterns
 - **MP099**: Real-Time Progress Reporting

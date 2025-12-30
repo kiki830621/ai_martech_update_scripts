@@ -433,7 +433,7 @@ import_mamba_eby_sales <- function(conn) {
   # Add minimal metadata for 0IM phase (MP064 compliance - no business logic)
   df_sales$import_timestamp <- Sys.time()
   df_sales$import_source <- "MAMBATEK_SQL_SERVER"
-  df_sales$platform_code <- "eby"
+  df_sales$platform_id <- "eby"
   df_sales$company_code <- "MAMBA"
   
   # MP100 Compliance flag

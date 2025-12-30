@@ -14,6 +14,7 @@
 #' @title Create Product Line ASIN Mapping
 #' @description Creates a unified table that maps ASINs to their respective product_line_id_filter
 #'              by combining data from multiple product profile tables
+#' @business_rules Creates a unified table that maps ASINs to their respective product_line_id_filter.
 
 # 1. INITIALIZE
 autoinit()

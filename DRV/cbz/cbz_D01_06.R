@@ -1,32 +1,93 @@
+#!/usr/bin/env Rscript
 #####
-#P07_D01_06
-OPERATION_MODE <- "UPDATE_MODE"
-source(file.path("../../../../global_scripts", "00_principles", "sc_initialization_update_mode.R"))
-processed_data <- dbConnectDuckdb(db_path_list$processed_data)
-app_data <- dbConnectDuckdb(db_path_list$app_data)
+# DERIVATION: D01 Master Execution (CBZ)
+# VERSION: 2.0
+# PLATFORM: cbz
+# GROUP: D01
+# SEQUENCE: 06
+# PURPOSE: Orchestrate D01_03 through D01_05 for CBZ
+# CONSUMES: transformed_data.df_cbz_sales___standardized
+# PRODUCES: app_data.df_customer_profile, app_data.df_customer_dna, app_data.df_customer_segments
+# PRINCIPLE: MP064, DM_R044, DM_R022, DM_R048
+#####
+#cbz_D01_06
 
-df_amazon_sales_by_customer <- tbl(processed_data, "df_amazon_sales_by_customer") %>% collect()
-df_amazon_sales.by_customer.by_date <- tbl(processed_data, "df_amazon_sales_by_customer_by_date") %>% collect()
-    
-# Run DNA analysis with real data
-message("Starting customer DNA analysis...")
-dna_results <- analysis_dna(df_amazon_sales_by_customer, df_amazon_sales.by_customer.by_date)
-
-# Output results
-# message("Customer DNA analysis completed")
-# message("Number of customers analyzed: ", nrow(dna_results$data_by_customer))
-# message("Churn prediction accuracy: ", dna_results$nrec_accu$nrec_accu)
-
-dbWriteTable(
-app_data,
-"df_dna_by_customer",
-dna_results$data_by_customer %>% select(-row_names) %>% mutate(platform_id = 2L),
-append=TRUE,
-temporary = FALSE
-)
-
-tbl(app_data, "df_dna_by_customer")%>% head(10)
+#' @title D01 Master Execution (CBZ)
+#' @description Orchestrate D01_03 through D01_05 for CBZ
+#' @input_tables transformed_data.df_cbz_sales___standardized
+#' @output_tables app_data.df_customer_profile, app_data.df_customer_dna, app_data.df_customer_segments
+#' @business_rules Orchestrate D01_03 through D01_05 for CBZ.
+#' @platform cbz
+#' @author MAMBA Development Team
+#' @date 2025-12-30
 
 
-source(file.path("../../../../global_scripts", "00_principles", "sc_deinitialization_update_mode.R"))
+# ==============================================================================
+# PART 1: INITIALIZE
+# ==============================================================================
 
+if (!exists("autoinit", mode = "function")) {
+  source(file.path("scripts", "global_scripts", "22_initializations", "sc_Rprofile.R"))
+}
+
+autoinit()
+
+error_occurred <- FALSE
+test_passed <- FALSE
+start_time <- Sys.time()
+platform_id <- "cbz"
+
+rscript_path <- Sys.which("Rscript")
+if (!nzchar(rscript_path)) {
+  stop("Rscript not found in PATH")
+}
+
+all_script_path <- file.path(APP_DIR, "scripts", "update_scripts", "DRV", "all", "all_D01_06.R")
+
+# ==============================================================================
+# PART 2: MAIN
+# ==============================================================================
+
+tryCatch({
+  if (!file.exists(all_script_path)) {
+    stop(sprintf("Missing master script: %s", all_script_path))
+  }
+  message(sprintf("MAIN: Running D01 master flow for %s...", platform_id))
+  status <- system2(rscript_path, args = c(all_script_path, sprintf("--platforms=%s", platform_id)))
+  if (!is.null(status) && status != 0) {
+    stop(sprintf("Master execution failed with status %d", status))
+  }
+}, error = function(e) {
+  error_occurred <<- TRUE
+  message(sprintf("MAIN: ERROR - %s", e$message))
+})
+
+# ==============================================================================
+# PART 3: TEST
+# ==============================================================================
+
+if (!error_occurred) {
+  tryCatch({
+    test_passed <- TRUE
+    message("TEST: Master execution completed")
+  }, error = function(e) {
+    test_passed <<- FALSE
+    message(sprintf("TEST: ERROR - %s", e$message))
+  })
+}
+
+# ==============================================================================
+# PART 4: SUMMARIZE
+# ==============================================================================
+
+execution_time <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
+message("SUMMARY: ", ifelse(!error_occurred && test_passed, "SUCCESS", "FAILED"))
+message(sprintf("SUMMARY: Platform: %s", platform_id))
+message(sprintf("SUMMARY: Execution time (secs): %.2f", execution_time))
+
+# ==============================================================================
+# PART 5: DEINITIALIZE
+# ==============================================================================
+
+autodeinit()
+# NO STATEMENTS AFTER THIS LINE

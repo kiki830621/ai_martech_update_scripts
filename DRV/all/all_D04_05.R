@@ -1,18 +1,69 @@
 #!/usr/bin/env Rscript
 #####
+#P09_D04_05
 # DERIVATION: Cross-Platform Poisson Calculation (Wrapper)
-# VERSION: 1.0
+# VERSION: 1.1
 # PLATFORM: all
 # GROUP: D04
 # SEQUENCE: 05
-# PURPOSE: Entry point for Poisson calculation - delegates to all_D04_08.R
+# PURPOSE: Wrapper entry point for Poisson calculation (delegates to all_D04_08.R)
 # CONSUMES: (via all_D04_08.R)
-# PRODUCES: df_precision_poisson_analysis
+# PRODUCES: processed_data.df_precision_poisson_analysis
 # PRINCIPLE: DM_R044, MP064
-# NOTE: This is a WRAPPER script - autoinit/autodeinit handled by main script
 #####
-#all_D04_05
 
-# Source the Poisson analysis script
-# Main script handles: autoinit, 5-part structure, autodeinit
-source("scripts/update_scripts/DRV/all/all_D04_08.R")
+#' @title ALL D04_05 Wrapper - Poisson Calculation
+#' @description Wrapper entry point that executes all_D04_08.R.
+#' @requires base
+#' @input_tables processed_data.df_precision_features
+#' @output_tables processed_data.df_precision_poisson_analysis
+#' @business_rules Wrapper only; delegates execution to all_D04_08.R.
+#' @platform all
+#' @author MAMBA Development Team
+#' @date 2025-12-30
+
+# ==============================================================================
+# PART 1: INITIALIZE
+# ==============================================================================
+source("scripts/global_scripts/22_initializations/sc_Rprofile.R")
+autoinit()
+
+error_occurred <- FALSE
+test_passed <- FALSE
+start_time <- Sys.time()
+
+# ==============================================================================
+# PART 2: MAIN
+# ==============================================================================
+tryCatch({
+  message("Running all_D04_08.R via wrapper (D04_05)...")
+  exit_status <- system2("Rscript", "scripts/update_scripts/DRV/all/all_D04_08.R")
+  if (!is.null(exit_status) && exit_status != 0) {
+    stop(sprintf("all_D04_08.R exited with status %s", exit_status))
+  }
+  test_passed <- TRUE
+}, error = function(e) {
+  message("ERROR in MAIN: ", e$message)
+  error_occurred <<- TRUE
+})
+
+# ==============================================================================
+# PART 3: TEST
+# ==============================================================================
+if (!error_occurred) {
+  message("Wrapper completed without errors.")
+}
+
+# ==============================================================================
+# PART 4: SUMMARIZE
+# ==============================================================================
+message("DERIVATION SUMMARY")
+message(sprintf("Script: %s", "all_D04_05.R"))
+message(sprintf("Status: %s", ifelse(test_passed && !error_occurred, "SUCCESS", "FAILED")))
+message(sprintf("Execution Time: %.2f seconds", as.numeric(difftime(Sys.time(), start_time, units = "secs"))))
+
+# ==============================================================================
+# PART 5: DEINITIALIZE
+# ==============================================================================
+autodeinit()
+# End of file

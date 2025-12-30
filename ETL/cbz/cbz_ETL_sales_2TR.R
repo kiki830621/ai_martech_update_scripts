@@ -217,12 +217,12 @@ tryCatch({
 
   # Add transformation metadata (required per transformed_schemas.yaml)
   dt_sales[, `:=`(
-    platform_code = "cbz",
+    platform_id = "cbz",
     transformation_timestamp = Sys.time(),
     transformation_version = script_version,
     etl_pipeline = "BASE_SALES"  # CBZ is BASE (not DERIVED via JOIN)
   )]
-  message("    ✅ Added transformation metadata: platform_code, timestamp, version, pipeline")
+  message("    ✅ Added transformation metadata: platform_id, timestamp, version, pipeline")
 
   transform_elapsed <- as.numeric(Sys.time() - transform_start, units = "secs")
   message(sprintf("MAIN: ✅ Schema standardization completed (%.2fs)", transform_elapsed))
@@ -238,7 +238,7 @@ tryCatch({
     "transaction_id", "order_id", "customer_id", "product_id", "product_name",
     "quantity", "unit_price", "line_total",
     "order_date", "order_year", "order_month", "order_quarter",
-    "platform_code", "transformation_timestamp", "etl_pipeline"
+    "platform_id", "transformation_timestamp", "etl_pipeline"
   )
 
   missing_fields <- setdiff(required_fields, names(dt_sales))
@@ -372,7 +372,7 @@ if (script_success) {
 
     # Test 3: Verify required columns exist
     columns <- dbListFields(transformed_data, output_table)
-    required_cols <- c("transaction_id", "order_id", "platform_code",
+    required_cols <- c("transaction_id", "order_id", "platform_id",
                        "transformation_timestamp", "etl_pipeline")
     missing_cols <- setdiff(required_cols, columns)
 
@@ -382,14 +382,14 @@ if (script_success) {
     }
     message("TEST: ✅ All required columns present")
 
-    # Test 4: Verify platform_code is correct
+    # Test 4: Verify platform_id is correct
     platform_check <- dbGetQuery(transformed_data,
-      sprintf("SELECT DISTINCT platform_code FROM %s", output_table))
-    if (nrow(platform_check) != 1 || platform_check$platform_code[1] != "cbz") {
-      stop(sprintf("TEST: platform_code should be 'cbz', found: %s",
-                   paste(platform_check$platform_code, collapse = ", ")))
+      sprintf("SELECT DISTINCT platform_id FROM %s", output_table))
+    if (nrow(platform_check) != 1 || platform_check$platform_id[1] != "cbz") {
+      stop(sprintf("TEST: platform_id should be 'cbz', found: %s",
+                   paste(platform_check$platform_id, collapse = ", ")))
     }
-    message("TEST: ✅ platform_code is 'cbz'")
+    message("TEST: ✅ platform_id is 'cbz'")
 
     # Test 5: Verify etl_pipeline is BASE_SALES
     pipeline_check <- dbGetQuery(transformed_data,

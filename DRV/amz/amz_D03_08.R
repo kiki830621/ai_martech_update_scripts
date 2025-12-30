@@ -1,3 +1,11 @@
+
+#' @title amz_D03_08
+#' @description Derivation task
+#' @business_rules See script comments for business logic.
+#' @platform amz
+#' @author MAMBA Development Team
+#' @date 2025-12-30
+
 # amz_D03_01.R - Comment Property Rating Analysis
 # D03_01: Comment Property Rating Analysis (repositioned from legacy D03_06)
 #

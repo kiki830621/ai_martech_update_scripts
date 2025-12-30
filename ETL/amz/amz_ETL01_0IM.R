@@ -2,7 +2,7 @@
 # ==============================================================================
 # Following MP064: ETL-Derivation Separation Principle
 # Following MP094: Platform API Architecture
-# Following MP092: Platform Code Standard (amz = Amazon)
+# Following MP092: Platform ID Standard (amz = Amazon)
 # Following R113: Four-part Update Script Structure
 # Following MP095: Claude Code-Driven Changes
 # Following MP099: Real-Time Progress Reporting
@@ -181,7 +181,7 @@ tryCatch({
           mutate(
             import_source = "API",
             import_timestamp = Sys.time(),
-            platform_code = "amz"
+            platform_id = "amz"
           )
       }
       orders
@@ -299,7 +299,7 @@ tryCatch({
           list(name = "ship_postal_code", type = "VARCHAR"),
           list(name = "import_source", type = "VARCHAR", not_null = TRUE),
           list(name = "import_timestamp", type = "TIMESTAMP"),
-          list(name = "platform_code", type = "VARCHAR"),
+          list(name = "platform_id", type = "VARCHAR"),
           list(name = "path", type = "VARCHAR")
         )
       )
@@ -398,7 +398,7 @@ if (script_success) {
         # Amazon-specific validation
         message("TEST: 📊 Step 3/3 - Amazon-specific validation...")
         
-        required_amazon_fields <- c("order_id", "purchase_date", "platform_code")
+        required_amazon_fields <- c("order_id", "purchase_date", "platform_id")
         missing_fields <- setdiff(required_amazon_fields, columns)
         
         if (length(missing_fields) > 0) {

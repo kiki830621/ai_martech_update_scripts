@@ -20,6 +20,16 @@
 #####
 #eby_D01_05
 
+#' @title D01_05 Application Views (EBY)
+#' @description Normalize cleansed outputs via core function
+#' @input_tables cleansed_data.df_customer_dna___cleansed,
+#' @output_tables app_data.df_customer_dna,
+#' @business_rules Normalize cleansed outputs via core function.
+#' @platform eby
+#' @author MAMBA Development Team
+#' @date 2025-12-30
+
+
 # ==============================================================================
 # PART 1: INITIALIZE
 # ==============================================================================

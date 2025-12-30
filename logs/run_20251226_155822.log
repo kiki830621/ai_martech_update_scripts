@@ -1,0 +1,32 @@
++ eby_ETL_order_details_1ST___MAMBA dispatched
+[ETL:eby] eby_ETL_order_details_1ST___MAMBA.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> setwd('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA'); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/MAMBA/scripts/update_scripts/ETL/eby/eby_ETL_order_details_1ST___MAMBA.R')
+>> OPERATION_MODE = APP_MODE
+Error in if (!exists("APP_DIR")) stop("APP_DIR is not defined when sourcing db_paths.R") : 
+  could not find function "if"
+Calls: autoinit -> <Anonymous> -> sys.source -> eval -> eval
+Execution halted
+✖ eby_ETL_order_details_1ST___MAMBA errored
+✖ errored pipeline [236ms, 0 completed, 0 skipped]
+Error:
+! Error in tar_make():
+  ETL failed (eby_ETL_order_details_1ST___MAMBA.R)
+  See https://books.ropensci.org/targets/debugging.html
+Execution halted

@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 #####
+#P09_D04_07
 # DERIVATION: Precision Marketing Time Series Completion
 # VERSION: 2.0
 # PLATFORM: all
@@ -10,14 +11,18 @@
 # PRODUCES: processed_data.duckdb/df_precision_time_series
 # PRINCIPLE: DM_R044, MP064, MP109, R117, MP029, MP102
 #####
+
 #all_D04_07
 
 #' @title Precision Marketing DRV - Time Series Completion
 #' @description Complete time series with R117 transparency markers.
 #'              Marks REAL vs FILLED data for transparency.
 #'              Future sales data integration ready.
+#' @requires duckdb, dplyr, tidyr, tibble, lubridate
 #' @input_tables transformed_data.duckdb (from ETL 2TR stage)
 #' @output_tables processed_data.duckdb/df_precision_time_series
+#' @business_rules If no temporal data or not implemented, write empty schema with R117 columns.
+#' @platform all
 #' @author MAMBA Development Team
 #' @date 2025-12-14
 
@@ -247,7 +252,13 @@ tryCatch({
   if (has_temporal_data) {
     # Process real sales data with R117 compliance
     result <- process_time_series(con_transformed, con_processed)
-    processing_mode <- "REAL_DATA"
+    if (is.null(result)) {
+      message("  ⚠️ Time series processing not implemented; writing empty schema.")
+      result <- create_empty_time_series_schema(con_processed)
+      processing_mode <- "EMPTY_SCHEMA"
+    } else {
+      processing_mode <- "REAL_DATA"
+    }
   } else {
     # Create R117-compliant empty schema for future integration
     result <- create_empty_time_series_schema(con_processed)
@@ -367,3 +378,4 @@ if (!interactive()) {
 
 # 5.3: Autodeinit (MUST be last statement)
 autodeinit()
+# End of file

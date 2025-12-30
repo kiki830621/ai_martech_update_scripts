@@ -58,7 +58,7 @@ sales_transformed:
     # Time dimensions
     order_date, order_year, order_month, order_quarter
     # Metadata
-    platform_code, transformation_timestamp, etl_pipeline
+    platform_id, transformation_timestamp, etl_pipeline
 ```
 
 ---
@@ -116,7 +116,7 @@ sales_transformed:
 - Extracts time dimensions (order_year, order_month, order_quarter, order_day, order_weekday)
 - Calculates `line_total = quantity × unit_price`
 - Rounds financial fields to 2 decimal places
-- Adds transformation metadata (platform_code, transformation_timestamp, transformation_version, etl_pipeline)
+- Adds transformation metadata (platform_id, transformation_timestamp, transformation_version, etl_pipeline)
 - Sets `etl_pipeline = "BASE_SALES"` (correct for CBZ)
 
 **Pipeline Classification**: BASE_SALES
@@ -130,7 +130,7 @@ sales_transformed:
 - Checks uniqueness of transaction_id
 - Validates business rule: line_total = quantity × unit_price (within 2¢ tolerance)
 - Verifies required fields present
-- Confirms platform_code = "cbz"
+- Confirms platform_id = "cbz"
 
 **Compliance**:
 - MP108: BASE ETL 0IM→1ST→2TR Pipeline

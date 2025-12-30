@@ -1,19 +1,30 @@
-# cbz_DER_poisson_time_labels.R
-# Derivation script to enrich Poisson analysis with hierarchical time labels
-#
-# Following principles:
-# - MP064: ETL-Derivation Separation (business logic in derivation layer)
-# - R113: Four-part script structure (INITIALIZE/MAIN/TEST/DEINITIALIZE)
-# - MP031: Proper autoinit()/autodeinit() usage
-# - R092: Universal data access pattern
-# - R120: Filter variable naming conventions
-#
-# Purpose: Add year, month, and day context to Poisson time analysis data
-# Input: df_cbz_poisson_analysis_all (existing Poisson analysis results)
-# Output: Enriched table with hierarchical date labels
-# ==============================================================================
+#!/usr/bin/env Rscript
+#####
+#P07_D04_01
+# DERIVATION: CBZ Poisson Time Label Enrichment
+# VERSION: 1.0
+# PLATFORM: cbz
+# GROUP: D04
+# SEQUENCE: 01
+# PURPOSE: Add hierarchical time labels to Poisson analysis outputs
+# CONSUMES: app_data.df_cbz_poisson_analysis_all, raw_data.df_cbz_orders___raw
+# PRODUCES: app_data.df_cbz_poisson_analysis_all, app_data.df_cbz_poisson_analysis_all_backup_YYYYMMDD
+# PRINCIPLE: DM_R044, MP064, R120
+#####
 
-# INITIALIZE ------------------------------------------------------------------
+#' @title CBZ Poisson Time Label Enrichment
+#' @description Add year/month/weekday labels to Poisson analysis outputs for UI display.
+#' @requires DBI, duckdb, dplyr, lubridate
+#' @input_tables app_data.df_cbz_poisson_analysis_all, raw_data.df_cbz_orders___raw
+#' @output_tables app_data.df_cbz_poisson_analysis_all, app_data.df_cbz_poisson_analysis_all_backup_YYYYMMDD
+#' @business_rules Derive year/month/weekday labels from raw orders; overwrite app_data with backup.
+#' @platform cbz
+#' @author MAMBA Development Team
+#' @date 2025-12-30
+
+# ==============================================================================
+# PART 1: INITIALIZE
+# ==============================================================================
 message("=== cbz_DER_poisson_time_labels.R ===")
 message("Starting Poisson time label enrichment")
 
@@ -25,26 +36,35 @@ if (!exists("db_path_list", inherits = TRUE)) {
 }
 library(dplyr)
 library(lubridate)
+error_occurred <- FALSE
+test_passed <- FALSE
+start_time <- Sys.time()
 
-# Connect to processed database
-con_processed <- dbConnectDuckdb(db_path_list$processed_data, read_only = FALSE)
-message("Connected to processed_data database")
+# Connect to app database (UI output lives in app_data)
+con_app <- dbConnectDuckdb(db_path_list$app_data, read_only = FALSE)
+message("Connected to app_data database")
 
 # Connect to raw data for date context
 con_raw <- dbConnectDuckdb(db_path_list$raw_data, read_only = TRUE)
 message("Connected to raw_data database for date context")
 
-# MAIN ------------------------------------------------------------------------
+# ==============================================================================
+# PART 2: MAIN
+# ==============================================================================
 message("\n--- MAIN: Processing time labels ---")
 
 tryCatch({
   # Step 1: Get date range from raw orders to understand time context
   message("Step 1: Extracting date ranges from raw orders...")
 
-  date_context <- tbl2(con_raw, "df_cbz_orders___raw") %>%
+  orders_raw <- tbl2(con_raw, "df_cbz_orders___raw") %>%
+    mutate(created_at_ts = as.POSIXct(created_at)) %>%
+    filter(!is.na(created_at_ts))
+
+  date_context <- orders_raw %>%
     summarise(
-      min_date = min(created_at, na.rm = TRUE),
-      max_date = max(created_at, na.rm = TRUE),
+      min_date = min(created_at_ts, na.rm = TRUE),
+      max_date = max(created_at_ts, na.rm = TRUE),
       total_orders = n()
     ) %>%
     collect()
@@ -52,6 +72,11 @@ tryCatch({
   # Extract year context (use max date year as the analysis year)
   analysis_year <- lubridate::year(date_context$max_date)
   min_year <- lubridate::year(date_context$min_date)
+  if (is.na(analysis_year)) {
+    warning("No valid created_at values; using current year for labels.")
+    analysis_year <- lubridate::year(Sys.Date())
+    min_year <- analysis_year
+  }
 
   message(sprintf("  Date range: %s to %s",
                  date_context$min_date, date_context$max_date))
@@ -60,10 +85,10 @@ tryCatch({
   # Step 2: Get monthly order distribution for accurate month labels
   message("Step 2: Calculating monthly distribution...")
 
-  monthly_distribution <- tbl2(con_raw, "df_cbz_orders___raw") %>%
+  monthly_distribution <- orders_raw %>%
     mutate(
-      order_year = year(created_at),
-      order_month = month(created_at)
+      order_year = year(created_at_ts),
+      order_month = month(created_at_ts)
     ) %>%
     group_by(order_year, order_month) %>%
     summarise(
@@ -76,7 +101,7 @@ tryCatch({
   # Step 3: Load existing Poisson analysis data
   message("Step 3: Loading existing Poisson analysis data...")
 
-  poisson_data <- tbl2(con_processed, "df_cbz_poisson_analysis_all") %>%
+  poisson_data <- tbl2(con_app, "df_cbz_poisson_analysis_all") %>%
     collect()
 
   message(sprintf("  Loaded %d rows of Poisson analysis", nrow(poisson_data)))
@@ -169,26 +194,28 @@ tryCatch({
         TRUE ~ NA_character_
       ),
 
+      month_start_str = if_else(
+        !is.na(analysis_month),
+        sprintf("%d-%02d-01", analysis_year, analysis_month),
+        NA_character_
+      ),
+      month_start_date = as.Date(month_start_str),
+      month_end_date = if_else(
+        !is.na(month_start_date),
+        as.Date(lubridate::ceiling_date(month_start_date, "month") - lubridate::days(1)),
+        as.Date(NA)
+      ),
+
       # Calculate date ranges for each period
       date_start = case_when(
         predictor == "year" ~ as.Date(paste0(analysis_year, "-01-01")),
-        grepl("^month_", predictor) ~ as.Date(paste0(
-          analysis_year, "-",
-          sprintf("%02d", analysis_month), "-01"
-        )),
+        grepl("^month_", predictor) ~ month_start_date,
         TRUE ~ NA_Date_
       ),
 
       date_end = case_when(
         predictor == "year" ~ as.Date(paste0(analysis_year, "-12-31")),
-        grepl("^month_", predictor) ~ {
-          # Last day of the month
-          next_month <- if_else(analysis_month == 12,
-                               as.Date(paste0(analysis_year + 1, "-01-01")),
-                               as.Date(paste0(analysis_year, "-",
-                                           sprintf("%02d", analysis_month + 1), "-01")))
-          next_month - 1
-        },
+        grepl("^month_", predictor) ~ month_end_date,
         TRUE ~ NA_Date_
       ),
 
@@ -201,7 +228,8 @@ tryCatch({
       # Add data coverage indicator (simplified for now)
       is_complete_period = TRUE,
       data_coverage_pct = 100.0
-    )
+    ) %>%
+    select(-month_start_str, -month_start_date, -month_end_date)
 
   # Add display priority for sorting
   poisson_enriched <- poisson_enriched %>%
@@ -234,19 +262,19 @@ tryCatch({
   backup_table_name <- paste0("df_cbz_poisson_analysis_all_backup_",
                               format(Sys.Date(), "%Y%m%d"))
 
-  if (DBI::dbExistsTable(con_processed, backup_table_name)) {
-    DBI::dbRemoveTable(con_processed, backup_table_name)
+  if (DBI::dbExistsTable(con_app, backup_table_name)) {
+    DBI::dbRemoveTable(con_app, backup_table_name)
   }
 
   # Create backup
-  DBI::dbExecute(con_processed, sprintf(
+  DBI::dbExecute(con_app, sprintf(
     "CREATE TABLE %s AS SELECT * FROM df_cbz_poisson_analysis_all",
     backup_table_name
   ))
   message(sprintf("  Created backup table: %s", backup_table_name))
 
   # Write enriched data
-  DBI::dbWriteTable(con_processed, "df_cbz_poisson_analysis_all",
+  DBI::dbWriteTable(con_app, "df_cbz_poisson_analysis_all",
                     poisson_enriched, overwrite = TRUE)
   message("  Successfully updated df_cbz_poisson_analysis_all")
 
@@ -267,17 +295,18 @@ tryCatch({
 
 }, error = function(e) {
   message(sprintf("ERROR in MAIN: %s", e$message))
+  error_occurred <<- TRUE
   stop(e)
 })
 
-# TEST ------------------------------------------------------------------------
+# ==============================================================================
+# PART 3: TEST
+# ==============================================================================
 message("\n--- TEST: Validating enriched data ---")
-
-test_passed <- TRUE
 
 tryCatch({
   # Test 1: Check if enrichment was successful
-  test_data <- tbl2(con_processed, "df_cbz_poisson_analysis_all") %>%
+  test_data <- tbl2(con_app, "df_cbz_poisson_analysis_all") %>%
     select(predictor, time_hierarchy, year_label, month_label,
            analysis_year, analysis_month) %>%
     collect()
@@ -311,7 +340,7 @@ tryCatch({
   print(hierarchy_counts)
 
   # Test date ranges
-  date_test <- tbl2(con_processed, "df_cbz_poisson_analysis_all") %>%
+  date_test <- tbl2(con_app, "df_cbz_poisson_analysis_all") %>%
     filter(!is.na(date_start)) %>%
     select(predictor, date_start, date_end, period_days) %>%
     head(5) %>%
@@ -333,17 +362,27 @@ tryCatch({
   test_passed <- FALSE
 })
 
-# DEINITIALIZE ----------------------------------------------------------------
+# ==============================================================================
+# PART 4: SUMMARIZE
+# ==============================================================================
+message("\n--- SUMMARY: Execution report ---")
+message(sprintf("Status: %s", ifelse(test_passed && !error_occurred, "SUCCESS ✅", "FAILED ❌")))
+message(sprintf("Execution Time: %.2f seconds", as.numeric(difftime(Sys.time(), start_time, units = "secs"))))
+
+# ==============================================================================
+# PART 5: DEINITIALIZE
+# ==============================================================================
 message("\n--- DEINITIALIZE: Cleaning up ---")
 
 # Close database connections
-DBI::dbDisconnect(con_processed)
+DBI::dbDisconnect(con_app)
 DBI::dbDisconnect(con_raw)
 message("Database connections closed")
 
-# Clean up environment
-autodeinit()
-message("Environment deinitialized")
-
+status_label <- ifelse(test_passed && !error_occurred, "SUCCESS ✅", "FAILED ❌")
 message("\n=== cbz_DER_poisson_time_labels.R completed ===")
-message(sprintf("Status: %s", ifelse(test_passed, "SUCCESS ✅", "FAILED ❌")))
+message(sprintf("Status: %s", status_label))
+
+# Clean up environment (must be last)
+autodeinit()
+# End of file

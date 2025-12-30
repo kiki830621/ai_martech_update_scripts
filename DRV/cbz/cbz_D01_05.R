@@ -1,32 +1,89 @@
+#!/usr/bin/env Rscript
 #####
-#P07_D01_05
-OPERATION_MODE <- "UPDATE_MODE"
-source(file.path("../../../../global_scripts", "00_principles", "sc_initialization_update_mode.R"))
-processed_data <- dbConnectDuckdb(db_path_list$processed_data)
-app_data <- dbConnectDuckdb(db_path_list$app_data)
+# DERIVATION: D01_05 Application Views (CBZ)
+# VERSION: 2.1
+# PLATFORM: cbz
+# GROUP: D01
+# SEQUENCE: 05
+# PURPOSE: Normalize cleansed outputs via core function
+# CORE_FUNCTION: global_scripts/16_derivations/fn_D01_05_core.R
+# CONSUMES: cleansed_data.df_customer_dna___cleansed,
+#           cleansed_data.df_customer_profile___cleansed
+# PRODUCES: app_data.df_customer_dna,
+#           app_data.df_customer_profile,
+#           app_data.df_customer_segments,
+#           app_data.v_customer_dna_analytics,
+#           app_data.v_customer_segments,
+#           app_data.v_segment_statistics
+# DEPENDS_ON: D00_app_data_init
+# PRINCIPLE: MP064, MP144, DEV_R037, DEV_R038, DM_R022, DM_R044, DM_R048
+#####
+#cbz_D01_05
 
-df_amazon_sales_by_customer <- tbl(processed_data, "df_amazon_sales_by_customer") %>% collect()
-df_amazon_sales.by_customer.by_date <- tbl(processed_data, "df_amazon_sales_by_customer_by_date") %>% collect()
-    
-# Run DNA analysis with real data
-message("Starting customer DNA analysis...")
-dna_results <- analysis_dna(df_amazon_sales_by_customer, df_amazon_sales.by_customer.by_date)
-
-# Output results
-# message("Customer DNA analysis completed")
-# message("Number of customers analyzed: ", nrow(dna_results$data_by_customer))
-# message("Churn prediction accuracy: ", dna_results$nrec_accu$nrec_accu)
-
-dbWriteTable(
-app_data,
-"df_dna_by_customer",
-dna_results$data_by_customer %>% select(-row_names) %>% mutate(platform_id = 2L),
-append=TRUE,
-temporary = FALSE
-)
-
-tbl(app_data, "df_dna_by_customer")%>% head(10)
+#' @title D01_05 Application Views (CBZ)
+#' @description Normalize cleansed outputs via core function
+#' @input_tables cleansed_data.df_customer_dna___cleansed,
+#' @output_tables app_data.df_customer_dna,
+#' @business_rules Normalize cleansed outputs via core function.
+#' @platform cbz
+#' @author MAMBA Development Team
+#' @date 2025-12-30
 
 
-source(file.path("../../../../global_scripts", "00_principles", "sc_deinitialization_update_mode.R"))
+# ==============================================================================
+# PART 1: INITIALIZE
+# ==============================================================================
 
+if (!exists("autoinit", mode = "function")) {
+  source(file.path("scripts", "global_scripts", "22_initializations", "sc_Rprofile.R"))
+}
+
+autoinit()
+
+error_occurred <- FALSE
+test_passed <- FALSE
+start_time <- Sys.time()
+platform_id <- "cbz"
+
+core_path <- file.path(GLOBAL_DIR, "16_derivations", "fn_D01_05_core.R")
+if (!file.exists(core_path)) {
+  stop("Missing CORE_FUNCTION: global_scripts/16_derivations/fn_D01_05_core.R")
+}
+source(core_path)
+
+# ==============================================================================
+# PART 2: MAIN
+# ==============================================================================
+
+result <- NULL
+tryCatch({
+  result <- run_D01_05(platform_id = platform_id)
+  test_passed <- isTRUE(result$success)
+}, error = function(e) {
+  error_occurred <<- TRUE
+  message(sprintf("MAIN: ERROR - %s", e$message))
+})
+
+# ==============================================================================
+# PART 3: TEST
+# ==============================================================================
+
+if (!error_occurred && !test_passed) {
+  message("TEST: Core function reported failure")
+}
+
+# ==============================================================================
+# PART 4: SUMMARIZE
+# ==============================================================================
+
+execution_time <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
+message("SUMMARY: ", ifelse(!error_occurred && test_passed, "SUCCESS", "FAILED"))
+message(sprintf("SUMMARY: Platform: %s", platform_id))
+message(sprintf("SUMMARY: Execution time (secs): %.2f", execution_time))
+
+# ==============================================================================
+# PART 5: DEINITIALIZE
+# ==============================================================================
+
+autodeinit()
+# NO STATEMENTS AFTER THIS LINE

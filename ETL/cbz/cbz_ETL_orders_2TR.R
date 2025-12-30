@@ -211,11 +211,11 @@ tryCatch({
 
   # Add transformation metadata (required per transformed_schemas.yaml)
   dt_orders[, `:=`(
-    platform_code = "cbz",
+    platform_id = "cbz",
     transformation_timestamp = Sys.time(),
     transformation_version = script_version
   )]
-  message("    ✅ Added transformation metadata: platform_code, timestamp, version")
+  message("    ✅ Added transformation metadata: platform_id, timestamp, version")
 
   transform_elapsed <- as.numeric(Sys.time() - transform_start, units = "secs")
   message(sprintf("MAIN: ✅ Schema standardization completed (%.2fs)", transform_elapsed))
@@ -229,7 +229,7 @@ tryCatch({
   # Check required fields per transformed_schemas.yaml#orders_transformed
   required_fields <- c(
     "order_id", "customer_id", "order_date", "order_status", "order_total",
-    "platform_code", "transformation_timestamp"
+    "platform_id", "transformation_timestamp"
   )
 
   missing_fields <- setdiff(required_fields, names(dt_orders))
@@ -291,7 +291,7 @@ tryCatch({
 
   # Show key columns
   key_cols <- c("order_id", "customer_id", "order_date", "order_status",
-                "order_total", "platform_code")
+                "order_total", "platform_id")
   key_cols_present <- intersect(key_cols, names(sample_data))
   print(sample_data[, key_cols_present])
 
@@ -346,7 +346,7 @@ if (script_success) {
 
     # Test 3: Verify required columns exist
     columns <- dbListFields(transformed_data, output_table)
-    required_cols <- c("order_id", "platform_code", "transformation_timestamp")
+    required_cols <- c("order_id", "platform_id", "transformation_timestamp")
     missing_cols <- setdiff(required_cols, columns)
 
     if (length(missing_cols) > 0) {
@@ -355,14 +355,14 @@ if (script_success) {
     }
     message("TEST: ✅ All required columns present")
 
-    # Test 4: Verify platform_code is correct
+    # Test 4: Verify platform_id is correct
     platform_check <- dbGetQuery(transformed_data,
-      sprintf("SELECT DISTINCT platform_code FROM %s", output_table))
-    if (nrow(platform_check) != 1 || platform_check$platform_code[1] != "cbz") {
-      stop(sprintf("TEST: platform_code should be 'cbz', found: %s",
-                   paste(platform_check$platform_code, collapse = ", ")))
+      sprintf("SELECT DISTINCT platform_id FROM %s", output_table))
+    if (nrow(platform_check) != 1 || platform_check$platform_id[1] != "cbz") {
+      stop(sprintf("TEST: platform_id should be 'cbz', found: %s",
+                   paste(platform_check$platform_id, collapse = ", ")))
     }
-    message("TEST: ✅ platform_code is 'cbz'")
+    message("TEST: ✅ platform_id is 'cbz'")
 
     # Test 5: Verify no duplicate order IDs
     dup_check <- dbGetQuery(transformed_data, sprintf("

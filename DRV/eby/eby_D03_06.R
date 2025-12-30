@@ -1,3 +1,11 @@
+
+#' @title eby_D03_06
+#' @description Derivation task
+#' @business_rules See script comments for business logic.
+#' @platform eby
+#' @author MAMBA Development Team
+#' @date 2025-12-30
+
 # eby_D03_06.R - Rate Reviews for eBay
 # D03_06: Analyze review text to extract sentiment by property
 #

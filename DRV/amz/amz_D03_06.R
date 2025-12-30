@@ -1,3 +1,11 @@
+
+#' @title amz_D03_06
+#' @description Derivation task
+#' @business_rules See script comments for business logic.
+#' @platform amz
+#' @author MAMBA Development Team
+#' @date 2025-12-30
+
 # amz_D03_02.R - Rate Reviews for Amazon
 # D03_02: Analyze review text to extract sentiment by property
 #

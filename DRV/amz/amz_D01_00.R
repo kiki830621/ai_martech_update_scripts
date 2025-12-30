@@ -1,24 +1,24 @@
 #!/usr/bin/env Rscript
 #####
-# DERIVATION: D01_04 Customer Profile Creation (AMZ)
-# VERSION: 2.1
+# DERIVATION: D01_00 Consume ETL01 Output (AMZ)
+# VERSION: 2.0
 # PLATFORM: amz
 # GROUP: D01
-# SEQUENCE: 04
-# PURPOSE: Create customer profiles via core function
-# CORE_FUNCTION: global_scripts/16_derivations/fn_D01_04_core.R
+# SEQUENCE: 00
+# PURPOSE: Validate ETL01 output table before downstream derivations
+# CORE_FUNCTION: global_scripts/16_derivations/fn_D01_00_core.R
 # CONSUMES: transformed_data.df_amz_sales___standardized
-# PRODUCES: cleansed_data.df_customer_profile___cleansed
+# PRODUCES: validation_report
 # DEPENDS_ON_ETL: amz_ETL_sales_2TR
-# PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044, DM_R048
+# PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044
 #####
-#amz_D01_04
+#amz_D01_00
 
-#' @title D01_04 Customer Profile Creation (AMZ)
-#' @description Create customer profiles via core function
+#' @title D01_00 Consume ETL01 Output (AMZ)
+#' @description Validate ETL01 output table before downstream derivations
 #' @input_tables transformed_data.df_amz_sales___standardized
-#' @output_tables cleansed_data.df_customer_profile___cleansed
-#' @business_rules Create customer profiles via core function.
+#' @output_tables validation_report
+#' @business_rules Validate ETL01 output table before downstream derivations.
 #' @platform amz
 #' @author MAMBA Development Team
 #' @date 2025-12-30
@@ -39,9 +39,9 @@ test_passed <- FALSE
 start_time <- Sys.time()
 platform_id <- "amz"
 
-core_path <- file.path(GLOBAL_DIR, "16_derivations", "fn_D01_04_core.R")
+core_path <- file.path(GLOBAL_DIR, "16_derivations", "fn_D01_00_core.R")
 if (!file.exists(core_path)) {
-  stop("Missing CORE_FUNCTION: global_scripts/16_derivations/fn_D01_04_core.R")
+  stop("Missing CORE_FUNCTION: global_scripts/16_derivations/fn_D01_00_core.R")
 }
 source(core_path)
 
@@ -51,7 +51,7 @@ source(core_path)
 
 result <- NULL
 tryCatch({
-  result <- run_D01_04(platform_id = platform_id)
+  result <- run_D01_00(platform_id = platform_id)
   test_passed <- isTRUE(result$success)
 }, error = function(e) {
   error_occurred <<- TRUE

@@ -1,41 +1,84 @@
+#!/usr/bin/env Rscript
 #####
-#P07_D01_03
-OPERATION_MODE <- "UPDATE_MODE"
-source(file.path("../../../../global_scripts", "00_principles", "sc_initialization_update_mode.R"))
-processed_data <- dbConnectDuckdb(db_path_list$processed_data)
-app_data <- dbConnectDuckdb(db_path_list$app_data)
+# DERIVATION: D01_03 Customer DNA Analysis (CBZ)
+# VERSION: 2.3
+# PLATFORM: cbz
+# GROUP: D01
+# SEQUENCE: 03
+# PURPOSE: Execute DNA analysis via core function
+# CORE_FUNCTION: global_scripts/16_derivations/fn_D01_03_core.R
+# CONSUMES: processed_data.df_cbz_customer_rfm, processed_data.df_cbz_sales_by_customer_by_date
+# PRODUCES: cleansed_data.df_customer_dna___cleansed
+# DEPENDS_ON_ETL: cbz_ETL_sales_2TR
+# DEPENDS_ON_DRV: cbz_D01_02
+# PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044, DM_R048
+#####
+#cbz_D01_03
 
-df_amazon_sales___1<- tbl(processed_data, "df_amazon_sales") %>% 
-  collect() %>% 
-  rename(lineproduct_price = product_price,
-         payment_time = time) %>% 
-  mutate(customer_id = as.integer(as.factor(ship_postal_code))) %>% 
-  drop_na(customer_id)
-  
+#' @title D01_03 Customer DNA Analysis (CBZ)
+#' @description Execute DNA analysis via core function
+#' @input_tables processed_data.df_cbz_customer_rfm, processed_data.df_cbz_sales_by_customer_by_date
+#' @output_tables cleansed_data.df_customer_dna___cleansed
+#' @business_rules Execute DNA analysis via core function.
+#' @platform cbz
+#' @author MAMBA Development Team
+#' @date 2025-12-30
 
-dbWriteTable(
-  processed_data,
-  "df_amazon_sales___1",
-  df_amazon_sales___1,
-  append = FALSE,
-  row.names = TRUE,
-  overwrite = TRUE
-)
 
-df.amazon.customer_profile <- df_amazon_sales___1 %>%
-  mutate(buyer_name = customer_id,email = ship_postal_code) %>% 
-  select(customer_id, buyer_name, email) %>%   
-  distinct(customer_id,buyer_name,.keep_all=T)%>% 
-  arrange(customer_id) %>% 
-  mutate(platform_id = 2L)
+# ==============================================================================
+# PART 1: INITIALIZE
+# ==============================================================================
 
-dbWriteTable(
-  app_data,
-  "df_customer_profile",
-  df.amazon.customer_profile,
-  append=T
-)
+if (!exists("autoinit", mode = "function")) {
+  source(file.path("scripts", "global_scripts", "22_initializations", "sc_Rprofile.R"))
+}
 
-tbl(app_data,"df_customer_profile") %>% filter(platform_id==2)
+autoinit()
 
-source(file.path("../../../../global_scripts", "00_principles", "sc_deinitialization_update_mode.R"))
+error_occurred <- FALSE
+test_passed <- FALSE
+start_time <- Sys.time()
+platform_id <- "cbz"
+
+core_path <- file.path(GLOBAL_DIR, "16_derivations", "fn_D01_03_core.R")
+if (!file.exists(core_path)) {
+  stop("Missing CORE_FUNCTION: global_scripts/16_derivations/fn_D01_03_core.R")
+}
+source(core_path)
+
+# ==============================================================================
+# PART 2: MAIN
+# ==============================================================================
+
+result <- NULL
+tryCatch({
+  result <- run_D01_03(platform_id = platform_id)
+  test_passed <- isTRUE(result$success)
+}, error = function(e) {
+  error_occurred <<- TRUE
+  message(sprintf("MAIN: ERROR - %s", e$message))
+})
+
+# ==============================================================================
+# PART 3: TEST
+# ==============================================================================
+
+if (!error_occurred && !test_passed) {
+  message("TEST: Core function reported failure")
+}
+
+# ==============================================================================
+# PART 4: SUMMARIZE
+# ==============================================================================
+
+execution_time <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
+message("SUMMARY: ", ifelse(!error_occurred && test_passed, "SUCCESS", "FAILED"))
+message(sprintf("SUMMARY: Platform: %s", platform_id))
+message(sprintf("SUMMARY: Execution time (secs): %.2f", execution_time))
+
+# ==============================================================================
+# PART 5: DEINITIALIZE
+# ==============================================================================
+
+autodeinit()
+# NO STATEMENTS AFTER THIS LINE

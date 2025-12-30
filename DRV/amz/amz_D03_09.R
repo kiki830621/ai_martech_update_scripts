@@ -1,3 +1,11 @@
+
+#' @title amz_D03_09
+#' @description Derivation task
+#' @business_rules See script comments for business logic.
+#' @platform amz
+#' @author MAMBA Development Team
+#' @date 2025-12-30
+
 # amz_D03_03.R - Process Reviews for Amazon
 # D03_03: Process and aggregate review ratings
 #

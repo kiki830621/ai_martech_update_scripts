@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 #####
+#P06_D04_04
 # DERIVATION: EBY Time Series Expansion
 # VERSION: 1.0
 # PLATFORM: eby
@@ -12,7 +13,18 @@
 #           app_data.df_eby_sales_complete_time_series
 # PRINCIPLE: DM_R044, MP064, R117, MP029, DM_R023
 #####
+
 #eby_D04_04
+
+#' @title EBY Time Series Expansion (R117)
+#' @description Build complete sales time series for Poisson analysis with R117 transparency markers.
+#' @requires DBI, duckdb, dplyr, tidyr, tibble
+#' @input_tables transformed_data.df_eby_sales___transformed___MAMBA, raw_data.df_all_item_profile_{product_line}
+#' @output_tables app_data.df_eby_sales_complete_time_series_{product_line}, app_data.df_eby_sales_complete_time_series
+#' @business_rules Build complete daily time series with zero fill; map sales to product lines; write per-line and all tables.
+#' @platform eby
+#' @author MAMBA Development Team
+#' @date 2025-12-30
 
 # ==============================================================================
 # PART 1: INITIALIZE
@@ -145,6 +157,33 @@ tryCatch({
                     tbl, ncol(profile_list[[tbl]]), nrow(profile_list[[tbl]])))
   }
 
+  if (length(profile_list) > 1) {
+    all_cols <- unique(unlist(lapply(profile_list, names)))
+    for (col in all_cols) {
+      col_types <- unique(vapply(profile_list, function(df) {
+        if (col %in% names(df)) {
+          class(df[[col]])[1]
+        } else {
+          NA_character_
+        }
+      }, character(1)))
+      col_types <- col_types[!is.na(col_types)]
+      if (length(col_types) > 1) {
+        message(sprintf(
+          "  ⚠ Type mismatch for '%s': %s; coercing to character",
+          col,
+          paste(col_types, collapse = ", ")
+        ))
+        profile_list <- lapply(profile_list, function(df) {
+          if (col %in% names(df)) {
+            df[[col]] <- as.character(df[[col]])
+          }
+          df
+        })
+      }
+    }
+  }
+
   product_profile <- bind_rows(profile_list) %>%
     filter(!is.na(product_sku) & product_sku != "") %>%
     distinct(product_sku, .keep_all = TRUE)
@@ -154,9 +193,17 @@ tryCatch({
 
   message("[Step 3/5] Loading and mapping sales data...")
   sales_raw <- tbl2(con_transformed, INPUT_SALES_TABLE) %>%
-    select(any_of(c("order_date", "product_sku", "ebay_item_number",
-                    "quantity", "line_total", "unit_price"))) %>%
+    select(any_of(c("order_date", "product_sku", "erp_product_no",
+                    "ebay_item_code", "quantity", "line_total",
+                    "unit_price"))) %>%
     collect()
+
+  sku_candidates <- c("product_sku", "erp_product_no", "ebay_item_code")
+  for (col in sku_candidates) {
+    if (!col %in% names(sales_raw)) {
+      sales_raw[[col]] <- NA_character_
+    }
+  }
 
   if (!"quantity" %in% names(sales_raw)) {
     stop("Missing required column: quantity")
@@ -173,8 +220,12 @@ tryCatch({
   sales_raw <- sales_raw %>%
     mutate(
       order_date = as.Date(order_date),
-      product_sku = as.character(product_sku),
-      ebay_item_number = as.character(ebay_item_number),
+      product_sku = coalesce(
+        as.character(product_sku),
+        as.character(erp_product_no),
+        as.character(ebay_item_code)
+      ),
+      ebay_item_code = as.character(ebay_item_code),
       quantity = as.numeric(quantity),
       line_total = as.numeric(line_total)
     ) %>%
@@ -387,3 +438,4 @@ if (exists("con_app") && inherits(con_app, "DBIConnection")) {
 }
 
 autodeinit()
+# End of file

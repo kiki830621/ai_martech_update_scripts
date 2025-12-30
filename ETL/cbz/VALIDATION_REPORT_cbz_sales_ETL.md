@@ -87,14 +87,14 @@ Both `cbz_ETL_sales_1ST.R` and `cbz_ETL_sales_2TR.R` have been validated against
 - [x] Time dimensions extracted (order_year, order_month, order_quarter, order_day, order_weekday)
 - [x] `line_total` calculated (quantity × unit_price)
 - [x] Financial fields rounded to 2 decimal places
-- [x] Metadata added (platform_code, transformation_timestamp, transformation_version, etl_pipeline)
+- [x] Metadata added (platform_id, transformation_timestamp, transformation_version, etl_pipeline)
 - [x] `etl_pipeline = "BASE_SALES"` (correct for CBZ)
 
 #### ✅ Schema Validation
 - [x] Checks for required fields
 - [x] Validates uniqueness of transaction_id
 - [x] Validates business rule: line_total = quantity × unit_price (within tolerance)
-- [x] Verifies platform_code = "cbz"
+- [x] Verifies platform_id = "cbz"
 
 #### ✅ Output Compliance
 - [x] Table name: `df_cbz_sales___transformed` (per schema pattern)

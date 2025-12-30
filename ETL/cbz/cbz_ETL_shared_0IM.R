@@ -3,7 +3,7 @@
 # Following MP104: ETL Data Flow Separation Principle - Shared Import Pattern
 # Following DM_R028: ETL Data Type Separation Rule - Distribution Pattern
 # Following MP064: ETL-Derivation Separation Principle
-# Following MP092: Platform Code Standard (cbz = Cyberbiz)
+# Following MP092: Platform ID Standard (cbz = Cyberbiz)
 # Following DEV_R032: Five-Part Script Structure Standard
 # Following MP103: Proper autodeinit() usage as absolute last statement
 # Following MP099: Real-Time Progress Reporting
@@ -155,7 +155,7 @@ tryCatch({
             mutate(
               import_source = "SHARED_API",
               import_timestamp = Sys.time(),
-              platform_code = "cbz"
+              platform_id = "cbz"
             )
           
           # Handle list columns per DM_R026
@@ -194,7 +194,7 @@ tryCatch({
               order_id = as.character(id),
               import_source = "SHARED_API",
               import_timestamp = Sys.time(),
-              platform_code = "cbz"
+              platform_id = "cbz"
             )
           
           # Handle list columns in orders
@@ -219,7 +219,7 @@ tryCatch({
               sales_transaction_id = paste0(order_id, "_", row_number()),
               import_source = "SHARED_API",
               import_timestamp = Sys.time(),
-              platform_code = "cbz"
+              platform_id = "cbz"
             )
           
           # Handle remaining list columns in sales
@@ -257,7 +257,7 @@ tryCatch({
               product_id = as.character(id),
               import_source = "SHARED_API",
               import_timestamp = Sys.time(),
-              platform_code = "cbz"
+              platform_id = "cbz"
             )
           
           # Handle list columns per DM_R026

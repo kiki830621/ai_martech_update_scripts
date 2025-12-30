@@ -1,23 +1,28 @@
 #!/usr/bin/env Rscript
 #####
+#P07_D04_03
 # DERIVATION: CBZ R120 Metadata Enrichment
 # VERSION: 3.0
 # PLATFORM: cbz
 # GROUP: D04
 # SEQUENCE: 03
 # PURPOSE: Enrich Poisson analysis tables with R120 metadata
-# CONSUMES: app_data.duckdb/df_cbz_poisson_analysis_{product}
+# CONSUMES: processed_data.duckdb/df_cbz_poisson_analysis_{product}
 # PRODUCES: processed_data.duckdb/df_cbz_poisson_analysis_{product} (enriched)
 # PRINCIPLE: DM_R044, MP064, MP029, R120
 #####
+
 #cbz_D04_03
 
 #' @title CBZ DRV - R120 Metadata Enrichment
 #' @description Enrich 7 legacy product line tables with R120 metadata
 #'              using pattern-based detection for dummy variables.
 #'              Correctly handles dummy-coded variables in Poisson regression.
-#' @input_tables app_data.duckdb/df_cbz_poisson_analysis_{product}
+#' @requires DBI, duckdb, dplyr
+#' @input_tables processed_data.duckdb/df_cbz_poisson_analysis_{product}
 #' @output_tables processed_data.duckdb/df_cbz_poisson_analysis_{product}
+#' @business_rules R120 ranges computed from app_data time series; enrich existing processed_data tables; skip missing lines.
+#' @platform cbz
 #' @author MAMBA Development Team
 #' @date 2025-12-14
 
@@ -55,7 +60,7 @@ if (file.exists(utils_path)) {
 if (!exists("db_path_list", inherits = TRUE)) {
   stop("db_path_list not initialized. Run autoinit() before configuration.")
 }
-PRODUCT_LINES <- c("alf", "all", "irf", "pre", "rek", "tur", "wak")
+PRODUCT_LINES <- c("alf", "irf", "pre", "rek", "tur", "wak")
 DB_PROCESSED <- db_path_list$processed_data
 DB_APP <- db_path_list$app_data
 
@@ -68,7 +73,8 @@ tryCatch({
   message("CBZ DRV - R120 Metadata Enrichment")
   message("════════════════════════════════════════════════════════════════════")
   message(sprintf("Process Date: %s", start_time))
-  message(sprintf("Input Database: %s", DB_APP))
+  message(sprintf("Input Database (Poisson): %s", DB_PROCESSED))
+  message(sprintf("Input Database (Time Series): %s", DB_APP))
   message(sprintf("Output Database: %s", DB_PROCESSED))
   message("")
 
@@ -111,12 +117,12 @@ tryCatch({
 
     table_name <- sprintf("df_cbz_poisson_analysis_%s", pl)
 
-    if (!dbExistsTable(con_app, table_name)) {
+    if (!dbExistsTable(con_processed, table_name)) {
       message(sprintf("    ⚠️ Table not found: %s", table_name))
       next
     }
 
-    legacy_data <- tbl2(con_app, table_name) %>% collect()
+    legacy_data <- tbl2(con_processed, table_name) %>% collect()
     message(sprintf("    Loaded %d predictors", nrow(legacy_data)))
 
     # Remove old R120 metadata if exists
@@ -178,7 +184,7 @@ if (!error_occurred) {
     if (length(tables_processed) > 0) {
       sample_table <- tables_processed[1]
       test_data <- tbl2(con_processed, sample_table) %>%
-        dplyr::slice_head(n = 1) %>%
+        head(1) %>%
         collect()
       required_cols <- c("predictor_min", "predictor_max", "predictor_range",
                          "track_multiplier", "r120_enrichment_method")
@@ -267,3 +273,4 @@ if (!interactive()) {
 
 # 5.3: Autodeinit (MUST be last statement)
 autodeinit()
+# End of file

@@ -14,6 +14,16 @@
 #####
 #eby_D01_04
 
+#' @title D01_04 Customer Profile Creation (EBY)
+#' @description Create customer profiles via core function
+#' @input_tables transformed_data.df_eby_sales___standardized
+#' @output_tables cleansed_data.df_customer_profile___cleansed
+#' @business_rules Create customer profiles via core function.
+#' @platform eby
+#' @author MAMBA Development Team
+#' @date 2025-12-30
+
+
 # ==============================================================================
 # PART 1: INITIALIZE
 # ==============================================================================

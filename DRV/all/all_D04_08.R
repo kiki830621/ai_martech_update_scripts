@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 #####
+#P09_D04_08
 # DERIVATION: Precision Marketing Poisson Analysis
 # VERSION: 2.0
 # PLATFORM: all
@@ -10,6 +11,7 @@
 # PRODUCES: processed_data.duckdb/df_precision_poisson_analysis
 # PRINCIPLE: DM_R044, MP064, MP109, R118, MP029, MP102
 #####
+
 #all_D04_08
 
 #' @title Precision Marketing DRV - Poisson Analysis
@@ -17,8 +19,11 @@
 #'              statistically significant drivers of product performance.
 #'              Implements R118 statistical significance documentation.
 #'              Calculates ACTUAL variable ranges (MP029 compliance).
+#' @requires duckdb, dplyr, tidyr
 #' @input_tables processed_data.duckdb (from ETL + DRV)
 #' @output_tables processed_data.duckdb/df_precision_poisson_analysis
+#' @business_rules If no features, write empty schema; otherwise run Poisson per product line.
+#' @platform all
 #' @author MAMBA Development Team
 #' @date 2025-12-14
 
@@ -104,24 +109,36 @@ tryCatch({
 
   # 2.3: Determine Data Source
   message("[Step 2/5] Selecting data source...")
+  skip_analysis <- FALSE
   if ("df_precision_features" %in% tables) {
     message("  Using aggregated features: df_precision_features")
     use_aggregated <- TRUE
   } else {
     profile_tables <- grep("^transformed_precision_", tables, value = TRUE)
     if (length(profile_tables) == 0) {
-      stop("No data available. Please run ETL first.")
+      message("  ⚠️ No input tables found; writing empty schema (MP029)")
+      use_aggregated <- NA
+      skip_analysis <- TRUE
     }
-    message(sprintf("  Using transformed product profiles: %d tables", length(profile_tables)))
-    use_aggregated <- FALSE
+    if (!skip_analysis) {
+      message(sprintf("  Using transformed product profiles: %d tables", length(profile_tables)))
+      use_aggregated <- FALSE
+    }
   }
   message("")
 
   # 2.4: Process Each Product Line
-  message("[Step 3/5] Running Poisson regression by product line...")
+  if (skip_analysis) {
+    message("[Step 3/5] Skipping regression: no input tables available")
+  } else {
+    message("[Step 3/5] Running Poisson regression by product line...")
+  }
   all_results <- list()
 
   for (pl in PRODUCT_LINES) {
+    if (skip_analysis) {
+      break
+    }
     message(sprintf("\n  [Product Line: %s]", toupper(pl)))
 
     # Load data
@@ -212,7 +229,7 @@ tryCatch({
   # 2.5: Combine and Write Results
   message("[Step 4/5] Writing results to database...")
 
-  if (length(all_results) == 0) {
+  if (skip_analysis || length(all_results) == 0) {
     # Create placeholder
     message("  Creating R118-compliant placeholder...")
     combined_results <- data.frame(
@@ -360,3 +377,4 @@ if (!interactive()) {
 
 # 5.3: Autodeinit (MUST be last statement)
 autodeinit()
+# End of file

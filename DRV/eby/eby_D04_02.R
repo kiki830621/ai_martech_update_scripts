@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 #####
+#P06_D04_02
 # DERIVATION: EBY Poisson Analysis
 # VERSION: 2.0
 # PLATFORM: eby
@@ -10,6 +11,7 @@
 # PRODUCES: df_eby_poisson_analysis_{product_line}, df_eby_poisson_analysis_all
 # PRINCIPLE: DM_R044, MP064, MP135, DM_R046, DM_R047, R118, R119, R120, DM_R043
 #####
+
 #eby_D04_02
 
 #' @title EBY Poisson Analysis - Type B Steady-State Analytics
@@ -17,8 +19,11 @@
 #'              Implements MP135 v2.0 (Analytics Temporal Classification - Type B).
 #'              Uses all_time data ONLY (no period loops), analyzes coefficients.
 #'              DM_R047: Schema synchronized with CBZ version.
+#' @requires DBI, duckdb, dplyr, tidyr, broom
 #' @input_tables df_eby_sales_complete_time_series_{product_line} (app_data.duckdb)
 #' @output_tables df_eby_poisson_analysis_{product_line}, df_eby_poisson_analysis_all
+#' @business_rules Type B analytics: use all historical data; per-product-line outputs to processed_data; merged _all to app_data.
+#' @platform eby
 #' @author MAMBA Development Team
 #' @date 2025-12-14
 
@@ -884,3 +889,4 @@ if (exists("con_app") && inherits(con_app, "DBIConnection")) {
 
 # 5.2: Autodeinit (MUST be last statement)
 autodeinit()
+# End of file

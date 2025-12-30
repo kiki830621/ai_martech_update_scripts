@@ -135,7 +135,7 @@ Perfect 1:1:1 ratio across all stages:
 ### 3. Schema Compliance ✅
 
 All transformed tables include required metadata fields:
-- ✅ `platform_code` = "cbz" (verified)
+- ✅ `platform_id` = "cbz" (verified)
 - ✅ `transformation_timestamp` (present)
 - ✅ `transformation_version` (present)
 
@@ -305,8 +305,8 @@ MAIN: ✓ Mapped 'title' → 'product_name'
 MAIN: ✅ Renamed price to current_price for schema consistency
 MAIN: ✅ Rounded current_price to 2 decimal places
 MAIN: ✅ Set default is_active = TRUE
-MAIN: ✅ Added transformation metadata: platform_code, timestamp, version
-MAIN: ✅ All required fields present: product_id, product_name, is_active, platform_code, transformation_timestamp
+MAIN: ✅ Added transformation metadata: platform_id, timestamp, version
+MAIN: ✅ All required fields present: product_id, product_name, is_active, platform_id, transformation_timestamp
 MAIN: ✅ Uniqueness validated: product_id is unique
 MAIN: ✅ Stored 1000 records in df_cbz_products___transformed
 MAIN: 💰 Price range: min=1.00, max=3299.00, median=138.00
@@ -322,8 +322,8 @@ MAIN: ✓ Mapped 'total_bonus_redemption_price' → 'order_total'
 MAIN: ✅ Converted order_date to DATE type
 MAIN: ✅ Standardized order_status to cross-platform values
 MAIN: ✅ Standardized payment_method to cross-platform values
-MAIN: ✅ Added transformation metadata: platform_code, timestamp, version
-MAIN: ✅ Present required fields (7/7): order_id, customer_id, order_date, order_status, order_total, platform_code, transformation_timestamp
+MAIN: ✅ Added transformation metadata: platform_id, timestamp, version
+MAIN: ✅ Present required fields (7/7): order_id, customer_id, order_date, order_status, order_total, platform_id, transformation_timestamp
 MAIN: ✅ Uniqueness validated: order_id is unique
 MAIN: ✅ Stored 1000 records in df_cbz_orders___transformed
 ```
