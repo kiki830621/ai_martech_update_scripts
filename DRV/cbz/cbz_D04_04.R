@@ -2,25 +2,26 @@
 #####
 #P07_D04_04
 # DERIVATION: CBZ Time Series Expansion (Wrapper)
-# VERSION: 1.1
+# VERSION: 1.2
 # PLATFORM: cbz
 # GROUP: D04
 # SEQUENCE: 04
-# PURPOSE: Wrapper entry point for time series expansion (delegates to cbz_D04_02.R)
-# CONSUMES: (via cbz_D04_02.R)
-# PRODUCES: processed_data.df_cbz_poisson_analysis_{product_line}, app_data.df_cbz_poisson_analysis_all
-# PRINCIPLE: DM_R044, MP064
+# PURPOSE: Wrapper entry point for time series expansion (delegates to ETL)
+# CONSUMES: (via cbz_ETL_sales_time_series_2TR.R)
+# PRODUCES: app_data.df_cbz_sales_complete_time_series_{product_line},
+#           app_data.df_cbz_sales_complete_time_series
+# PRINCIPLE: DM_R044, MP064, MP109, R117
 #####
 
 #' @title CBZ D04_04 Wrapper - Time Series Expansion
-#' @description Wrapper entry point that executes cbz_D04_02.R.
+#' @description Wrapper entry point that executes the CBZ time series ETL script.
 #' @requires base
-#' @input_tables df_cbz_sales_complete_time_series_{product_line} (app_data.duckdb)
-#' @output_tables df_cbz_poisson_analysis_{product_line}, df_cbz_poisson_analysis_all
-#' @business_rules Wrapper only; delegates execution to cbz_D04_02.R.
+#' @input_tables transformed_data.df_cbz_sales___transformed, raw_data.df_all_item_profile_{product_line}
+#' @output_tables app_data.df_cbz_sales_complete_time_series_{product_line}, app_data.df_cbz_sales_complete_time_series
+#' @business_rules Wrapper only; delegates execution to cbz_ETL_sales_time_series_2TR.R.
 #' @platform cbz
 #' @author MAMBA Development Team
-#' @date 2025-12-30
+#' @date 2026-01-02
 
 # ==============================================================================
 # PART 1: INITIALIZE
@@ -36,10 +37,13 @@ start_time <- Sys.time()
 # PART 2: MAIN
 # ==============================================================================
 tryCatch({
-  message("Running cbz_D04_02.R via wrapper (D04_04)...")
-  exit_status <- system2("Rscript", "scripts/update_scripts/DRV/cbz/cbz_D04_02.R")
+  message("Running CBZ time series ETL via wrapper (D04_04)...")
+  exit_status <- system2(
+    "Rscript",
+    "scripts/update_scripts/ETL/cbz/cbz_ETL_sales_time_series_2TR.R"
+  )
   if (!is.null(exit_status) && exit_status != 0) {
-    stop(sprintf("cbz_D04_02.R exited with status %s", exit_status))
+    stop(sprintf("cbz_ETL_sales_time_series_2TR.R exited with status %s", exit_status))
   }
   test_passed <- TRUE
 }, error = function(e) {

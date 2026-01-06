@@ -77,6 +77,7 @@ tryCatch({
     analysis_year <- lubridate::year(Sys.Date())
     min_year <- analysis_year
   }
+  analysis_year_value <- analysis_year
 
   message(sprintf("  Date range: %s to %s",
                  date_context$min_date, date_context$max_date))
@@ -113,15 +114,15 @@ tryCatch({
     mutate(
       # Extract time components from predictor names
       analysis_year = case_when(
-        predictor == "year" ~ analysis_year,
-        grepl("^month_", predictor) ~ analysis_year,
+        predictor == "year" ~ .env$analysis_year_value,
+        grepl("^month_", predictor) ~ .env$analysis_year_value,
         TRUE ~ NA_integer_
       ),
 
-      analysis_month = case_when(
-        grepl("^month_", predictor) ~ as.integer(gsub("month_", "", predictor)),
-        TRUE ~ NA_integer_
-      ),
+      analysis_month = as.integer(stringr::str_match(
+        predictor,
+        "^month_(\\d+)$"
+      )[, 2]),
 
       # For day predictor (day of month effect)
       analysis_day = case_when(
@@ -196,10 +197,10 @@ tryCatch({
 
       month_start_str = if_else(
         !is.na(analysis_month),
-        sprintf("%d-%02d-01", analysis_year, analysis_month),
+        sprintf("%d-%02d-01", .env$analysis_year_value, analysis_month),
         NA_character_
       ),
-      month_start_date = as.Date(month_start_str),
+      month_start_date = as.Date(month_start_str, format = "%Y-%m-%d"),
       month_end_date = if_else(
         !is.na(month_start_date),
         as.Date(lubridate::ceiling_date(month_start_date, "month") - lubridate::days(1)),
@@ -208,13 +209,19 @@ tryCatch({
 
       # Calculate date ranges for each period
       date_start = case_when(
-        predictor == "year" ~ as.Date(paste0(analysis_year, "-01-01")),
+        predictor == "year" ~ as.Date(
+          sprintf("%d-01-01", .env$analysis_year_value),
+          format = "%Y-%m-%d"
+        ),
         grepl("^month_", predictor) ~ month_start_date,
         TRUE ~ NA_Date_
       ),
 
       date_end = case_when(
-        predictor == "year" ~ as.Date(paste0(analysis_year, "-12-31")),
+        predictor == "year" ~ as.Date(
+          sprintf("%d-12-31", .env$analysis_year_value),
+          format = "%Y-%m-%d"
+        ),
         grepl("^month_", predictor) ~ month_end_date,
         TRUE ~ NA_Date_
       ),
@@ -305,6 +312,7 @@ tryCatch({
 message("\n--- TEST: Validating enriched data ---")
 
 tryCatch({
+  test_passed <- TRUE
   # Test 1: Check if enrichment was successful
   test_data <- tbl2(con_app, "df_cbz_poisson_analysis_all") %>%
     select(predictor, time_hierarchy, year_label, month_label,

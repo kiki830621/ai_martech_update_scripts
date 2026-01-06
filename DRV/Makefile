@@ -45,7 +45,7 @@ help:
 	@echo "  make d01-cbz     Run D01 for cbz only"
 	@echo "  make d01-validate Validate D01 outputs (tables + row counts)"
 	@echo "  make d04         Run D04 pipelines (cbz + eby + all)"
-	@echo "  make d04-cbz     Run D04 for cbz (D04_02 + optional D04_01/D04_03)"
+	@echo "  make d04-cbz     Run D04 for cbz (D04_04 -> D04_02 + optional D04_01/D04_03)"
 	@echo "  make d04-eby     Run D04 for eby (D04_04 then D04_02)"
 	@echo "  make d04-all     Run D04 precision (D04_07 + D04_09 + D04_08)"
 	@echo "  make d04-validate Validate D04 scripts (DM_R044 format)"
@@ -65,6 +65,7 @@ help:
 	@echo "  make d04-01-cbz  Run D04_01 Time Label Enrichment (CBZ)"
 	@echo "  make d04-02-cbz  Run D04_02 Poisson Analysis (CBZ)"
 	@echo "  make d04-03-cbz  Run D04_03 R120 Metadata (CBZ)"
+	@echo "  make d04-04-cbz  Run D04_04 Time Series (CBZ)"
 	@echo "  make d04-04-eby  Run D04_04 Time Series (EBY)"
 	@echo "  make d04-02-eby  Run D04_02 Poisson Analysis (EBY)"
 	@echo "  make d04-07-all  Run D04_07 Precision Time Series (ALL)"
@@ -233,7 +234,7 @@ d04:
 	@echo ""
 	@echo "All D04 pipelines completed!"
 
-d04-cbz: d04-02-cbz d04-01-cbz d04-03-cbz
+d04-cbz: d04-04-cbz d04-02-cbz d04-01-cbz d04-03-cbz
 	@echo ""
 	@echo "D04 CBZ pipeline completed!"
 

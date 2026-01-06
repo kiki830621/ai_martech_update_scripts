@@ -125,6 +125,34 @@ tryCatch({
     legacy_data <- tbl2(con_processed, table_name) %>% collect()
     message(sprintf("    Loaded %d predictors", nrow(legacy_data)))
 
+    if (nrow(legacy_data) == 0) {
+      message("    No predictors; writing empty table with R120 columns")
+      required_cols <- c(
+        "predictor_min", "predictor_max", "predictor_range", "track_multiplier",
+        "predictor_is_binary", "predictor_is_categorical",
+        "r120_enrichment_method", "r120_enrichment_date"
+      )
+      for (col in required_cols) {
+        if (!col %in% names(legacy_data)) {
+          legacy_data[[col]] <- switch(
+            col,
+            predictor_min = NA_real_,
+            predictor_max = NA_real_,
+            predictor_range = NA_real_,
+            track_multiplier = NA_real_,
+            predictor_is_binary = NA,
+            predictor_is_categorical = NA,
+            r120_enrichment_method = NA_character_,
+            r120_enrichment_date = NA_character_,
+            NA
+          )
+        }
+      }
+      dbWriteTable(con_processed, table_name, legacy_data, overwrite = TRUE)
+      tables_processed <- c(tables_processed, table_name)
+      next
+    }
+
     # Remove old R120 metadata if exists
     if ("r120_enrichment_method" %in% names(legacy_data)) {
       message("    Removing old R120 metadata...")
