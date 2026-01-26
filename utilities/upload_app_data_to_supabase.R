@@ -91,6 +91,15 @@ prepare_for_postgres <- function(df) {
     if (inherits(df[[col]], "POSIXlt")) {
       df[[col]] <- as.POSIXct(df[[col]])
     }
+    # Handle difftime (convert to numeric seconds)
+    # DuckDB's difftime can have out-of-range values for PostgreSQL
+    if (inherits(df[[col]], "difftime")) {
+      df[[col]] <- as.numeric(df[[col]], units = "secs")
+    }
+    # Handle integer64 (convert to numeric to avoid %d format issues)
+    if (inherits(df[[col]], "integer64")) {
+      df[[col]] <- as.numeric(df[[col]])
+    }
   }
   return(df)
 }
@@ -108,7 +117,7 @@ upload_table <- function(con_duck, con_supa, table_name, verbose = TRUE) {
       return(list(success = TRUE, rows = 0, message = "Empty table skipped"))
     }
 
-    if (verbose) cat(sprintf("  Rows: %d\n", row_count))
+    if (verbose) cat(sprintf("  Rows: %s\n", format(row_count, scientific = FALSE)))
 
     # Drop existing table in Supabase if exists
     tryCatch({
@@ -169,10 +178,12 @@ upload_table <- function(con_duck, con_supa, table_name, verbose = TRUE) {
     ))$n
 
     if (uploaded_count == row_count) {
-      if (verbose) cat(sprintf("  ✓ Verified: %d rows uploaded\n", uploaded_count))
+      if (verbose) cat(sprintf("  ✓ Verified: %s rows uploaded\n", format(uploaded_count, scientific = FALSE)))
       return(list(success = TRUE, rows = uploaded_count, message = "Success"))
     } else {
-      warning_msg <- sprintf("Row count mismatch: expected %d, got %d", row_count, uploaded_count)
+      warning_msg <- sprintf("Row count mismatch: expected %s, got %s",
+                             format(row_count, scientific = FALSE),
+                             format(uploaded_count, scientific = FALSE))
       if (verbose) cat(sprintf("  ⚠ Warning: %s\n", warning_msg))
       return(list(success = TRUE, rows = uploaded_count, message = warning_msg))
     }
