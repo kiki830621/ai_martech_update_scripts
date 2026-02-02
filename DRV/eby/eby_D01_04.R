@@ -8,7 +8,7 @@
 # PURPOSE: Create customer profiles via core function
 # CORE_FUNCTION: global_scripts/16_derivations/fn_D01_04_core.R
 # CONSUMES: transformed_data.df_eby_sales___standardized
-# PRODUCES: cleansed_data.df_customer_profile___cleansed
+# PRODUCES: cleansed_data.df_profile_by_customer___cleansed
 # DEPENDS_ON_ETL: eby_ETL_sales_2TR
 # PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044, DM_R048
 #####
@@ -17,7 +17,7 @@
 #' @title D01_04 Customer Profile Creation (EBY)
 #' @description Create customer profiles via core function
 #' @input_tables transformed_data.df_eby_sales___standardized
-#' @output_tables cleansed_data.df_customer_profile___cleansed
+#' @output_tables cleansed_data.df_profile_by_customer___cleansed
 #' @business_rules Create customer profiles via core function.
 #' @platform eby
 #' @author MAMBA Development Team

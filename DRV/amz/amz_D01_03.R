@@ -8,7 +8,7 @@
 # PURPOSE: Execute DNA analysis via core function
 # CORE_FUNCTION: global_scripts/16_derivations/fn_D01_03_core.R
 # CONSUMES: processed_data.df_amz_customer_rfm, processed_data.df_amz_sales_by_customer_by_date
-# PRODUCES: cleansed_data.df_customer_dna___cleansed
+# PRODUCES: cleansed_data.df_dna_by_customer___cleansed
 # DEPENDS_ON_ETL: amz_ETL_sales_2TR
 # DEPENDS_ON_DRV: amz_D01_02
 # PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044, DM_R048
@@ -18,7 +18,7 @@
 #' @title D01_03 Customer DNA Analysis (AMZ)
 #' @description Execute DNA analysis via core function
 #' @input_tables processed_data.df_amz_customer_rfm, processed_data.df_amz_sales_by_customer_by_date
-#' @output_tables cleansed_data.df_customer_dna___cleansed
+#' @output_tables cleansed_data.df_dna_by_customer___cleansed
 #' @business_rules Execute DNA analysis via core function.
 #' @platform amz
 #' @author MAMBA Development Team

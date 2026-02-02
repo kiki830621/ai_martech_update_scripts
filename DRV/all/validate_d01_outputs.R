@@ -583,7 +583,7 @@ for (platform_id in platforms) {
   }
 
   # D01_03 output (cleansed_data)
-  dna_table <- "df_customer_dna___cleansed"
+  dna_table <- "df_dna_by_customer___cleansed"
   if (check_table_exists(con_cleansed, dna_table, "cleansed_data", platform_id)) {
     check_required_columns(
       con_cleansed,
@@ -607,7 +607,7 @@ for (platform_id in platforms) {
   }
 
   # D01_04 output (cleansed_data)
-  profile_table <- "df_customer_profile___cleansed"
+  profile_table <- "df_profile_by_customer___cleansed"
   if (check_table_exists(con_cleansed, profile_table, "cleansed_data", platform_id)) {
     check_required_columns(
       con_cleansed,
@@ -630,9 +630,9 @@ for (platform_id in platforms) {
   }
 
   # D01_05 outputs (app_data)
-  app_profile_table <- "df_customer_profile"
-  app_dna_table <- "df_customer_dna"
-  app_segments_table <- "df_customer_segments"
+  app_profile_table <- "df_profile_by_customer"
+  app_dna_table <- "df_dna_by_customer"
+  app_segments_table <- "df_segments_by_customer"
 
   if (check_table_exists(con_app, app_profile_table, "app_data", platform_id)) {
     check_required_columns(

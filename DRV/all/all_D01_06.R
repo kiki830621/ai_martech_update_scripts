@@ -7,7 +7,7 @@
 # SEQUENCE: 06
 # PURPOSE: Orchestrate D01_00 through D01_05 across platforms
 # CONSUMES: transformed_data.df_{platform}_sales___standardized
-# PRODUCES: app_data.df_customer_profile, app_data.df_customer_dna, app_data.df_customer_segments
+# PRODUCES: app_data.df_profile_by_customer, app_data.df_dna_by_customer, app_data.df_segments_by_customer
 # PRINCIPLE: MP064, DM_R044, DM_R022, DM_R048
 #####
 #all_D01_06
@@ -15,7 +15,7 @@
 #' @title D01 Master Execution (All Platforms)
 #' @description Orchestrate D01_00 through D01_05 across platforms
 #' @input_tables transformed_data.df_{platform}_sales___standardized
-#' @output_tables app_data.df_customer_profile, app_data.df_customer_dna, app_data.df_customer_segments
+#' @output_tables app_data.df_profile_by_customer, app_data.df_dna_by_customer, app_data.df_segments_by_customer
 #' @business_rules Orchestrate D01_00 through D01_05 across platforms.
 #' @platform all
 #' @author MAMBA Development Team

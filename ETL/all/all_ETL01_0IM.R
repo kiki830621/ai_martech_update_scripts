@@ -1,7 +1,7 @@
 #' @file all_01_P00.R
 #' @requires DBI
 #' @requires duckdb
-#' @requires fn_create_df_customer_profile.R
+#' @requires fn_create_df_profile_by_customer.R
 #' @principle MP058 Database Table Creation Strategy
 #' @principle R092 Universal DBI Approach
 #' @principle R113 Four-Part Update Script Structure
@@ -32,7 +32,7 @@ test_passed <- FALSE
 tryCatch({
   # Call the function to create customer profile table
   message("Creating customer profile table...")
-  test_passed <- create_df_customer_profile(
+  test_passed <- create_df_profile_by_customer(
     con = app_data,
     or_replace = TRUE,
     verbose = TRUE
@@ -50,7 +50,7 @@ tryCatch({
 })
 
 # 3. TEST
-# Tests are handled within the create_df_customer_profile function
+# Tests are handled within the create_df_profile_by_customer function
 
 # 4. DEINITIALIZE
 tryCatch({

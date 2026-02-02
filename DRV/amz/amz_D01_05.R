@@ -7,11 +7,11 @@
 # SEQUENCE: 05
 # PURPOSE: Normalize cleansed outputs via core function
 # CORE_FUNCTION: global_scripts/16_derivations/fn_D01_05_core.R
-# CONSUMES: cleansed_data.df_customer_dna___cleansed,
-#           cleansed_data.df_customer_profile___cleansed
-# PRODUCES: app_data.df_customer_dna,
-#           app_data.df_customer_profile,
-#           app_data.df_customer_segments,
+# CONSUMES: cleansed_data.df_dna_by_customer___cleansed,
+#           cleansed_data.df_profile_by_customer___cleansed
+# PRODUCES: app_data.df_dna_by_customer,
+#           app_data.df_profile_by_customer,
+#           app_data.df_segments_by_customer,
 #           app_data.v_customer_dna_analytics,
 #           app_data.v_customer_segments,
 #           app_data.v_segment_statistics
@@ -22,8 +22,8 @@
 
 #' @title D01_05 Application Views (AMZ)
 #' @description Normalize cleansed outputs via core function
-#' @input_tables cleansed_data.df_customer_dna___cleansed,
-#' @output_tables app_data.df_customer_dna,
+#' @input_tables cleansed_data.df_dna_by_customer___cleansed,
+#' @output_tables app_data.df_dna_by_customer,
 #' @business_rules Normalize cleansed outputs via core function.
 #' @platform amz
 #' @author MAMBA Development Team

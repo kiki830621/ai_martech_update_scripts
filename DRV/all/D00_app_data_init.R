@@ -20,14 +20,14 @@ source_if_missing <- function(path) {
 }
 source_if_missing(file.path("scripts", "global_scripts", "14_sql_utils", "fn_sanitize_identifier.R"))
 source_if_missing(file.path("scripts", "global_scripts", "14_sql_utils", "fn_quote_identifier.R"))
-source_if_missing(file.path("scripts", "global_scripts", "01_db", "fn_create_df_customer_profile_table.R"))
-source_if_missing(file.path("scripts", "global_scripts", "01_db", "fn_create_df_customer_dna_table.R"))
-source_if_missing(file.path("scripts", "global_scripts", "01_db", "fn_create_df_customer_segments_table.R"))
+source_if_missing(file.path("scripts", "global_scripts", "01_db", "fn_create_df_profile_by_customer_table.R"))
+source_if_missing(file.path("scripts", "global_scripts", "01_db", "fn_create_df_dna_by_customer_table.R"))
+source_if_missing(file.path("scripts", "global_scripts", "01_db", "fn_create_df_segments_by_customer_table.R"))
 
 tables_to_create <- c(
-  "df_customer_profile",
-  "df_customer_dna",
-  "df_customer_segments"
+  "df_profile_by_customer",
+  "df_dna_by_customer",
+  "df_segments_by_customer"
 )
 
 success <- TRUE
@@ -35,14 +35,14 @@ created <- list()
 
 # PART 2: MAIN ----------------------------------------------------------------
 tryCatch({
-  create_df_customer_profile_table(app_data, or_replace = TRUE, verbose = TRUE)
-  created <- c(created, "df_customer_profile")
+  create_df_profile_by_customer_table(app_data, or_replace = TRUE, verbose = TRUE)
+  created <- c(created, "df_profile_by_customer")
 
-  create_df_customer_dna_table(app_data, or_replace = TRUE, verbose = TRUE)
-  created <- c(created, "df_customer_dna")
+  create_df_dna_by_customer_table(app_data, or_replace = TRUE, verbose = TRUE)
+  created <- c(created, "df_dna_by_customer")
 
-  create_df_customer_segments_table(app_data, or_replace = TRUE, verbose = TRUE)
-  created <- c(created, "df_customer_segments")
+  create_df_segments_by_customer_table(app_data, or_replace = TRUE, verbose = TRUE)
+  created <- c(created, "df_segments_by_customer")
 
 }, error = function(e) {
   success <<- FALSE
