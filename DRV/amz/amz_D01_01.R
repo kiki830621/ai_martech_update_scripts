@@ -1,24 +1,25 @@
 #!/usr/bin/env Rscript
 #####
-# DERIVATION: D01_03 DNA Analysis (AMZ)
+# DERIVATION: D01_01 Customer Aggregation (AMZ)
 # VERSION: 2.0
 # PLATFORM: amz
 # GROUP: D01
-# SEQUENCE: 03
-# PURPOSE: DNA Analysis
-# CORE_FUNCTION: global_scripts/16_derivations/fn_D01_03_core.R
-# CONSUMES: processed_data.df_amz_customer_rfm
-# PRODUCES: cleansed_data.df_dna_by_customer___cleansed
-# DEPENDS_ON_DRV: amz_D01_02
+# SEQUENCE: 01
+# PURPOSE: Customer Aggregation
+# CORE_FUNCTION: global_scripts/16_derivations/fn_D01_01_core.R
+# CONSUMES: transformed_data.df_amz_sales___standardized
+# PRODUCES: processed_data.df_amz_sales_by_customer_by_date, processed_data.df_amz_sales_by_customer
+# DEPENDS_ON_ETL: amz_ETL_sales_2TS
+# DEPENDS_ON_DRV: amz_D01_00
 # PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044
 #####
-#amz_D01_03
+#amz_D01_01
 
-#' @title D01_03 DNA Analysis (AMZ)
-#' @description DNA Analysis
-#' @input_tables processed_data.df_amz_customer_rfm
-#' @output_tables cleansed_data.df_dna_by_customer___cleansed
-#' @business_rules DNA Analysis.
+#' @title D01_01 Customer Aggregation (AMZ)
+#' @description Customer Aggregation
+#' @input_tables transformed_data.df_amz_sales___standardized
+#' @output_tables processed_data.df_amz_sales_by_customer_by_date, processed_data.df_amz_sales_by_customer
+#' @business_rules Customer Aggregation.
 #' @platform amz
 #' @author QEF_DESIGN Development Team
 #' @date 2026-02-02
@@ -40,9 +41,9 @@ test_passed <- FALSE
 start_time <- Sys.time()
 platform_id <- "amz"
 
-core_path <- file.path(GLOBAL_DIR, "16_derivations", "fn_D01_03_core.R")
+core_path <- file.path(GLOBAL_DIR, "16_derivations", "fn_D01_01_core.R")
 if (!file.exists(core_path)) {
-  stop("Missing CORE_FUNCTION: global_scripts/16_derivations/fn_D01_03_core.R")
+  stop("Missing CORE_FUNCTION: global_scripts/16_derivations/fn_D01_01_core.R")
 }
 source(core_path)
 
@@ -52,7 +53,7 @@ source(core_path)
 
 result <- NULL
 tryCatch({
-  result <- run_D01_03(platform_id = platform_id)
+  result <- run_D01_01(platform_id = platform_id)
   test_passed <- isTRUE(result$success)
 }, error = function(e) {
   error_occurred <<- TRUE

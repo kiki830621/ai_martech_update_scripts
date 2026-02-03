@@ -1,24 +1,24 @@
 #!/usr/bin/env Rscript
 #####
-# DERIVATION: D01_03 DNA Analysis (AMZ)
+# DERIVATION: D01_02 RFM Calculation (AMZ)
 # VERSION: 2.0
 # PLATFORM: amz
 # GROUP: D01
-# SEQUENCE: 03
-# PURPOSE: DNA Analysis
-# CORE_FUNCTION: global_scripts/16_derivations/fn_D01_03_core.R
-# CONSUMES: processed_data.df_amz_customer_rfm
-# PRODUCES: cleansed_data.df_dna_by_customer___cleansed
-# DEPENDS_ON_DRV: amz_D01_02
+# SEQUENCE: 02
+# PURPOSE: RFM Calculation
+# CORE_FUNCTION: global_scripts/16_derivations/fn_D01_02_core.R
+# CONSUMES: processed_data.df_amz_sales_by_customer
+# PRODUCES: processed_data.df_amz_customer_rfm
+# DEPENDS_ON_DRV: amz_D01_01
 # PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044
 #####
-#amz_D01_03
+#amz_D01_02
 
-#' @title D01_03 DNA Analysis (AMZ)
-#' @description DNA Analysis
-#' @input_tables processed_data.df_amz_customer_rfm
-#' @output_tables cleansed_data.df_dna_by_customer___cleansed
-#' @business_rules DNA Analysis.
+#' @title D01_02 RFM Calculation (AMZ)
+#' @description RFM Calculation
+#' @input_tables processed_data.df_amz_sales_by_customer
+#' @output_tables processed_data.df_amz_customer_rfm
+#' @business_rules RFM Calculation.
 #' @platform amz
 #' @author QEF_DESIGN Development Team
 #' @date 2026-02-02
@@ -40,9 +40,9 @@ test_passed <- FALSE
 start_time <- Sys.time()
 platform_id <- "amz"
 
-core_path <- file.path(GLOBAL_DIR, "16_derivations", "fn_D01_03_core.R")
+core_path <- file.path(GLOBAL_DIR, "16_derivations", "fn_D01_02_core.R")
 if (!file.exists(core_path)) {
-  stop("Missing CORE_FUNCTION: global_scripts/16_derivations/fn_D01_03_core.R")
+  stop("Missing CORE_FUNCTION: global_scripts/16_derivations/fn_D01_02_core.R")
 }
 source(core_path)
 
@@ -52,7 +52,7 @@ source(core_path)
 
 result <- NULL
 tryCatch({
-  result <- run_D01_03(platform_id = platform_id)
+  result <- run_D01_02(platform_id = platform_id)
   test_passed <- isTRUE(result$success)
 }, error = function(e) {
   error_occurred <<- TRUE
