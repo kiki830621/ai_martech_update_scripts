@@ -20,6 +20,17 @@
 # ==============================================================================
 
 # Initialize script execution tracking
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -58,9 +69,11 @@ message("INITIALIZE: ✅ Loaded unified customer ID lookup function")
 message("INITIALIZE: 🔗 Connecting to databases...")
 db_start <- Sys.time()
 transformed_data <- dbConnectDuckdb(db_path_list$transformed_data, read_only = FALSE)
+raw_data <- dbConnectDuckdb(db_path_list$raw_data, read_only = TRUE)
 db_elapsed <- as.numeric(Sys.time() - db_start, units = "secs")
 message(sprintf("INITIALIZE: ✅ Database connection established (%.2fs)", db_elapsed))
 message(sprintf("INITIALIZE: 📖📝 Using: %s", db_path_list$transformed_data))
+message(sprintf("INITIALIZE: 📖📝 Using: %s", db_path_list$raw_data))
 
 init_elapsed <- as.numeric(Sys.time() - script_start_time, units = "secs")
 message(sprintf("INITIALIZE: ✅ Initialization completed successfully (%.2fs)", init_elapsed))
@@ -89,7 +102,7 @@ tryCatch({
 
   # Load transformed data
   message(sprintf("MAIN: Loading %s...", input_table))
-  sales_transformed <- dbGetQuery(transformed_data, sprintf("SELECT * FROM %s", input_table))
+  sales_transformed <- sql_read(transformed_data, sprintf("SELECT * FROM %s", input_table))
   n_records <- nrow(sales_transformed)
 
   load_elapsed <- as.numeric(Sys.time() - load_start, units = "secs")
@@ -141,43 +154,116 @@ tryCatch({
     message("    ✅ Created: platform_id = 'amz'")
   }
 
-  # Unified customer_id assignment for cross-platform matching (DM_P003, DM_P006)
-  # If customer_email is available, use it for unified ID lookup
-  # Otherwise, keep existing customer_id
-  if ("customer_email" %in% names(dt_sales)) {
-    message("MAIN: 🔗 Assigning unified customer IDs from email lookup...")
-    lookup_start <- Sys.time()
+  # Add product_line_id from product keys (if available)
+  if (!"product_line_id" %in% names(dt_sales)) {
+    dt_sales[, product_line_id := NA_character_]
+  }
 
-    # Get unique emails and their IDs
-    unique_emails <- unique(dt_sales$customer_email)
+  if (dbExistsTable(raw_data, "df_amz_product_keys")) {
+    message("MAIN: 🧭 Mapping product_line_id from df_amz_product_keys...")
+    keys_map <- sql_read(raw_data, "SELECT product_line_id, asin, sku FROM df_amz_product_keys")
+    keys_dt <- as.data.table(keys_map)
+    keys_dt <- keys_dt[!is.na(product_line_id) & nzchar(product_line_id)]
+
+    if (nrow(keys_dt) > 0) {
+      if ("sku" %in% names(dt_sales)) {
+        keys_sku <- unique(keys_dt[!is.na(sku) & nzchar(sku), .(sku, product_line_id)])
+        keys_sku <- data.table::as.data.table(keys_sku)
+        if (nrow(keys_sku) > 0) {
+          dt_sales[keys_sku, on = "sku", product_line_id := ifelse(
+            is.na(product_line_id) | !nzchar(product_line_id),
+            i.product_line_id,
+            product_line_id
+          )]
+        }
+      }
+      if ("asin" %in% names(dt_sales)) {
+        keys_asin <- unique(keys_dt[!is.na(asin) & nzchar(asin), .(asin, product_line_id)])
+        keys_asin <- data.table::as.data.table(keys_asin)
+        if (nrow(keys_asin) > 0) {
+          dt_sales[keys_asin, on = "asin", product_line_id := ifelse(
+            is.na(product_line_id) | !nzchar(product_line_id),
+            i.product_line_id,
+            product_line_id
+          )]
+        }
+      }
+    }
+
+    mapped_count <- sum(!is.na(dt_sales$product_line_id) & nzchar(dt_sales$product_line_id))
+    message(sprintf("    ✅ product_line_id mapped for %d rows", mapped_count))
+  } else {
+    message("MAIN: ⚠️ df_amz_product_keys not found; product_line_id will remain NA")
+  }
+
+  # Unified customer_id assignment for cross-platform matching (DM_P003, DM_P006)
+  # Strategy A: customer_email exists and non-empty → use email
+  # Strategy B: ship_postal_code + ship_city exist → use "zipcode::city" composite key
+  # Strategy C: keep existing customer_id (last fallback)
+  has_email <- "customer_email" %in% names(dt_sales) &&
+    sum(!is.na(dt_sales$customer_email) & nzchar(dt_sales$customer_email)) > 0
+  has_address <- all(c("ship_postal_code", "ship_city") %in% names(dt_sales))
+
+  if (has_email) {
+    message("MAIN: Assigning unified customer IDs from email lookup (Strategy A)...")
+    lookup_start <- Sys.time()
+    identifier_col <- "customer_email"
+    unique_ids <- unique(dt_sales$customer_email)
+
+  } else if (has_address) {
+    message("MAIN: Assigning unified customer IDs from zipcode+city (Strategy B)...")
+    lookup_start <- Sys.time()
+    # Build composite key: "zipcode::address" (lowercase, trimmed)
+    dt_sales[, customer_identity_key := paste0(
+      tolower(trimws(as.character(ship_postal_code))), "::",
+      tolower(trimws(as.character(ship_city)))
+    )]
+    # Remove keys with empty components
+    dt_sales[ship_postal_code == "" | is.na(ship_postal_code) |
+             ship_city == "" | is.na(ship_city),
+             customer_identity_key := NA_character_]
+    identifier_col <- "customer_identity_key"
+    unique_ids <- unique(dt_sales$customer_identity_key)
+    message(sprintf("    Built %d unique composite keys from zipcode+city",
+                    sum(!is.na(unique_ids))))
+
+  } else if ("customer_id" %in% names(dt_sales)) {
+    message("    No customer_email or address available, keeping existing customer_id (Strategy C)")
+    unique_ids <- NULL
+  } else {
+    stop("No customer_email, address, or customer_id column found - cannot proceed")
+  }
+
+  if (!is.null(unique_ids)) {
     customer_ids <- get_or_create_customer_ids(
-      emails = unique_emails,
+      emails = unique_ids,
       platform = "amz",
       con = transformed_data
     )
 
     # Create mapping and apply to data
-    email_to_id <- data.table(
-      customer_email = unique_emails,
+    id_to_cid <- data.table(
+      lookup_key = unique_ids,
       unified_customer_id = customer_ids
     )
-    dt_sales <- merge(dt_sales, email_to_id, by = "customer_email", all.x = TRUE)
+    setnames(id_to_cid, "lookup_key", identifier_col)
+    dt_sales <- merge(dt_sales, id_to_cid, by = identifier_col, all.x = TRUE)
 
     # Replace customer_id with unified ID
     dt_sales[, customer_id := unified_customer_id]
     dt_sales[, unified_customer_id := NULL]
+    # Clean up temporary column if created
+    if ("customer_identity_key" %in% names(dt_sales)) {
+      dt_sales[, customer_identity_key := NULL]
+    }
 
     lookup_elapsed <- as.numeric(Sys.time() - lookup_start, units = "secs")
-    message(sprintf("    ✅ Assigned %d unified customer IDs (%.2fs)",
+    message(sprintf("    Assigned %d unified customer IDs (%.2fs)",
                     sum(!is.na(customer_ids)), lookup_elapsed))
-  } else if ("customer_id" %in% names(dt_sales)) {
-    message("    ℹ️ No customer_email available, keeping existing customer_id")
-  } else {
-    stop("No customer_email or customer_id column found - cannot proceed")
   }
 
   # Verify required columns for D01
-  required_cols <- c("customer_id", "payment_time", "lineproduct_price", "platform_id")
+  required_cols <- c("customer_id", "payment_time", "lineproduct_price", "platform_id", "product_line_id")
   missing_cols <- setdiff(required_cols, names(dt_sales))
   if (length(missing_cols) > 0) {
     stop(sprintf("Missing required columns for D01: %s", paste(missing_cols, collapse = ", ")))
@@ -213,7 +299,7 @@ tryCatch({
   dbWriteTable(transformed_data, output_table, df_standardized, overwrite = TRUE)
 
   # Verify write
-  actual_count <- dbGetQuery(transformed_data,
+  actual_count <- sql_read(transformed_data,
     sprintf("SELECT COUNT(*) as count FROM %s", output_table))$count
 
   write_elapsed <- as.numeric(Sys.time() - write_start, units = "secs")
@@ -254,7 +340,7 @@ if (script_success) {
     message("TEST: ✅ Table exists")
 
     # Test 2: Verify data was created
-    row_count <- dbGetQuery(transformed_data,
+    row_count <- sql_read(transformed_data,
       sprintf("SELECT COUNT(*) as n FROM %s", output_table))$n
     if (row_count == 0) {
       stop(sprintf("TEST: No data in %s", output_table))
@@ -264,7 +350,7 @@ if (script_success) {
     # Test 3: Verify D01 required columns exist
     columns <- dbListFields(transformed_data, output_table)
     required_cols <- c("customer_id", "payment_time", "lineproduct_price",
-                       "platform_id")
+                       "platform_id", "product_line_id")
     missing_cols <- setdiff(required_cols, columns)
 
     if (length(missing_cols) > 0) {
@@ -274,7 +360,7 @@ if (script_success) {
     message("TEST: ✅ All D01 required columns present")
 
     # Test 4: Verify payment_time has valid data
-    time_check <- dbGetQuery(transformed_data, sprintf("
+    time_check <- sql_read(transformed_data, sprintf("
       SELECT COUNT(*) as null_count
       FROM %s
       WHERE payment_time IS NULL
@@ -286,7 +372,7 @@ if (script_success) {
     }
 
     # Test 5: Verify lineproduct_price has valid data
-    price_check <- dbGetQuery(transformed_data, sprintf("
+    price_check <- sql_read(transformed_data, sprintf("
       SELECT COUNT(*) as null_count
       FROM %s
       WHERE lineproduct_price IS NULL
@@ -299,8 +385,8 @@ if (script_success) {
 
     # Test 6: Sample data verification
     message("TEST: 📋 Sample verification (D01 required columns):")
-    sample_check <- dbGetQuery(transformed_data, sprintf("
-      SELECT customer_id, payment_time, lineproduct_price, platform_id
+    sample_check <- sql_read(transformed_data, sprintf("
+      SELECT customer_id, payment_time, lineproduct_price, platform_id, product_line_id
       FROM %s
       LIMIT 3
     ", output_table))
@@ -375,6 +461,7 @@ deinit_start_time <- Sys.time()
 # Cleanup database connections
 message("DEINITIALIZE: 🔌 Disconnecting databases...")
 DBI::dbDisconnect(transformed_data)
+DBI::dbDisconnect(raw_data)
 
 # Log cleanup completion
 deinit_elapsed <- as.numeric(Sys.time() - deinit_start_time, units = "secs")
