@@ -1,10 +1,3 @@
-#####
-# CONSUMES: df_amazon_sales_by_customer, df_amazon_sales_by_customer_by_date, df_amazon_sales_standardized, df_current_product_line, df_product_line_by_customer, df_product_line_by_customer_by_date
-# PRODUCES: df_amazon_sales_by_customer, df_amazon_sales_by_customer_by_date
-# DEPENDS_ON_ETL: none
-# DEPENDS_ON_DRV: none
-#####
-
 #' @file amz_D01_05.R
 #' @requires DBI
 #' @requires dplyr
@@ -24,17 +17,6 @@
 #'              using functional transformations
 
 # 1. INITIALIZE
-tbl2_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
-)
-tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
-if (is.na(tbl2_path)) {
-  stop("fn_tbl2.R not found in expected paths")
-}
-source(tbl2_path)
 autoinit()
 
 # Connect to required databases
@@ -69,7 +51,7 @@ tryCatch({
   message("Using product lines: ", paste(vec_product_line_id, collapse = ", "))
   
   # Import standardized data once
-  df_amazon_sales_standardized <- tbl2(processed_data, "df_amazon_sales_standardized") %>% collect()
+  df_amazon_sales_standardized <- tbl(processed_data, "df_amazon_sales_standardized") %>% collect()
   message(sprintf("Loaded %d rows from processed_data.df_amazon_sales_standardized", 
                  nrow(df_amazon_sales_standardized)))
   
@@ -159,13 +141,13 @@ if (!error_occurred) {
       }
       
       # Check row count
-      row_count <- tbl2(processed_data, table_name) %>% count() %>% pull()
+      row_count <- tbl(processed_data, table_name) %>% count() %>% pull()
       
       if (row_count > 0) {
         message("Verification successful: ", row_count, " records found in ", table_name)
         
         # Check product line filter distribution
-        product_line_counts <- tbl2(processed_data, table_name) %>%
+        product_line_counts <- tbl(processed_data, table_name) %>%
           group_by(product_line_id_filter) %>%
           summarize(count = n()) %>%
           arrange(desc(count)) %>%
@@ -191,7 +173,7 @@ if (!error_occurred) {
         if (exists("vec_product_line_id")) {
           for (pl in vec_product_line_id) {
             message(paste0("--- Product Line Filter: ", pl, " ---"))
-            sample_data <- tbl2(processed_data, table_name) %>%
+            sample_data <- tbl(processed_data, table_name) %>%
               filter(product_line_id_filter == pl) %>%
               head(2) %>%
               collect()

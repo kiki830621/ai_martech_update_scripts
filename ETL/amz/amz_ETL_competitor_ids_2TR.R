@@ -7,17 +7,6 @@
 # ==============================================================================
 
 # Initialize script execution tracking
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -50,7 +39,7 @@ tryCatch({
 
   # Load staged data
   message("MAIN: Loading staged competitor products data...")
-  staged_competitor_products <- sql_read(staged_data, paste("SELECT * FROM", source_table))
+  staged_competitor_products <- dbGetQuery(staged_data, paste("SELECT * FROM", source_table))
   
   message("MAIN: Staged data loaded - ", nrow(staged_competitor_products), " rows")
 
@@ -93,10 +82,10 @@ if (script_success) {
     if (target_table %in% dbListTables(transformed_data)) {
       # Check row count
       query <- paste0("SELECT COUNT(*) as count FROM ", target_table)
-      transformed_count <- sql_read(transformed_data, query)$count
+      transformed_count <- dbGetQuery(transformed_data, query)$count
       
       # Get staged count for comparison
-      staged_count <- sql_read(staged_data, "SELECT COUNT(*) as count FROM df_amz_competitor_product_id___staged")$count
+      staged_count <- dbGetQuery(staged_data, "SELECT COUNT(*) as count FROM df_amz_competitor_product_id___staged")$count
 
       if (transformed_count > 0) {
         message("TEST: Verification successful - ", transformed_count, " rows in transformed data")
@@ -104,7 +93,7 @@ if (script_success) {
         
         # Check for standardized fields
         sample_query <- paste0("SELECT * FROM ", target_table, " LIMIT 3")
-        sample_data <- sql_read(transformed_data, sample_query)
+        sample_data <- dbGetQuery(transformed_data, sample_query)
         message("TEST: Sample transformed data:")
         print(sample_data)
         
@@ -138,21 +127,21 @@ if (script_success) {
         # Check for business rules application
         if ("competitor_rank" %in% actual_cols) {
           rank_query <- paste0("SELECT MIN(competitor_rank) as min_rank, MAX(competitor_rank) as max_rank FROM ", target_table)
-          rank_stats <- sql_read(transformed_data, rank_query)
+          rank_stats <- dbGetQuery(transformed_data, rank_query)
           message("TEST: Competitor rank range: ", rank_stats$min_rank, " - ", rank_stats$max_rank)
         }
         
         # Check for lookup keys
         if ("lookup_key" %in% actual_cols) {
           lookup_query <- paste0("SELECT COUNT(DISTINCT lookup_key) as unique_keys FROM ", target_table)
-          lookup_stats <- sql_read(transformed_data, lookup_query)
+          lookup_stats <- dbGetQuery(transformed_data, lookup_query)
           message("TEST: Unique lookup keys generated: ", lookup_stats$unique_keys)
         }
         
         # Check schema version
         if ("schema_version" %in% actual_cols) {
           version_query <- paste0("SELECT DISTINCT schema_version FROM ", target_table)
-          schema_version <- sql_read(transformed_data, version_query)$schema_version[1]
+          schema_version <- dbGetQuery(transformed_data, version_query)$schema_version[1]
           message("TEST: Schema version: ", schema_version)
         }
         

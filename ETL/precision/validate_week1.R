@@ -19,17 +19,6 @@
 # Date: 2025-11-12
 # ==============================================================================
 
-tbl2_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
-)
-tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
-if (is.na(tbl2_path)) {
-  stop("fn_tbl2.R not found in expected paths")
-}
-source(tbl2_path)
 library(duckdb)
 library(dplyr)
 
@@ -85,7 +74,7 @@ validate_tables_exist <- function(con, expected_tables) {
 
 #' Check if table has required columns
 validate_required_columns <- function(con, table_name, required_cols) {
-  table_data <- tbl2(con, table_name) %>% head(1) %>% collect()
+  table_data <- tbl(con, table_name) %>% head(1) %>% collect()
   table_cols <- names(table_data)
 
   missing_cols <- setdiff(required_cols, table_cols)
@@ -102,7 +91,7 @@ validate_required_columns <- function(con, table_name, required_cols) {
 
 #' Check for missing values in critical columns
 validate_no_missing_criticals <- function(con, table_name, critical_cols) {
-  table_data <- tbl2(con, table_name) %>% collect()
+  table_data <- tbl(con, table_name) %>% collect()
 
   all_good <- TRUE
   for (col in critical_cols) {
@@ -129,7 +118,7 @@ validate_currency_rates <- function(con, table_name) {
     return(TRUE)
   }
 
-  table_data <- tbl2(con, table_name) %>%
+  table_data <- tbl(con, table_name) %>%
     select(conversion_rate) %>%
     collect()
 

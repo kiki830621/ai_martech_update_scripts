@@ -15,17 +15,6 @@
 #'              applying business rules, then stores in the processed database
 
 # 1. INITIALIZE
-tbl2_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
-)
-tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
-if (is.na(tbl2_path)) {
-  stop("fn_tbl2.R not found in expected paths")
-}
-source(tbl2_path)
 autoinit()
 
 # Connect to required databases
@@ -59,7 +48,7 @@ tryCatch({
   }
   
   # Import cleansed data
-  cleansed_amazon_sales <- tbl2(cleansed_data, "df_amazon_sales") %>% collect()
+  cleansed_amazon_sales <- tbl(cleansed_data, "df_amazon_sales") %>% collect()
   message(sprintf("Loaded %d rows from cleansed_data.df_amazon_sales", nrow(cleansed_amazon_sales)))
   
   # Standardization operations
@@ -96,8 +85,8 @@ if (!error_occurred) {
       test_passed <- FALSE
     } else {
       # Count records
-      processed_row_count <- tbl2(processed_data, "df_amazon_sales") %>% count() %>% pull()
-      cleansed_row_count <- tbl2(cleansed_data, "df_amazon_sales") %>% count() %>% pull()
+      processed_row_count <- tbl(processed_data, "df_amazon_sales") %>% count() %>% pull()
+      cleansed_row_count <- tbl(cleansed_data, "df_amazon_sales") %>% count() %>% pull()
       
       if (processed_row_count > 0) {
         message("Verification successful: ", processed_row_count, " records found in processed_data.df_amazon_sales")
@@ -111,7 +100,7 @@ if (!error_occurred) {
         }
         
         # Display a sample of the data for verification
-        sample_data <- tbl2(processed_data, "df_amazon_sales") %>% head(5) %>% collect()
+        sample_data <- tbl(processed_data, "df_amazon_sales") %>% head(5) %>% collect()
         print(sample_data)
         
         test_passed <- TRUE

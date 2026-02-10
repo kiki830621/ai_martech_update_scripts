@@ -20,17 +20,6 @@
 # Following MP031: Initialization First
 # Following MP109: Derived Data Pipeline Principle
 
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 message(strrep("=", 80))
 message("INITIALIZE: Starting MAMBA eBay Sales Transform (eby_ETL_sales_2TR___MAMBA.R)")
 message("INITIALIZE: DERIVED ETL - No 0IM or 1ST phases needed (MP109)")
@@ -113,13 +102,13 @@ tryCatch({
   
   # Load orders data
   message(sprintf("MAIN: Loading %s...", orders_table))
-  orders_staged <- sql_read(staged_data, sprintf("SELECT * FROM %s", orders_table))
+  orders_staged <- dbGetQuery(staged_data, sprintf("SELECT * FROM %s", orders_table))
   n_orders <- nrow(orders_staged)
   message(sprintf("MAIN: Loaded %d orders", n_orders))
   
   # Load order_details data
   message(sprintf("MAIN: Loading %s...", details_table))
-  details_staged <- sql_read(staged_data, sprintf("SELECT * FROM %s", details_table))
+  details_staged <- dbGetQuery(staged_data, sprintf("SELECT * FROM %s", details_table))
   n_details <- nrow(details_staged)
   message(sprintf("MAIN: Loaded %d order detail lines", n_details))
   
@@ -371,7 +360,7 @@ tryCatch({
   message("TEST: ✅ Table exists")
   
   # Test 2: Verify data was created
-  row_count <- sql_read(transformed_data, 
+  row_count <- dbGetQuery(transformed_data, 
     "SELECT COUNT(*) as n FROM df_eby_sales___transformed___MAMBA")$n
   if (row_count == 0) {
     stop("TEST: No data in df_eby_sales___transformed___MAMBA")
@@ -390,14 +379,14 @@ tryCatch({
   message("TEST: ✅ All required columns present")
   
   # Test 4: Verify this is a DERIVED ETL (MP109 compliance)
-  etl_type <- sql_read(transformed_data, 
+  etl_type <- dbGetQuery(transformed_data, 
     "SELECT DISTINCT etl_pipeline FROM df_eby_sales___transformed___MAMBA LIMIT 1")
   if (etl_type$etl_pipeline == "DERIVED_SALES") {
     message("TEST: ✅ Correctly marked as DERIVED ETL (MP109 compliant)")
   }
   
   # Test 5: Verify no duplicate transactions
-  dup_check <- sql_read(transformed_data, "
+  dup_check <- dbGetQuery(transformed_data, "
     SELECT transaction_id, COUNT(*) as cnt 
     FROM df_eby_sales___transformed___MAMBA 
     GROUP BY transaction_id 
@@ -411,7 +400,7 @@ tryCatch({
   
   # Test 6: Verify composite key integrity in result
   # Check that all sales records have both key components
-  key_integrity <- sql_read(transformed_data, "
+  key_integrity <- dbGetQuery(transformed_data, "
     SELECT COUNT(*) as total,
            SUM(CASE WHEN order_number IS NOT NULL THEN 1 ELSE 0 END) as has_order,
            SUM(CASE WHEN seller_ebay_email IS NOT NULL THEN 1 ELSE 0 END) as has_seller
@@ -429,7 +418,7 @@ tryCatch({
   
   # Test 7: Sample validation - show JOIN results
   message("TEST: Sample of joined sales data (first 3 records):")
-  sample_check <- sql_read(transformed_data, "
+  sample_check <- dbGetQuery(transformed_data, "
     SELECT transaction_id, order_number, seller_ebay_email, 
            product_name, quantity, unit_price
     FROM df_eby_sales___transformed___MAMBA

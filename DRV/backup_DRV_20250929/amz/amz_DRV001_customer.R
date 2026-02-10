@@ -1,10 +1,3 @@
-#####
-# CONSUMES: df_amazon_sales, df_amazon_sales_standardized, df_product_profile_dictionary
-# PRODUCES: df_amazon_sales_standardized
-# DEPENDS_ON_ETL: none
-# DEPENDS_ON_DRV: none
-#####
-
 #' @file amz_D01_03.R
 #' @requires DBI
 #' @requires dplyr
@@ -23,17 +16,6 @@
 #'              and required data types for DNA analysis
 
 # 1. INITIALIZE
-tbl2_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
-)
-tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
-if (is.na(tbl2_path)) {
-  stop("fn_tbl2.R not found in expected paths")
-}
-source(tbl2_path)
 autoinit()
 
 # Connect to required databases
@@ -60,10 +42,10 @@ tryCatch({
   }
   
   # Import processed data
-  df_amazon_sales <- tbl2(processed_data, "df_amazon_sales") %>% collect()
+  df_amazon_sales <- tbl(processed_data, "df_amazon_sales") %>% collect()
   message(sprintf("Loaded %d rows from processed_data.df_amazon_sales", nrow(df_amazon_sales)))
   
-  df_product_profile_dictionary <- tbl2(processed_data, "df_product_profile_dictionary") %>% collect()
+  df_product_profile_dictionary <- tbl(processed_data, "df_product_profile_dictionary") %>% collect()
   
   # Standardize field names required for DNA analysis
   df_amazon_sales_standardized <- df_amazon_sales %>% 
@@ -111,7 +93,7 @@ if (!error_occurred) {
       test_passed <- FALSE
     } else {
       # Check for standardized field names
-      standardized_data <- tbl2(processed_data, "df_amazon_sales_standardized") %>%
+      standardized_data <- tbl(processed_data, "df_amazon_sales_standardized") %>%
         head(5) %>%
         collect()
       
@@ -125,7 +107,7 @@ if (!error_occurred) {
         print(standardized_data %>% select(customer_id, lineproduct_price, payment_time, platform_id, product_line_id))
         
         # Check if product_line_id was properly joined
-        product_line_distribution <- tbl2(processed_data, "df_amazon_sales_standardized") %>%
+        product_line_distribution <- tbl(processed_data, "df_amazon_sales_standardized") %>%
           group_by(product_line_id) %>%
           summarize(count = n()) %>%
           arrange(desc(count)) %>%

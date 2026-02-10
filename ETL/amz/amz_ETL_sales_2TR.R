@@ -15,17 +15,6 @@
 # 1. INITIALIZE
 # ==============================================================================
 
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -80,7 +69,7 @@ tryCatch({
   # Load staged data
   message(sprintf("MAIN: Step 1/4 - Loading %s...", input_table))
   load_start <- Sys.time()
-  df_staged <- sql_read(staged_data, sprintf("SELECT * FROM %s", input_table))
+  df_staged <- dbGetQuery(staged_data, sprintf("SELECT * FROM %s", input_table))
   n_staged <- nrow(df_staged)
   message(sprintf("MAIN: Loaded %d records (%.2fs)",
                   n_staged, as.numeric(Sys.time() - load_start, units = "secs")))
@@ -169,7 +158,7 @@ tryCatch({
 
   dbWriteTable(transformed_data, output_table, as.data.frame(dt), overwrite = TRUE)
 
-  actual_count <- sql_read(transformed_data,
+  actual_count <- dbGetQuery(transformed_data,
     sprintf("SELECT COUNT(*) as n FROM %s", output_table))$n
   message(sprintf("MAIN: Stored %d records in %s (%.2fs)",
                   actual_count, output_table,
@@ -202,19 +191,19 @@ if (script_success) {
     message("TEST: Table exists")
 
     # Test 2: Has data
-    row_count <- sql_read(transformed_data,
+    row_count <- dbGetQuery(transformed_data,
       sprintf("SELECT COUNT(*) as n FROM %s", output_table))$n
     if (row_count == 0) stop("Table is empty")
     message(sprintf("TEST: %d rows", row_count))
 
     # Test 3: purchase_date is not all NULL
-    null_dates <- sql_read(transformed_data, sprintf(
+    null_dates <- dbGetQuery(transformed_data, sprintf(
       "SELECT COUNT(*) as n FROM %s WHERE purchase_date IS NULL", output_table))$n
     if (null_dates == row_count) stop("All purchase_date values are NULL")
     message(sprintf("TEST: %d valid purchase_dates", row_count - null_dates))
 
     # Test 4: Verify numeric item_price
-    price_sample <- sql_read(transformed_data, sprintf(
+    price_sample <- dbGetQuery(transformed_data, sprintf(
       "SELECT item_price FROM %s WHERE item_price IS NOT NULL LIMIT 3", output_table))
     if (nrow(price_sample) > 0 && is.numeric(price_sample$item_price)) {
       message("TEST: item_price is numeric")

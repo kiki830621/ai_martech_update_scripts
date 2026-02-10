@@ -31,7 +31,7 @@ PIPELINE_DIR := $(shell pwd)
 PROJECT_ROOT := $(PIPELINE_DIR)/../..
 GLOBAL_SCRIPTS := $(PIPELINE_DIR)/../global_scripts
 CONFIG_PATH := $(PROJECT_ROOT)/_targets_config.yaml
-BASE_TEMPLATE := $(GLOBAL_SCRIPTS)/21_rshinyapp_templates/config/_targets_config.base.yaml
+BASE_TEMPLATE := $(GLOBAL_SCRIPTS)/templates/_targets_config.base.yaml
 APP_CONFIG := $(PROJECT_ROOT)/app_config.yaml
 LOGS_DIR := $(PIPELINE_DIR)/logs
 STORE_DIR := $(PIPELINE_DIR)/_targets
@@ -150,7 +150,7 @@ logs:
 # =============================================================================
 # CONFIGURATION COMMANDS
 # Per SO_P016: Configuration Scope Hierarchy
-# - Base template: global_scripts/21_rshinyapp_templates/config/_targets_config.base.yaml (Universal)
+# - Base template: global_scripts/templates/_targets_config.base.yaml (Universal)
 # - Company override: app_config.yaml pipeline: section (Company)
 # - Generated output: {project_root}/_targets_config.yaml (Company)
 # =============================================================================

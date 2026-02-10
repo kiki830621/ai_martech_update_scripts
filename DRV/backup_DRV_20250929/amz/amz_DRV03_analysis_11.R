@@ -1,10 +1,3 @@
-#####
-# CONSUMES: none
-# PRODUCES: none
-# DEPENDS_ON_ETL: none
-# DEPENDS_ON_DRV: none
-#####
-
 # amz_D03_11.R - Create Position Table for Amazon
 # D03_11: Combines all processed data into the final position table
 #

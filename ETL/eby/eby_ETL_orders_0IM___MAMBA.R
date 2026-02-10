@@ -21,17 +21,6 @@
 # Following MP031: Initialization First
 # Following DM_R039: Database Connection Pattern Rule
 
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 message(strrep("=", 80))
 message("INITIALIZE: Starting MAMBA eBay Orders Import (eby_ETL_orders_0IM___MAMBA.R)")
 message("INITIALIZE: Company-specific implementation for MAMBA")
@@ -142,7 +131,7 @@ tryCatch({
   
   # Try with encoding handling
   tryCatch({
-    bayord_data <- sql_read(sql_conn, query)
+    bayord_data <- dbGetQuery(sql_conn, query)
     
     # Convert character columns to UTF-8
     char_cols <- sapply(bayord_data, is.character)
@@ -162,7 +151,7 @@ tryCatch({
       WHERE ORD003 >= '2024-01-01'
       ORDER BY ORD003, ORD001
     "
-    bayord_data <- sql_read(sql_conn, query_minimal)
+    bayord_data <- dbGetQuery(sql_conn, query_minimal)
     message("MAIN: Using minimal column set due to encoding issues")
   })
   
@@ -226,7 +215,7 @@ tryCatch({
   message("TEST: ✅ Table exists")
   
   # Test 2: Verify data imported
-  row_count <- sql_read(raw_data, "SELECT COUNT(*) as n FROM df_eby_orders___raw___MAMBA")$n
+  row_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as n FROM df_eby_orders___raw___MAMBA")$n
   if (row_count == 0) {
     stop("TEST: No data in df_eby_orders___raw___MAMBA")
   }

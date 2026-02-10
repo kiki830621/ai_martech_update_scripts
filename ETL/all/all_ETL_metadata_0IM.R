@@ -31,17 +31,6 @@
 #'   5. Write to appropriate database based on target_scope
 
 # 1. INITIALIZE
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 autoinit()
 
 # Ensure g_project_root is available (fallback for APP_MODE)
@@ -247,7 +236,7 @@ process_metadata_source <- function(source_name, merged_config) {
 
   # Verify
   row_count <- tryCatch({
-    sql_read(
+    DBI::dbGetQuery(
       con,
       sprintf("SELECT COUNT(*) as n FROM %s", merged_config$target_table)
     )$n

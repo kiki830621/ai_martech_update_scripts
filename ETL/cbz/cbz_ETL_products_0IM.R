@@ -18,17 +18,6 @@
 # ==============================================================================
 
 # Initialize script execution tracking
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -284,7 +273,7 @@ tryCatch({
       db_write_elapsed <- as.numeric(Sys.time() - db_write_start, units = "secs")
       
       # Verify write
-      actual_count <- sql_read(raw_data, "SELECT COUNT(*) as count FROM df_cbz_products___raw")$count
+      actual_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as count FROM df_cbz_products___raw")$count
       
       message(sprintf("MAIN: ✅ Product data: %d records written and verified (total: %.2fs, db_write: %.2fs)", 
                       actual_count, product_elapsed, db_write_elapsed))
@@ -422,7 +411,7 @@ tryCatch({
           
           dbWriteTable(raw_data, "df_cbz_products___raw", df_cbz_products, overwrite = TRUE)
           
-          final_count <- sql_read(raw_data, "SELECT COUNT(*) as count FROM df_cbz_products___raw")$count
+          final_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as count FROM df_cbz_products___raw")$count
           db_write_elapsed <- as.numeric(Sys.time() - db_write_start, units = "secs")
           
           message(sprintf("MAIN: ✅ Product file import completed: %d records (import: %.2fs, db_write: %.2fs)",
@@ -460,7 +449,7 @@ if (script_success) {
     table_name <- "df_cbz_products___raw"
     
     if (table_name %in% dbListTables(raw_data)) {
-      product_count <- sql_read(raw_data, 
+      product_count <- dbGetQuery(raw_data, 
         paste0("SELECT COUNT(*) as count FROM ", table_name))$count
       
       test_passed <- TRUE
@@ -485,14 +474,14 @@ if (script_success) {
 
         # Product data quality checks
         if ("product_id" %in% columns) {
-          unique_products <- sql_read(raw_data, paste0(
+          unique_products <- dbGetQuery(raw_data, paste0(
             "SELECT COUNT(DISTINCT product_id) as unique_products FROM ", table_name
           ))
           message(sprintf("TEST: 🛍️ Unique products: %d", unique_products$unique_products))
         }
 
         if ("price" %in% columns) {
-          price_stats <- sql_read(raw_data, paste0(
+          price_stats <- dbGetQuery(raw_data, paste0(
             "SELECT MIN(price) as min_price, MAX(price) as max_price, ",
             "AVG(price) as avg_price FROM ", table_name, " WHERE price IS NOT NULL"
           ))
@@ -501,7 +490,7 @@ if (script_success) {
         }
 
         if ("category" %in% columns) {
-          category_counts <- sql_read(raw_data, paste0(
+          category_counts <- dbGetQuery(raw_data, paste0(
             "SELECT category, COUNT(*) as count FROM ", table_name, 
             " WHERE category IS NOT NULL GROUP BY category ORDER BY count DESC LIMIT 5"
           ))
@@ -510,7 +499,7 @@ if (script_success) {
         }
 
         if ("brand" %in% columns) {
-          brand_stats <- sql_read(raw_data, paste0(
+          brand_stats <- dbGetQuery(raw_data, paste0(
             "SELECT COUNT(DISTINCT brand) as unique_brands FROM ", table_name, 
             " WHERE brand IS NOT NULL"
           ))
@@ -519,7 +508,7 @@ if (script_success) {
 
         # Product data source analysis
         if ("import_source" %in% columns) {
-          source_counts <- sql_read(raw_data, paste0(
+          source_counts <- dbGetQuery(raw_data, paste0(
             "SELECT import_source, COUNT(*) as count FROM ", table_name, " GROUP BY import_source"
           ))
           message("TEST: 📊 Product data sources:")

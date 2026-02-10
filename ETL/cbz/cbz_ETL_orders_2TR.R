@@ -20,17 +20,6 @@
 # ==============================================================================
 
 # Initialize script execution tracking
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -101,7 +90,7 @@ tryCatch({
 
   # Load staged data
   message(sprintf("MAIN: Loading %s...", staged_table))
-  orders_staged <- sql_read(staged_data, sprintf("SELECT * FROM %s", staged_table))
+  orders_staged <- dbGetQuery(staged_data, sprintf("SELECT * FROM %s", staged_table))
   n_staged <- nrow(orders_staged)
 
   load_elapsed <- as.numeric(Sys.time() - load_start, units = "secs")
@@ -289,7 +278,7 @@ tryCatch({
   dbWriteTable(transformed_data, output_table, df_transformed, overwrite = TRUE)
 
   # Verify write
-  actual_count <- sql_read(transformed_data,
+  actual_count <- dbGetQuery(transformed_data,
     sprintf("SELECT COUNT(*) as count FROM %s", output_table))$count
 
   write_elapsed <- as.numeric(Sys.time() - write_start, units = "secs")
@@ -348,7 +337,7 @@ if (script_success) {
     message("TEST: ✅ Table exists")
 
     # Test 2: Verify data was created
-    row_count <- sql_read(transformed_data,
+    row_count <- dbGetQuery(transformed_data,
       sprintf("SELECT COUNT(*) as n FROM %s", output_table))$n
     if (row_count == 0) {
       stop(sprintf("TEST: No data in %s", output_table))
@@ -367,7 +356,7 @@ if (script_success) {
     message("TEST: ✅ All required columns present")
 
     # Test 4: Verify platform_id is correct
-    platform_check <- sql_read(transformed_data,
+    platform_check <- dbGetQuery(transformed_data,
       sprintf("SELECT DISTINCT platform_id FROM %s", output_table))
     if (nrow(platform_check) != 1 || platform_check$platform_id[1] != "cbz") {
       stop(sprintf("TEST: platform_id should be 'cbz', found: %s",
@@ -376,7 +365,7 @@ if (script_success) {
     message("TEST: ✅ platform_id is 'cbz'")
 
     # Test 5: Verify no duplicate order IDs
-    dup_check <- sql_read(transformed_data, sprintf("
+    dup_check <- dbGetQuery(transformed_data, sprintf("
       SELECT order_id, COUNT(*) as cnt
       FROM %s
       GROUP BY order_id
@@ -390,7 +379,7 @@ if (script_success) {
     # Test 6: Verify order_status standardization
     if ("order_status" %in% columns) {
       valid_statuses <- c("pending", "processing", "shipped", "delivered", "cancelled", "refunded")
-      status_check <- sql_read(transformed_data, sprintf("
+      status_check <- dbGetQuery(transformed_data, sprintf("
         SELECT DISTINCT order_status
         FROM %s
         WHERE order_status IS NOT NULL
@@ -407,7 +396,7 @@ if (script_success) {
 
     # Test 7: Sample data verification
     message("TEST: 📋 Sample verification (first 3 records):")
-    sample_check <- sql_read(transformed_data, sprintf("
+    sample_check <- dbGetQuery(transformed_data, sprintf("
       SELECT order_id, customer_id, order_date, order_status, order_total
       FROM %s
       LIMIT 3

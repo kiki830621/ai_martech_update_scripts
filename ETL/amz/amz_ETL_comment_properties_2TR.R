@@ -7,17 +7,6 @@
 # ==============================================================================
 
 # Initialize script execution tracking
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -47,7 +36,7 @@ tryCatch({
   }
   
   # Load staged comment properties data
-  staged_comment_properties <- sql_read(staged_data, paste("SELECT * FROM", source_table))
+  staged_comment_properties <- dbGetQuery(staged_data, paste("SELECT * FROM", source_table))
   message("MAIN: Loaded ", nrow(staged_comment_properties), " staged comment properties")
   
   # Transform comment properties with business rules
@@ -87,7 +76,7 @@ if (script_success) {
     if (target_table %in% dbListTables(transformed_data)) {
       # Check row count
       query <- paste0("SELECT COUNT(*) as count FROM ", target_table)
-      transformed_count <- sql_read(transformed_data, query)$count
+      transformed_count <- dbGetQuery(transformed_data, query)$count
 
       if (transformed_count > 0) {
         test_passed <- TRUE
@@ -96,7 +85,7 @@ if (script_success) {
         
         # Show basic data structure
         structure_query <- paste0("SELECT * FROM ", target_table, " LIMIT 3")
-        sample_data <- sql_read(transformed_data, structure_query)
+        sample_data <- dbGetQuery(transformed_data, structure_query)
         message("TEST: Sample transformed data structure:")
         print(sample_data)
         
@@ -113,12 +102,12 @@ if (script_success) {
         
         # Check final quality score
         quality_query <- paste0("SELECT AVG(final_quality_score) as avg_quality FROM ", target_table)
-        avg_quality <- sql_read(transformed_data, quality_query)$avg_quality
+        avg_quality <- dbGetQuery(transformed_data, quality_query)$avg_quality
         message("TEST: Average final quality score: ", round(avg_quality, 2), "%")
         
         # Check property distribution by type
         type_query <- paste0("SELECT type, COUNT(*) as count FROM ", target_table, " GROUP BY type")
-        type_dist <- sql_read(transformed_data, type_query)
+        type_dist <- dbGetQuery(transformed_data, type_query)
         message("TEST: Property type distribution:")
         print(type_dist)
         

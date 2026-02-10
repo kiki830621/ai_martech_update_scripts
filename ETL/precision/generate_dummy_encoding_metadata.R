@@ -6,17 +6,6 @@
 #' 
 #' @output metadata/dummy_encoding_metadata.csv
 
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 library(dplyr)
 library(DBI)
 library(duckdb)
@@ -38,7 +27,7 @@ con <- dbConnect(duckdb::duckdb(), "data/transformed_data.duckdb", read_only = T
 message("Analyzing dummy variables in 2TR stage...")
 
 # Get all column names
-all_columns <- sql_read(con, 
+all_columns <- dbGetQuery(con, 
   "SELECT * FROM precision_product_profiles_2TR LIMIT 1") %>%
   names()
 
@@ -71,7 +60,7 @@ for (pattern in dummy_patterns) {
       category <- gsub(pattern, "", dummy_col)
       
       # Get statistics
-      stats <- sql_read(con, sprintf(
+      stats <- dbGetQuery(con, sprintf(
         "SELECT 
            COUNT(*) as total_records,
            SUM(CAST(%s AS INTEGER)) as n_ones,
@@ -105,7 +94,7 @@ for (pattern in dummy_patterns) {
 message("Identifying original categorical variables...")
 
 # Get data sample to identify categorical columns
-data_sample <- sql_read(con,
+data_sample <- dbGetQuery(con,
   "SELECT * FROM precision_product_profiles_1ST LIMIT 1000")
 
 categorical_vars <- c()
@@ -172,7 +161,7 @@ if (length(metadata_list) > 0) {
 
 message("Adding product line context...")
 
-product_lines <- sql_read(con,
+product_lines <- dbGetQuery(con,
   "SELECT DISTINCT product_line FROM precision_product_profiles_2TR") %>%
   pull(product_line)
 

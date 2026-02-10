@@ -29,17 +29,6 @@
 #'   - global_data/ is for data shared by ALL companies
 
 # 1. INITIALIZE
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 autoinit()
 
 # Ensure g_project_root is available (fallback for APP_MODE)
@@ -180,7 +169,7 @@ tryCatch({
   message("Written to ", turbo_config$target_scope, " database table: ", target_table)
 
   # Verify write
-  row_count <- sql_read(
+  row_count <- DBI::dbGetQuery(
     app_con,
     sprintf("SELECT COUNT(*) as n FROM %s", target_table)
   )$n
@@ -203,7 +192,7 @@ tryCatch({
 if (!error_occurred && test_passed) {
   tryCatch({
     # Sample query test
-    sample <- sql_read(
+    sample <- DBI::dbGetQuery(
       app_con,
       sprintf("SELECT * FROM %s LIMIT 3", turbo_config$target_table)
     )

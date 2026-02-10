@@ -7,17 +7,6 @@
 # ==============================================================================
 
 # Initialize script execution tracking
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -92,7 +81,7 @@ if (script_success) {
         sample_table <- staging_results$tables_processed[1]
         sample_query <- paste0("SELECT etl_staging_timestamp, etl_validation_status, etl_phase FROM ", 
                               sample_table, " LIMIT 1")
-        sample_data <- sql_read(staged_data, sample_query)
+        sample_data <- DBI::dbGetQuery(staged_data, sample_query)
         message("TEST: Sample staging metadata - Phase: ", sample_data$etl_phase, 
                 ", Status: ", sample_data$etl_validation_status)
       } else {

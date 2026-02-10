@@ -7,17 +7,6 @@
 # ==============================================================================
 
 # Initialize script execution tracking
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -186,13 +175,13 @@ if (script_success) {
         sample_table <- transform_results$tables_processed[1]
         sample_query <- paste0("SELECT etl_transform_timestamp, etl_phase, schema_version FROM ", 
                               sample_table, " LIMIT 1")
-        sample_data <- sql_read(transformed_data, sample_query)
+        sample_data <- DBI::dbGetQuery(transformed_data, sample_query)
         message("TEST: Sample transform metadata - Phase: ", sample_data$etl_phase, 
                 ", Schema: ", sample_data$schema_version)
                 
         # Verify fixed column ordering and Chinese attributes
         columns_query <- paste0("SELECT * FROM ", sample_table, " LIMIT 1")
-        sample_columns <- sql_read(transformed_data, columns_query)
+        sample_columns <- DBI::dbGetQuery(transformed_data, columns_query)
         expected_start_cols <- c("product_brand", "product_id", "product_title", 
                                "product_line_id", "price", "rating", "num_rating")
         actual_start_cols <- names(sample_columns)[1:7]

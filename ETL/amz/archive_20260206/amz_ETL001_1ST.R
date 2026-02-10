@@ -15,17 +15,6 @@
 #'              and removing invalid entries, then stores in the cleansed database
 
 # 1. INITIALIZE
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 autoinit()
 
 # Connect to required databases if not already connected
@@ -60,7 +49,7 @@ tryCatch({
   }
   
   # Import raw data
-  raw_amazon_sales <- tbl2(raw_data, "df_amazon_sales") %>% collect()
+  raw_amazon_sales <- tbl(raw_data, "df_amazon_sales") %>% collect()
   message(sprintf("Loaded %d rows from raw_data.df_amazon_sales", nrow(raw_amazon_sales)))
   
   # Cleansing operations
@@ -105,11 +94,11 @@ if (!error_occurred) {
   tryCatch({
     # Verify table exists in cleansed_data
     table_exists_query <- "SELECT name FROM sqlite_master WHERE type='table' AND name='df_amazon_sales'"
-    table_exists <- nrow(sql_read(cleansed_data, table_exists_query)) > 0
+    table_exists <- nrow(dbGetQuery(cleansed_data, table_exists_query)) > 0
     
     if (table_exists) {
       # Count records in cleansed table
-      cleansed_row_count <- tbl2(cleansed_data, "df_amazon_sales") %>% count() %>% pull()
+      cleansed_row_count <- tbl(cleansed_data, "df_amazon_sales") %>% count() %>% pull()
       
       if (cleansed_row_count > 0) {
         message("Verification successful: ", cleansed_row_count, " records found in cleansed_data.df_amazon_sales")
@@ -126,7 +115,7 @@ if (!error_occurred) {
         
         # Check for required columns in the cleansed data
         required_columns <- c("amazon_order_id", "purchase_date", "time", "platform_id")
-        cleansed_columns <- colnames(tbl2(cleansed_data, "df_amazon_sales") %>% head(1) %>% collect())
+        cleansed_columns <- colnames(tbl(cleansed_data, "df_amazon_sales") %>% head(1) %>% collect())
         missing_columns <- setdiff(required_columns, cleansed_columns)
         
         if (length(missing_columns) == 0) {

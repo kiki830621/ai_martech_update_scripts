@@ -17,17 +17,6 @@
 # ==============================================================================
 
 # Initialize script execution tracking
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -339,7 +328,7 @@ tryCatch({
 
         # Check existing data
         if ("df_amz_sales___raw" %in% dbListTables(raw_data)) {
-          existing_count <- sql_read(raw_data,
+          existing_count <- dbGetQuery(raw_data,
             "SELECT COUNT(*) as count FROM df_amz_sales___raw")$count
           if (existing_count > 0) {
             message(sprintf("MAIN: ♻️ Using existing Amazon sales data: %d records", existing_count))
@@ -388,7 +377,7 @@ if (script_success) {
 
     if (table_name %in% dbListTables(raw_data)) {
       count_start <- Sys.time()
-      sales_count <- sql_read(raw_data,
+      sales_count <- dbGetQuery(raw_data,
         paste0("SELECT COUNT(*) as count FROM ", table_name))$count
       count_elapsed <- as.numeric(Sys.time() - count_start, units = "secs")
 

@@ -20,17 +20,6 @@
 # Following MP031: Initialization First
 # Following DM_R039: Database Connection Pattern Rule
 
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 message(strrep("=", 80))
 message("INITIALIZE: Starting MAMBA eBay Order Details Staging")
 message("INITIALIZE: Script: eby_ETL_order_details_1ST___MAMBA.R")
@@ -379,7 +368,7 @@ tryCatch({
   message("TEST: ✅ Table exists")
   
   # Test 2: Verify data staged
-  row_count <- sql_read(staged_data, "SELECT COUNT(*) as n FROM df_eby_order_details___staged___MAMBA")$n
+  row_count <- dbGetQuery(staged_data, "SELECT COUNT(*) as n FROM df_eby_order_details___staged___MAMBA")$n
   if (row_count == 0) {
     stop("TEST: No data in df_eby_order_details___staged___MAMBA")
   }
@@ -413,7 +402,7 @@ tryCatch({
   }
   
   # Test 5: Verify JOIN keys are ready
-  join_key_test <- sql_read(staged_data, 
+  join_key_test <- dbGetQuery(staged_data, 
     "SELECT COUNT(*) as n FROM df_eby_order_details___staged___MAMBA 
      WHERE order_id IS NOT NULL AND batch_key IS NOT NULL")$n
   message(sprintf("TEST: Records ready for JOIN: %d", join_key_test))

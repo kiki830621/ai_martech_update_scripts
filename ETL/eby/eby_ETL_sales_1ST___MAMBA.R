@@ -18,17 +18,6 @@
 # Following MP031: Initialization First
 # Following SO_R013: Initialization Imports Only Rule
 
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 message(strrep("=", 80))
 message("INITIALIZE: Starting MAMBA eBay Sales Staging (eby_ETL_sales_1ST___MAMBA.R)")
 message("INITIALIZE: Company-specific staging for MAMBA")
@@ -100,7 +89,7 @@ stage_mamba_eby_sales <- function(raw_conn) {
   message("MAIN: Loading raw data from df_eby_sales___raw...")
   
   # Read raw data
-  df_raw <- sql_read(raw_conn, 
+  df_raw <- DBI::dbGetQuery(raw_conn, 
     "SELECT * FROM df_eby_sales___raw")
   
   # Following MP106: Console Transparency - detailed record analysis
@@ -352,7 +341,7 @@ tryCatch({
   test_conn <- DBI::dbConnect(duckdb::duckdb(), "data/local_data/staged_data.duckdb")
   
   if (DBI::dbExistsTable(test_conn, "df_eby_sales___staged")) {
-    row_count <- sql_read(test_conn,
+    row_count <- DBI::dbGetQuery(test_conn,
                                  "SELECT COUNT(*) as n FROM df_eby_sales___staged")$n
     
     if (row_count > 0) {
@@ -368,7 +357,7 @@ tryCatch({
   
   # Test 2: Verify derived fields were created
   if (test_passed) {
-    schema <- sql_read(test_conn,
+    schema <- DBI::dbGetQuery(test_conn,
                              "SELECT column_name FROM information_schema.columns
                               WHERE table_name = 'df_eby_sales___staged'")
     
@@ -387,7 +376,7 @@ tryCatch({
   
   # Test 3: Verify data quality
   if (test_passed) {
-    quality_check <- sql_read(test_conn,
+    quality_check <- DBI::dbGetQuery(test_conn,
       "SELECT
         COUNT(*) as total_records,
         COUNT(DISTINCT order_number) as unique_orders,

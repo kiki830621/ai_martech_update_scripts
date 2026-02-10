@@ -159,35 +159,6 @@ tryCatch({
     dt_sales[, product_line_id := NA_character_]
   }
 
-  map_missing_product_line <- function(mapping_dt, join_col) {
-    if (!(join_col %in% names(dt_sales)) || !(join_col %in% names(mapping_dt))) {
-      return(0L)
-    }
-
-    map_dt <- as.data.table(mapping_dt)
-    map_dt <- map_dt[
-      !is.na(get(join_col)) & nzchar(as.character(get(join_col))) &
-      !is.na(product_line_id) & nzchar(product_line_id),
-      .(join_key = as.character(get(join_col)), product_line_id)
-    ]
-    if (nrow(map_dt) == 0) return(0L)
-
-    map_dt <- unique(map_dt)
-    setnames(map_dt, "join_key", join_col)
-
-    before <- sum(!is.na(dt_sales$product_line_id) & nzchar(dt_sales$product_line_id))
-    dt_sales[map_dt, on = join_col, product_line_id := ifelse(
-      is.na(product_line_id) | !nzchar(product_line_id),
-      i.product_line_id,
-      product_line_id
-    )]
-    after <- sum(!is.na(dt_sales$product_line_id) & nzchar(dt_sales$product_line_id))
-    as.integer(after - before)
-  }
-
-  total_rows <- nrow(dt_sales)
-  mapped_total <- 0L
-
   if (dbExistsTable(raw_data, "df_amz_product_keys")) {
     message("MAIN: 🧭 Mapping product_line_id from df_amz_product_keys...")
     keys_map <- sql_read(raw_data, "SELECT product_line_id, asin, sku FROM df_amz_product_keys")
@@ -195,153 +166,66 @@ tryCatch({
     keys_dt <- keys_dt[!is.na(product_line_id) & nzchar(product_line_id)]
 
     if (nrow(keys_dt) > 0) {
-      mapped_total <- mapped_total + map_missing_product_line(keys_dt, "sku")
-      mapped_total <- mapped_total + map_missing_product_line(keys_dt, "asin")
+      if ("sku" %in% names(dt_sales)) {
+        keys_sku <- unique(keys_dt[!is.na(sku) & nzchar(sku), .(sku, product_line_id)])
+        keys_sku <- data.table::as.data.table(keys_sku)
+        if (nrow(keys_sku) > 0) {
+          dt_sales[keys_sku, on = "sku", product_line_id := ifelse(
+            is.na(product_line_id) | !nzchar(product_line_id),
+            i.product_line_id,
+            product_line_id
+          )]
+        }
+      }
+      if ("asin" %in% names(dt_sales)) {
+        keys_asin <- unique(keys_dt[!is.na(asin) & nzchar(asin), .(asin, product_line_id)])
+        keys_asin <- data.table::as.data.table(keys_asin)
+        if (nrow(keys_asin) > 0) {
+          dt_sales[keys_asin, on = "asin", product_line_id := ifelse(
+            is.na(product_line_id) | !nzchar(product_line_id),
+            i.product_line_id,
+            product_line_id
+          )]
+        }
+      }
     }
+
+    mapped_count <- sum(!is.na(dt_sales$product_line_id) & nzchar(dt_sales$product_line_id))
+    message(sprintf("    ✅ product_line_id mapped for %d rows", mapped_count))
   } else {
     message("MAIN: ⚠️ df_amz_product_keys not found; product_line_id will remain NA")
   }
 
-  # Fallback 1: competitor-product mapping in transformed_data
-  if (dbExistsTable(transformed_data, "df_amz_competitor_product_id___transformed") &&
-      "asin" %in% names(dt_sales)) {
-    message("MAIN: 🧭 Fallback mapping from df_amz_competitor_product_id___transformed...")
-    competitor_map <- sql_read(
-      transformed_data,
-      "SELECT product_id AS asin, product_line_id FROM df_amz_competitor_product_id___transformed"
-    )
-    mapped_total <- mapped_total + map_missing_product_line(competitor_map, "asin")
-  }
-
-  # Fallback 2: product profile tables (df_product_profile_*___transformed)
-  if ("asin" %in% names(dt_sales)) {
-    profile_tables <- DBI::dbListTables(transformed_data)
-    profile_tables <- profile_tables[grepl("^df_product_profile_.*___transformed$", profile_tables)]
-
-    if (length(profile_tables) > 0) {
-      message(sprintf("MAIN: 🧭 Fallback mapping from %d product profile tables...", length(profile_tables)))
-      profile_maps <- list()
-
-      for (tbl_name in profile_tables) {
-        cols <- DBI::dbListFields(transformed_data, tbl_name)
-        id_col <- if ("asin" %in% cols) "asin" else if ("product_id" %in% cols) "product_id" else NA_character_
-        if (is.na(id_col)) next
-
-        table_id <- as.character(DBI::dbQuoteIdentifier(transformed_data, tbl_name))
-        id_expr <- as.character(DBI::dbQuoteIdentifier(transformed_data, id_col))
-        table_suffix <- sub("^df_product_profile_(.*)___transformed$", "\\1", tbl_name)
-
-        if ("product_line_id" %in% cols) {
-          map_sql <- sprintf(
-            "SELECT DISTINCT %s AS asin, product_line_id FROM %s",
-            id_expr, table_id
-          )
-          map_df <- sql_read(transformed_data, map_sql)
-        } else {
-          map_sql <- sprintf(
-            "SELECT DISTINCT %s AS asin FROM %s",
-            id_expr, table_id
-          )
-          map_df <- sql_read(transformed_data, map_sql)
-          map_df$product_line_id <- table_suffix
-        }
-
-        profile_maps[[length(profile_maps) + 1L]] <- map_df
-      }
-
-      if (length(profile_maps) > 0) {
-        profile_map <- data.table::rbindlist(profile_maps, fill = TRUE, use.names = TRUE)
-        mapped_total <- mapped_total + map_missing_product_line(profile_map, "asin")
-      }
-    }
-  }
-
-  mapped_count <- sum(!is.na(dt_sales$product_line_id) & nzchar(dt_sales$product_line_id))
-  message(sprintf(
-    "MAIN: ✅ product_line_id mapped for %d/%d rows (%.1f%%)",
-    mapped_count, total_rows, 100 * mapped_count / max(total_rows, 1L)
-  ))
-  if (mapped_count == 0) {
-    warning("product_line_id mapping produced 0 rows; downstream D01 will fall back to 'all'.")
-  }
-
   # Unified customer_id assignment for cross-platform matching (DM_P003, DM_P006)
-  # Strategy A: customer_email exists and non-empty -> use email
-  # Strategy B: derive deterministic composite key from shipping fields
+  # Strategy A: customer_email exists and non-empty → use email
+  # Strategy B: ship_postal_code + ship_city exist → use "zipcode::city" composite key
   # Strategy C: keep existing customer_id (last fallback)
   has_email <- "customer_email" %in% names(dt_sales) &&
     sum(!is.na(dt_sales$customer_email) & nzchar(dt_sales$customer_email)) > 0
-  address_candidates <- c("ship_address_1", "shipping_address_1", "ship_address", "ship_city")
-  address_col <- address_candidates[address_candidates %in% names(dt_sales)][1]
-  has_address <- "ship_postal_code" %in% names(dt_sales) && !is.na(address_col)
+  has_address <- all(c("ship_postal_code", "ship_city") %in% names(dt_sales))
 
   if (has_email) {
     message("MAIN: Assigning unified customer IDs from email lookup (Strategy A)...")
     lookup_start <- Sys.time()
     identifier_col <- "customer_email"
     unique_ids <- unique(dt_sales$customer_email)
-    unique_ids <- unique_ids[!is.na(unique_ids) & nzchar(trimws(as.character(unique_ids)))]
 
   } else if (has_address) {
-    message(sprintf("MAIN: Assigning unified customer IDs from zipcode+address (Strategy B, address_col=%s)...",
-                    address_col))
+    message("MAIN: Assigning unified customer IDs from zipcode+city (Strategy B)...")
     lookup_start <- Sys.time()
     # Build composite key: "zipcode::address" (lowercase, trimmed)
     dt_sales[, customer_identity_key := paste0(
       tolower(trimws(as.character(ship_postal_code))), "::",
-      tolower(trimws(as.character(get(address_col))))
+      tolower(trimws(as.character(ship_city)))
     )]
     # Remove keys with empty components
     dt_sales[ship_postal_code == "" | is.na(ship_postal_code) |
-             get(address_col) == "" | is.na(get(address_col)),
+             ship_city == "" | is.na(ship_city),
              customer_identity_key := NA_character_]
-
-    # Fallback B1: state + country when zipcode/city-like fields are unavailable
-    if (all(c("ship_state", "ship_country") %in% names(dt_sales))) {
-      dt_sales[
-        (is.na(customer_identity_key) | !nzchar(customer_identity_key)) &
-          !is.na(ship_state) & nzchar(trimws(as.character(ship_state))) &
-          !is.na(ship_country) & nzchar(trimws(as.character(ship_country))),
-        customer_identity_key := paste0(
-          "state::",
-          tolower(trimws(as.character(ship_state))),
-          "::",
-          tolower(trimws(as.character(ship_country)))
-        )
-      ]
-    }
-
-    # Fallback B2: buyer identification number (if present)
-    if ("buyer_identification_number" %in% names(dt_sales)) {
-      dt_sales[
-        (is.na(customer_identity_key) | !nzchar(customer_identity_key)) &
-          !is.na(buyer_identification_number) &
-          nzchar(trimws(as.character(buyer_identification_number))),
-        customer_identity_key := paste0(
-          "bid::",
-          tolower(trimws(as.character(buyer_identification_number)))
-        )
-      ]
-    }
-
-    # Fallback B3: order-level key (last resort to avoid NULL customer_id)
-    if ("amazon_order_id" %in% names(dt_sales)) {
-      dt_sales[
-        (is.na(customer_identity_key) | !nzchar(customer_identity_key)) &
-          !is.na(amazon_order_id) &
-          nzchar(trimws(as.character(amazon_order_id))),
-        customer_identity_key := paste0(
-          "order::",
-          tolower(trimws(as.character(amazon_order_id)))
-        )
-      ]
-    }
-
     identifier_col <- "customer_identity_key"
     unique_ids <- unique(dt_sales$customer_identity_key)
-    unique_ids <- unique_ids[!is.na(unique_ids) & nzchar(trimws(as.character(unique_ids)))]
-    message(sprintf("    Built %d unique composite keys from zipcode+address",
-                    length(unique_ids)))
+    message(sprintf("    Built %d unique composite keys from zipcode+city",
+                    sum(!is.na(unique_ids))))
 
   } else if ("customer_id" %in% names(dt_sales)) {
     message("    No customer_email or address available, keeping existing customer_id (Strategy C)")

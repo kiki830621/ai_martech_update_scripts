@@ -21,17 +21,6 @@
 # Following MP031: Initialization First
 # Following DM_R039: Database Connection Pattern Rule
 
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 message(strrep("=", 80))
 message("INITIALIZE: Starting MAMBA eBay Order Details Import")
 message("INITIALIZE: Script: eby_ETL_order_details_0IM___MAMBA.R")
@@ -174,7 +163,7 @@ tryCatch({
   
   # Execute query with encoding handling
   tryCatch({
-    bayore_data <- sql_read(sql_conn, query)
+    bayore_data <- dbGetQuery(sql_conn, query)
   }, error = function(e) {
     message("MAIN: UTF-8 encoding issue detected, trying with basic columns only...")
     # Fallback to minimal columns if encoding issues
@@ -186,7 +175,7 @@ tryCatch({
       WHERE ORE004 >= '2024-01-01'
       ORDER BY ORE004, ORE001, ORE002
     "
-    bayore_data <- sql_read(sql_conn, query_basic)
+    bayore_data <- dbGetQuery(sql_conn, query_basic)
   })
   
   # Clean any potential encoding issues
@@ -263,7 +252,7 @@ tryCatch({
   message("TEST: ✅ Table exists")
   
   # Test 2: Verify data imported
-  row_count <- sql_read(raw_data, "SELECT COUNT(*) as n FROM df_eby_order_details___raw___MAMBA")$n
+  row_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as n FROM df_eby_order_details___raw___MAMBA")$n
   if (row_count == 0) {
     stop("TEST: No data in df_eby_order_details___raw___MAMBA")
   }

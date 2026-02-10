@@ -18,17 +18,6 @@
 # ==============================================================================
 
 # Initialize script execution tracking
-sql_read_candidates <- c(
-  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
-  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
-)
-sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
-if (is.na(sql_read_path)) {
-  stop("fn_sql_read.R not found in expected paths")
-}
-source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -288,7 +277,7 @@ tryCatch({
       db_write_elapsed <- as.numeric(Sys.time() - db_write_start, units = "secs")
       
       # Verify write
-      actual_count <- sql_read(raw_data, "SELECT COUNT(*) as count FROM df_cbz_sales___raw")$count
+      actual_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as count FROM df_cbz_sales___raw")$count
       
       message(sprintf("MAIN: ✅ Sales data: %d records written and verified (total: %.2fs, db_write: %.2fs)", 
                       actual_count, sales_elapsed, db_write_elapsed))
@@ -410,7 +399,7 @@ tryCatch({
           
           dbWriteTable(raw_data, "df_cbz_sales___raw", df_cbz_sales, overwrite = TRUE)
           
-          final_count <- sql_read(raw_data, "SELECT COUNT(*) as count FROM df_cbz_sales___raw")$count
+          final_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as count FROM df_cbz_sales___raw")$count
           db_write_elapsed <- as.numeric(Sys.time() - db_write_start, units = "secs")
           
           message(sprintf("MAIN: ✅ Sales file import completed: %d records (import: %.2fs, db_write: %.2fs)",
@@ -448,7 +437,7 @@ if (script_success) {
     table_name <- "df_cbz_sales___raw"
     
     if (table_name %in% dbListTables(raw_data)) {
-      sales_count <- sql_read(raw_data, 
+      sales_count <- dbGetQuery(raw_data, 
         paste0("SELECT COUNT(*) as count FROM ", table_name))$count
       
       test_passed <- TRUE
@@ -473,7 +462,7 @@ if (script_success) {
 
         # Sales data quality checks
         if ("quantity" %in% columns) {
-          qty_stats <- sql_read(raw_data, paste0(
+          qty_stats <- dbGetQuery(raw_data, paste0(
             "SELECT MIN(quantity) as min_qty, MAX(quantity) as max_qty, ",
             "AVG(quantity) as avg_qty FROM ", table_name, " WHERE quantity IS NOT NULL"
           ))
@@ -482,7 +471,7 @@ if (script_success) {
         }
 
         if ("total_amount" %in% columns) {
-          amount_stats <- sql_read(raw_data, paste0(
+          amount_stats <- dbGetQuery(raw_data, paste0(
             "SELECT MIN(total_amount) as min_amount, MAX(total_amount) as max_amount, ",
             "AVG(total_amount) as avg_amount FROM ", table_name, " WHERE total_amount IS NOT NULL"
           ))
