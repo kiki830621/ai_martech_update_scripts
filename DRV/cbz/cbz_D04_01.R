@@ -25,6 +25,17 @@
 # ==============================================================================
 # PART 1: INITIALIZE
 # ==============================================================================
+tbl2_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
+)
+tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
+if (is.na(tbl2_path)) {
+  stop("fn_tbl2.R not found in expected paths")
+}
+source(tbl2_path)
 message("=== cbz_DER_poisson_time_labels.R ===")
 message("Starting Poisson time label enrichment")
 

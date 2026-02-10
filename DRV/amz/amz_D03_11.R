@@ -1,3 +1,10 @@
+#####
+# CONSUMES: none
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 
 #' @title amz_D03_11
 #' @description Derivation task

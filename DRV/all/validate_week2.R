@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_precision_features, df_precision_time_series, df_scripts
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 #!/usr/bin/env Rscript
 # ==============================================================================
 # Week 2 Validation Script: DRV Layer Implementation
@@ -15,6 +22,17 @@
 # Date: 2025-11-13
 # ==============================================================================
 
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 library(duckdb)
 library(dplyr)
 library(tibble)
@@ -196,7 +214,7 @@ test_drv_tables <- function() {
 
   for (table in EXPECTED_DRV_TABLES) {
     if (table %in% available_tables) {
-      row_count <- dbGetQuery(con, sprintf("SELECT COUNT(*) as n FROM %s", table))$n
+      row_count <- sql_read(con, sprintf("SELECT COUNT(*) as n FROM %s", table))$n
       col_count <- length(dbListFields(con, table))
 
       record_test(
@@ -275,7 +293,7 @@ test_r117_compliance <- function() {
 
   if ("data_source" %in% time_series_cols) {
     query <- "SELECT DISTINCT data_source FROM df_precision_time_series WHERE data_source IS NOT NULL"
-    data_sources <- dbGetQuery(con, query)$data_source
+    data_sources <- sql_read(con, query)$data_source
 
     valid_sources <- c("REAL", "FILLED", "PLACEHOLDER")
     invalid_sources <- setdiff(data_sources, valid_sources)
@@ -330,7 +348,7 @@ test_feature_aggregation <- function() {
   }
 
   # Read features table
-  features <- tbl(con, "df_precision_features") %>% collect()
+  features <- tbl2(con, "df_precision_features") %>% collect()
 
   cat("4.1 Data Completeness\n")
   cat("--------------------------------------------------------------------\n")
@@ -541,3 +559,6 @@ if (!interactive()) {
 } else {
   main()
 }
+
+# 5. AUTODEINIT
+autodeinit()

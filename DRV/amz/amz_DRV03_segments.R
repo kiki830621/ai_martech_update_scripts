@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_comment_property_rating_
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 # amz_D03_02.R - Rate Reviews for Amazon
 # D03_02: Analyze review text to extract sentiment by property
 #
@@ -20,6 +27,17 @@
 # - MP999: Simplified DuckDB Attach
 
 # Initialize environment
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 needgoogledrive <- TRUE
 autoinit()
 
@@ -43,7 +61,7 @@ message("Starting D03_02 (Rate Reviews) for Amazon product lines")
 message("Processing product lines: ", paste(vec_product_line_id_noall, collapse = ", "))
 
 # Process property ratings for all product lines with connection error handling
-# Note: Using standardized field names from ETL06
+# Note: Using standardized field names from ETL reviews (amz_ETL_reviews)
 # Reading data directly from source database (not copying)
 tryCatch({
   process_property_ratings(
@@ -75,7 +93,7 @@ tryCatch({
         "OR ai_rating_result LIKE '%API_error%'"
       )
       
-      errors_in_table <- DBI::dbGetQuery(comment_property_rating_results, error_query)[1,1]
+      errors_in_table <- sql_read(comment_property_rating_results, error_query)[1,1]
       connection_error_count <- connection_error_count + errors_in_table
       
       if (errors_in_table > 0) {
@@ -109,7 +127,7 @@ for (product_line_id in vec_product_line_id_noall) {
   # Check if table exists
   if (DBI::dbExistsTable(comment_property_rating_results, append_table_name)) {
     # Get table info
-    table_info <- DBI::dbGetQuery(
+    table_info <- sql_read(
       comment_property_rating_results,
       glue::glue("PRAGMA table_info('{append_table_name}');")
     )
@@ -119,7 +137,7 @@ for (product_line_id in vec_product_line_id_noall) {
     print(table_info[, c("name", "type")])
     
     # Get record count
-    record_count <- DBI::dbGetQuery(
+    record_count <- sql_read(
       comment_property_rating_results,
       glue::glue("SELECT COUNT(*) FROM {append_table_name}")
     )[1,1]

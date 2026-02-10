@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_precision_time_series
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 #!/usr/bin/env Rscript
 #' Generate Time Series Filling Statistics Metadata
 #' 
@@ -6,6 +13,17 @@
 #' 
 #' @output metadata/time_series_filling_stats.csv
 
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 library(dplyr)
 library(DBI)
 library(duckdb)
@@ -127,7 +145,7 @@ query <- sprintf(
   filling_method_sql
 )
 
-filling_stats <- dbGetQuery(con, query)
+filling_stats <- sql_read(con, query)
 
 # ============================================================
 # Add Metadata
@@ -243,3 +261,6 @@ dbDisconnect(con, shutdown = TRUE)
 message("\n=======================================================")
 message("TIME SERIES METADATA GENERATION COMPLETE")
 message("=======================================================")
+
+# 5. AUTODEINIT
+autodeinit()

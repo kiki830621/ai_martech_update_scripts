@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_amz_competitor_sales
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 # amz_D03_10.R - Import Competitor Sales Data for Amazon
 # D03_10: Imports sales data for competitor products
 #
@@ -8,6 +15,17 @@
 # - MP81: Explicit Parameter Specification
 
 # Initialize environment
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 needgoogledrive <- TRUE
 autoinit()
 
@@ -29,17 +47,17 @@ import_df_amz_competitor_sales(
 
 # Verify imported data
 message("\nVerifying imported data:")
-sales_count <- DBI::dbGetQuery(
+sales_count <- sql_read(
   raw_data,
   "SELECT COUNT(*) AS count FROM df_amz_competitor_sales"
 )[1, 1]
 
-asin_count <- DBI::dbGetQuery(
+asin_count <- sql_read(
   raw_data,
   "SELECT COUNT(DISTINCT asin) AS count FROM df_amz_competitor_sales"
 )[1, 1]
 
-product_line_count <- DBI::dbGetQuery(
+product_line_count <- sql_read(
   raw_data,
   "SELECT COUNT(DISTINCT product_line_id) AS count FROM df_amz_competitor_sales"
 )[1, 1]
@@ -50,7 +68,7 @@ message("- Product lines: ", product_line_count)
 
 # Show sample of imported data
 message("\nSample of imported data:")
-sample_data <- DBI::dbGetQuery(
+sample_data <- sql_read(
   raw_data,
   "SELECT asin, date, product_line_id, sales FROM df_amz_competitor_sales LIMIT 5"
 )

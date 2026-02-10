@@ -1,3 +1,10 @@
+#####
+# CONSUMES: none
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 #!/usr/bin/env Rscript
 ################################################################################
 # Universal Platform Poisson Update Script

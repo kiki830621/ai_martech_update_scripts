@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_precision_poisson_analysis
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 #!/usr/bin/env Rscript
 # validate_week3.R
 #
@@ -27,6 +34,17 @@
 # -----------------------------------------------------------------------------
 
 # Load required libraries
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 library(duckdb)
 library(dplyr)
 
@@ -88,7 +106,7 @@ validate_table_existence <- function(con) {
     message(sprintf("  PASS: Table '%s' exists", TABLE_NAME))
 
     # Get row count
-    row_count <- dbGetQuery(con, sprintf("SELECT COUNT(*) as n FROM %s", TABLE_NAME))$n
+    row_count <- sql_read(con, sprintf("SELECT COUNT(*) as n FROM %s", TABLE_NAME))$n
     message(sprintf("    Rows: %d", row_count))
 
     return(list(exists = TRUE, row_count = row_count))
@@ -110,7 +128,7 @@ validate_r118_compliance <- function(con) {
   required_r118_cols <- c("p_value", "significance_flag", "std_error", "is_significant")
 
   query <- sprintf("SELECT * FROM %s LIMIT 1", TABLE_NAME)
-  sample_row <- dbGetQuery(con, query)
+  sample_row <- sql_read(con, query)
 
   missing_cols <- setdiff(required_r118_cols, names(sample_row))
 
@@ -128,7 +146,7 @@ validate_r118_compliance <- function(con) {
     "SELECT COUNT(*) as n FROM %s WHERE p_value < 0 OR p_value > 1 OR p_value IS NULL",
     TABLE_NAME
   )
-  invalid_p_count <- dbGetQuery(con, invalid_p_query)$n
+  invalid_p_count <- sql_read(con, invalid_p_query)$n
 
   if (invalid_p_count > 0) {
     message(sprintf("  FAIL: %d rows have invalid p-values (not in 0-1 range or NULL)", invalid_p_count))
@@ -142,7 +160,7 @@ validate_r118_compliance <- function(con) {
     "SELECT DISTINCT significance_flag FROM %s",
     TABLE_NAME
   )
-  observed_flags <- dbGetQuery(con, sig_flags_query)$significance_flag
+  observed_flags <- sql_read(con, sig_flags_query)$significance_flag
 
   invalid_flags <- setdiff(observed_flags, VALID_SIG_FLAGS)
 
@@ -160,7 +178,7 @@ validate_r118_compliance <- function(con) {
     "SELECT significance_flag, COUNT(*) as n FROM %s GROUP BY significance_flag ORDER BY significance_flag",
     TABLE_NAME
   )
-  flag_dist <- dbGetQuery(con, flag_dist_query)
+  flag_dist <- sql_read(con, flag_dist_query)
 
   message("    Significance flag distribution:")
   for (i in seq_len(nrow(flag_dist))) {
@@ -183,7 +201,7 @@ validate_variable_range_metadata <- function(con) {
   )
 
   query <- sprintf("SELECT * FROM %s LIMIT 1", TABLE_NAME)
-  sample_row <- dbGetQuery(con, query)
+  sample_row <- sql_read(con, query)
 
   missing_cols <- setdiff(required_range_cols, names(sample_row))
 
@@ -207,7 +225,7 @@ validate_variable_range_metadata <- function(con) {
      FROM %s",
     TABLE_NAME
   )
-  coverage <- dbGetQuery(con, range_coverage_query)
+  coverage <- sql_read(con, range_coverage_query)
 
   # Handle placeholder mode (empty table)
   if (coverage$total == 0) {
@@ -243,7 +261,7 @@ validate_variable_range_metadata <- function(con) {
        AND ABS((predictor_max - predictor_min) - predictor_range) > 0.001",
     TABLE_NAME
   )
-  inconsistent_count <- dbGetQuery(con, range_consistency_query)$n
+  inconsistent_count <- sql_read(con, range_consistency_query)$n
 
   if (inconsistent_count > 0) {
     message(sprintf("  FAIL: %d rows have inconsistent range calculation", inconsistent_count))
@@ -261,7 +279,7 @@ validate_variable_range_metadata <- function(con) {
      WHERE predictor_is_binary IS NOT NULL OR predictor_is_categorical IS NOT NULL",
     TABLE_NAME
   )
-  type_summary <- dbGetQuery(con, type_summary_query)
+  type_summary <- sql_read(con, type_summary_query)
 
   message(sprintf("  Variable type detection:"))
   message(sprintf("    - Binary predictors: %d", type_summary$n_binary))
@@ -284,7 +302,7 @@ validate_data_quality <- function(con) {
   )
 
   inf_count <- tryCatch({
-    dbGetQuery(con, inf_check_query)$n
+    sql_read(con, inf_check_query)$n
   }, error = function(e) {
     # DuckDB might not support 'Infinity' string comparison
     # Try numeric approach
@@ -296,7 +314,7 @@ validate_data_quality <- function(con) {
          track_multiplier > 1e308",
       TABLE_NAME
     )
-    dbGetQuery(con, alt_query)$n
+    sql_read(con, alt_query)$n
   })
 
   if (inf_count > 0) {
@@ -311,7 +329,7 @@ validate_data_quality <- function(con) {
     "SELECT MIN(coefficient) as min_coef, MAX(coefficient) as max_coef FROM %s",
     TABLE_NAME
   )
-  coef_range <- dbGetQuery(con, coef_range_query)
+  coef_range <- sql_read(con, coef_range_query)
 
   message(sprintf("  Coefficient range: [%.3f, %.3f]", coef_range$min_coef, coef_range$max_coef))
 
@@ -330,7 +348,7 @@ validate_data_quality <- function(con) {
     "SELECT MAX(track_multiplier) as max_mult FROM %s WHERE track_multiplier IS NOT NULL",
     TABLE_NAME
   )
-  max_mult <- dbGetQuery(con, max_multiplier_query)$max_mult
+  max_mult <- sql_read(con, max_multiplier_query)$max_mult
 
   if (!is.na(max_mult)) {
     if (max_mult > 100) {
@@ -350,7 +368,7 @@ validate_schema_compliance <- function(con) {
 
   # Get actual schema
   schema_query <- sprintf("PRAGMA table_info('%s')", TABLE_NAME)
-  schema <- dbGetQuery(con, schema_query)
+  schema <- sql_read(con, schema_query)
 
   message(sprintf("  Total columns: %d", nrow(schema)))
 
@@ -398,7 +416,7 @@ validate_product_line_coverage <- function(con) {
     TABLE_NAME
   )
 
-  pl_summary <- dbGetQuery(con, pl_query)
+  pl_summary <- sql_read(con, pl_query)
 
   if (nrow(pl_summary) == 0) {
     message("  FAIL: No product lines found in results")
@@ -439,7 +457,7 @@ validate_mp029_compliance <- function(con) {
     TABLE_NAME
   )
 
-  duplicate_ranges <- dbGetQuery(con, duplicate_ranges_query)
+  duplicate_ranges <- sql_read(con, duplicate_ranges_query)
 
   if (nrow(duplicate_ranges) > 0) {
     message("  WARN: Some ranges appear frequently (may indicate pattern-based guessing):")
@@ -462,10 +480,10 @@ validate_mp029_compliance <- function(con) {
       "SELECT COUNT(*) as n FROM %s WHERE ABS(predictor_range - %f) < 0.001",
       TABLE_NAME, default_val
     )
-    count <- dbGetQuery(con, count_query)$n
+    count <- sql_read(con, count_query)$n
 
     if (count > 0) {
-      pct <- 100 * count / dbGetQuery(con, sprintf("SELECT COUNT(*) FROM %s", TABLE_NAME))$n
+      pct <- 100 * count / sql_read(con, sprintf("SELECT COUNT(*) FROM %s", TABLE_NAME))$n
       if (pct > 20) {
         message(sprintf("  WARN: %.1f%% of predictors have range ~ %.0f (suspicious default?)",
                         pct, default_val))
@@ -569,3 +587,6 @@ if (!interactive()) {
 } else {
   message("Running in interactive mode. Call main() to execute.")
 }
+
+# 5. AUTODEINIT
+autodeinit()

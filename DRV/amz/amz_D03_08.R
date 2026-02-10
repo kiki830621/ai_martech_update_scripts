@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_all_comment_property___transformed, df_amz_review___transformed, df_comment_property___filtered, df_comment_property_rating_, df_review___all, df_review___long, df_review___new_columns, df_review___sampled, df_review___selected, transformed_data.df_all_comment_property___transformed, transformed_data.df_amz_review___transformed
+# PRODUCES: none
+# DEPENDS_ON_ETL: all_ETL_comment_property_2TR, amz_ETL_review_2TR
+# DEPENDS_ON_DRV: none
+#####
+
 
 #' @title amz_D03_08
 #' @description Derivation task
@@ -28,6 +35,17 @@
 # - MP999: Simplified DuckDB Attach
 
 # Initialize environment
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 needgoogledrive <- TRUE
 autoinit()
 
@@ -46,10 +64,10 @@ dbAttachDuckdb(
 tryCatch({
   # Test if we can access the mounted tables
   test_query1 <- "SELECT COUNT(*) FROM transformed_data.df_amz_review___transformed"
-  test_result1 <- dbGetQuery(comment_property_rating, test_query1)
+  test_result1 <- sql_read(comment_property_rating, test_query1)
   
   test_query2 <- "SELECT COUNT(*) FROM transformed_data.df_all_comment_property___transformed"
-  test_result2 <- dbGetQuery(comment_property_rating, test_query2)
+  test_result2 <- sql_read(comment_property_rating, test_query2)
   
   message("Successfully mounted transformed_data database")
   message("Found ", test_result1[[1]], " reviews and ", test_result2[[1]], " properties")
@@ -68,7 +86,7 @@ for (product_line_id_i in vec_product_line_id_noall) {
   message("Processing product line: ", product_line_id_i)
   
   # Read ALL review data from mounted transformed_data using tbl2
-  # Note: ETL06 has standardized field names: review_title, review_body
+  # Note: ETL reviews (amz_ETL_reviews) has standardized field names: review_title, review_body
   # Include ALL products (both competitor and non-competitor) for raw data
   df_review___all <- tbl2(comment_property_rating, "transformed_data.df_amz_review___transformed") %>% 
     filter(product_line_id == product_line_id_i) %>% 

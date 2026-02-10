@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_all_comment_property, df_comment_property_all, df_comment_property_pl, df_comment_property_rating_, df_competitor_items, df_eby_competitor_item_id, df_eby_review, df_review_all, df_review_joined, df_review_long, df_review_pl, df_review_sampled, df_review_selected
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 
 #' @title eby_D03_08
 #' @description Derivation task
@@ -29,6 +36,17 @@
 # - MP051: Explicit Parameter Specification
 
 # Initialize environment
+tbl2_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
+)
+tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
+if (is.na(tbl2_path)) {
+  stop("fn_tbl2.R not found in expected paths")
+}
+source(tbl2_path)
 needgoogledrive <- TRUE
 autoinit()
 

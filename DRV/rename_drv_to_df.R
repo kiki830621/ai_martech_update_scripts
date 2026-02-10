@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_migration_report
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 #!/usr/bin/env Rscript
 
 #' ---
@@ -31,7 +38,17 @@ library(duckdb)
 
 # Ensure tbl2 is available (DM_R023)
 if (!exists("tbl2")) {
-  source(file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"))
+  tbl2_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
+)
+tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
+if (is.na(tbl2_path)) {
+  stop("fn_tbl2.R not found in expected paths")
+}
+source(tbl2_path)
 }
 
 # Utility: Repeat string operator
