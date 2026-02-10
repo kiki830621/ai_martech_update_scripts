@@ -1,8 +1,8 @@
-# amz_ETL_keys_0IM___QEF_DESIGN.R - Import KEYS.xlsx Product Mapping
+# amz_ETL_keys_0IM.R - Import KEYS.xlsx Product Mapping
 # ==============================================================================
 # Following MP064: ETL-Derivation Separation Principle
 # Following DM_R028: ETL Data Type Separation Rule
-# Following DM_R037: Company-Specific Script Suffix
+# Following DM_R037 v3.0: Config-Driven Import (source_type/version in app_config.yaml)
 # Following DEV_R032: Five-Part Script Structure Standard
 # Following MP103: Proper autodeinit() usage as absolute last statement
 #
@@ -16,11 +16,22 @@
 # 1. INITIALIZE
 # ==============================================================================
 
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
 script_start_time <- Sys.time()
-script_name <- "amz_ETL_keys_0IM___QEF_DESIGN"
+script_name <- "amz_ETL_keys_0IM"
 script_version <- "1.0.0"
 
 message(strrep("=", 80))
@@ -34,6 +45,13 @@ if (!exists("autoinit", mode = "function")) {
 }
 OPERATION_MODE <- "UPDATE_MODE"
 autoinit()
+
+# Read ETL profile from config (DM_R037 v3.0: config-driven import)
+source(file.path(GLOBAL_DIR, "04_utils", "fn_get_platform_config.R"))
+platform_cfg <- get_platform_config("amz")
+etl_profile <- platform_cfg$etl_sources$keys
+message(sprintf("PROFILE: source_type=%s, version=%s",
+                etl_profile$source_type, etl_profile$version))
 
 message("INITIALIZE: Loading required libraries...")
 library(DBI)
@@ -58,13 +76,24 @@ message("MAIN: Starting KEYS.xlsx import...")
 main_start_time <- Sys.time()
 
 tryCatch({
-  # Define path to KEYS.xlsx
-  keys_path <- file.path(APP_DIR, "data", "local_data",
-                          "rawdata_QEF_DESIGN", "KEYS.xlsx")
+  source_type <- tolower(as.character(etl_profile$source_type %||% ""))
+  if (source_type != "excel") {
+    stop(sprintf("VALIDATE FAILED: keys requires source_type='excel', got '%s'", source_type))
+  }
+
+  rawdata_root <- file.path(APP_DIR, "data", "local_data", "rawdata_QEF_DESIGN")
+  rawdata_rel_path <- as.character(etl_profile$rawdata_path %||% "")
+  if (!nzchar(rawdata_rel_path)) {
+    stop("VALIDATE FAILED: keys profile missing rawdata_path")
+  }
+
+  # Define path to KEYS.xlsx from config
+  keys_path <- file.path(rawdata_root, rawdata_rel_path)
 
   if (!file.exists(keys_path)) {
-    stop(sprintf("KEYS.xlsx not found: %s", keys_path))
+    stop(sprintf("VALIDATE FAILED: rawdata_path not found '%s'", rawdata_rel_path))
   }
+  message(sprintf("VALIDATE: Found declared rawdata_path '%s'", rawdata_rel_path))
 
   # Read KEYS.xlsx
   message(sprintf("MAIN: Step 1/3 - Reading %s...", keys_path))
@@ -129,7 +158,7 @@ tryCatch({
 
   dbWriteTable(raw_data, output_table, as.data.frame(df_keys), overwrite = TRUE)
 
-  actual_count <- dbGetQuery(raw_data,
+  actual_count <- sql_read(raw_data,
     sprintf("SELECT COUNT(*) as n FROM %s", output_table))$n
   message(sprintf("MAIN: Stored %d records in %s", actual_count, output_table))
 
@@ -163,7 +192,7 @@ if (script_success) {
     message("TEST: Table exists")
 
     # Test 2: Has data
-    row_count <- dbGetQuery(raw_data,
+    row_count <- sql_read(raw_data,
       sprintf("SELECT COUNT(*) as n FROM %s", output_table))$n
     if (row_count == 0) stop("Table is empty")
     message(sprintf("TEST: %d product keys", row_count))
@@ -178,7 +207,7 @@ if (script_success) {
     message("TEST: Required columns present (product_line_id, asin, sku)")
 
     # Test 4: No duplicate SKUs
-    sku_counts <- dbGetQuery(raw_data, sprintf(
+    sku_counts <- sql_read(raw_data, sprintf(
       "SELECT sku, COUNT(*) as n FROM %s GROUP BY sku HAVING COUNT(*) > 1", output_table))
     if (nrow(sku_counts) > 0) {
       warning(sprintf("Found %d duplicate SKUs", nrow(sku_counts)))
@@ -206,7 +235,7 @@ message(strrep("=", 80))
 message("SUMMARIZE: KEYS PRODUCT MAPPING IMPORT (0IM)")
 message(strrep("=", 80))
 message(sprintf("Platform: amz | Data Type: keys"))
-message(sprintf("Company: QEF_DESIGN"))
+message(sprintf("Source: %s_%s", etl_profile$source_type, etl_profile$version))
 message(sprintf("Total time: %.2fs", as.numeric(Sys.time() - script_start_time, units = "secs")))
 message(sprintf("Status: %s", if (script_success && test_passed) "SUCCESS" else "FAILED"))
 message(sprintf("Compliance: MP064, DM_R028, DM_R037, DEV_R032"))

@@ -1,14 +1,14 @@
-# amz_ETL_sales_0IM___QEF_DESIGN.R - Import Amazon Sales Data from Excel
+# amz_ETL_sales_0IM.R - Import Amazon Sales Data
 # ==============================================================================
 # Following MP064: ETL-Derivation Separation Principle
 # Following DM_R028: ETL Data Type Separation Rule
-# Following DM_R037: Company-Specific Script Suffix
+# Following DM_R037 v3.0: Config-Driven Import (source_type/version in app_config.yaml)
 # Following DEV_R032: Five-Part Script Structure Standard
 # Following MP103: Proper autodeinit() usage as absolute last statement
 # Following MP099: Real-Time Progress Reporting
 #
-# ETL Sales Phase 0IM (Import): Read raw xlsx files into raw_data.duckdb
-# Input: rawdata_QEF_DESIGN/amazon_sales/ (24 monthly xlsx files)
+# ETL Sales Phase 0IM (Import): Read raw data into raw_data.duckdb
+# Input: rawdata_QEF_DESIGN/amazon_sales/ (monthly xlsx files)
 # Output: raw_data.duckdb → df_amazon_sales
 # ==============================================================================
 
@@ -16,15 +16,26 @@
 # 1. INITIALIZE
 # ==============================================================================
 
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
 script_start_time <- Sys.time()
-script_name <- "amz_ETL_sales_0IM___QEF_DESIGN"
+script_name <- "amz_ETL_sales_0IM"
 script_version <- "1.0.0"
 
 message(strrep("=", 80))
-message("INITIALIZE: Starting Amazon Sales Import (0IM Phase) - QEF_DESIGN")
+message("INITIALIZE: Starting Amazon Sales Import (0IM Phase)")
 message(sprintf("INITIALIZE: Start time: %s", format(script_start_time, "%Y-%m-%d %H:%M:%S")))
 message(sprintf("INITIALIZE: Script: %s v%s", script_name, script_version))
 message(strrep("=", 80))
@@ -34,6 +45,13 @@ if (!exists("autoinit", mode = "function")) {
 }
 OPERATION_MODE <- "UPDATE_MODE"
 autoinit()
+
+# Read ETL profile from config (DM_R037 v3.0: config-driven import)
+source(file.path(GLOBAL_DIR, "04_utils", "fn_get_platform_config.R"))
+platform_cfg <- get_platform_config("amz")
+etl_profile <- platform_cfg$etl_sources$sales
+message(sprintf("PROFILE: source_type=%s, version=%s",
+                etl_profile$source_type, etl_profile$version))
 
 message("INITIALIZE: Loading required libraries...")
 library(DBI)
@@ -59,9 +77,28 @@ message("MAIN: Starting Amazon Sales Import...")
 main_start_time <- Sys.time()
 
 tryCatch({
-  # Define raw data path (DM_R037: QEF_DESIGN-specific)
-  rawdata_path <- file.path(APP_DIR, "data", "local_data",
-                            "rawdata_QEF_DESIGN", "amazon_sales")
+  # Resolve config-driven source profile (DM_R037 v3.0)
+  source_type <- tolower(as.character(etl_profile$source_type %||% ""))
+  if (!source_type %in% c("excel", "csv")) {
+    stop(sprintf("VALIDATE FAILED: Unsupported source_type for sales: %s", source_type))
+  }
+
+  rawdata_root <- file.path(APP_DIR, "data", "local_data", "rawdata_QEF_DESIGN")
+  rawdata_pattern <- as.character(etl_profile$rawdata_pattern %||% "")
+  if (!nzchar(rawdata_pattern)) {
+    stop("VALIDATE FAILED: sales profile missing rawdata_pattern")
+  }
+
+  matched_files <- Sys.glob(file.path(rawdata_root, rawdata_pattern))
+  if (length(matched_files) == 0) {
+    stop(sprintf("VALIDATE FAILED: No files match pattern '%s'", rawdata_pattern))
+  }
+  message(sprintf("VALIDATE: Found %d files matching declared pattern", length(matched_files)))
+
+  # Pattern root (e.g., amazon_sales/*/*.xlsx -> amazon_sales)
+  rawdata_rel_dir <- sub("/\\*.*$", "", rawdata_pattern)
+  rawdata_rel_dir <- sub("/$", "", rawdata_rel_dir)
+  rawdata_path <- file.path(rawdata_root, rawdata_rel_dir)
 
   if (!dir.exists(rawdata_path)) {
     stop(sprintf("Raw data directory not found: %s", rawdata_path))
@@ -78,7 +115,7 @@ tryCatch({
 
   # Verify import
   if (dbExistsTable(raw_data, "df_amazon_sales")) {
-    row_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as n FROM df_amazon_sales")$n
+    row_count <- sql_read(raw_data, "SELECT COUNT(*) as n FROM df_amazon_sales")$n
     message(sprintf("MAIN: Successfully imported %d rows into df_amazon_sales", row_count))
     script_success <- TRUE
   } else {
@@ -111,7 +148,7 @@ if (script_success) {
     message("TEST: Table exists")
 
     # Test 2: Has data
-    row_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as n FROM df_amazon_sales")$n
+    row_count <- sql_read(raw_data, "SELECT COUNT(*) as n FROM df_amazon_sales")$n
     if (row_count == 0) {
       stop("Table df_amazon_sales is empty")
     }
@@ -128,7 +165,7 @@ if (script_success) {
 
     # Test 4: Sample data
     message("TEST: Sample data:")
-    sample <- dbGetQuery(raw_data, "SELECT sku, purchase_date, item_price FROM df_amazon_sales LIMIT 3")
+    sample <- sql_read(raw_data, "SELECT sku, purchase_date, item_price FROM df_amazon_sales LIMIT 3")
     print(sample)
 
     test_passed <- TRUE
@@ -152,7 +189,7 @@ message("SUMMARIZE: AMAZON SALES IMPORT (0IM)")
 message(strrep("=", 80))
 message(sprintf("Platform: amz"))
 message(sprintf("Phase: 0IM (Import)"))
-message(sprintf("Company: QEF_DESIGN"))
+message(sprintf("Source: %s_%s", etl_profile$source_type, etl_profile$version))
 message(sprintf("Total time: %.2fs", as.numeric(Sys.time() - script_start_time, units = "secs")))
 message(sprintf("Status: %s", if (script_success && test_passed) "SUCCESS" else "FAILED"))
 message(sprintf("Compliance: MP064, DM_R028, DM_R037, DEV_R032"))
