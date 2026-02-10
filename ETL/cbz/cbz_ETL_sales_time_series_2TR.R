@@ -27,6 +27,17 @@
 # PART 1: INITIALIZE
 # ==============================================================================
 
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 source("scripts/global_scripts/22_initializations/sc_Rprofile.R")
 autoinit()
 
@@ -138,7 +149,7 @@ tryCatch({
 
   message("[Step 2/6] Loading product line dictionary (app_data priority)...")
   if (dbExistsTable(con_app, "df_product_line")) {
-    product_line_lookup <- dbGetQuery(con_app, "
+    product_line_lookup <- sql_read(con_app, "
       SELECT product_line_id, product_line_name_chinese,
              product_line_name_english, included
       FROM df_product_line

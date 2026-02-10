@@ -18,6 +18,17 @@
 # ==============================================================================
 
 # Initialize script execution tracking
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -384,12 +395,12 @@ if (script_success) {
     
     for (table_name in expected_tables) {
       if (table_name %in% dbListTables(raw_data)) {
-        count <- dbGetQuery(raw_data, paste0("SELECT COUNT(*) as count FROM ", table_name))$count
+        count <- sql_read(raw_data, paste0("SELECT COUNT(*) as count FROM ", table_name))$count
         tables_found <- tables_found + 1
         total_records <- total_records + count
         
         # Check for shared import source
-        source_check <- dbGetQuery(raw_data, paste0(
+        source_check <- sql_read(raw_data, paste0(
           "SELECT COUNT(*) as shared_count FROM ", table_name, 
           " WHERE import_source = 'SHARED_API'"
         ))$shared_count

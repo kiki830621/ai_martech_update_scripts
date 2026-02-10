@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_amazon_sales_by_customer, df_amazon_sales_by_customer_by_date, df_dna_by_customer
+# PRODUCES: df_dna_by_customer
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 #' @file amz_D01_06.R
 #' @requires DBI
 #' @requires dplyr
@@ -15,6 +22,17 @@
 #' @description Analyzes customer data to extract DNA profiles and behavioral patterns for each product line
 
 # 1. INITIALIZE
+tbl2_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
+)
+tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
+if (is.na(tbl2_path)) {
+  stop("fn_tbl2.R not found in expected paths")
+}
+source(tbl2_path)
 autoinit()
 
 # Connect to required databases
@@ -52,8 +70,8 @@ tryCatch({
   
   # Load the customer data
   message("Loading customer data for DNA analysis")
-  df_amazon_sales_by_customer <- tbl(processed_data, "df_amazon_sales_by_customer") %>% collect()
-  df_amazon_sales_by_customer_by_date <- tbl(processed_data, "df_amazon_sales_by_customer_by_date") %>% collect()
+  df_amazon_sales_by_customer <- tbl2(processed_data, "df_amazon_sales_by_customer") %>% collect()
+  df_amazon_sales_by_customer_by_date <- tbl2(processed_data, "df_amazon_sales_by_customer_by_date") %>% collect()
   
   # Verify product_line_id_filter column exists in loaded data
   if (!"product_line_id_filter" %in% colnames(df_amazon_sales_by_customer)) {
@@ -152,7 +170,7 @@ if (!error_occurred) {
       test_passed <- FALSE
     } else {
       # Check for Amazon platform records
-      amz_records <- tbl(app_data, "df_dna_by_customer") %>%
+      amz_records <- tbl2(app_data, "df_dna_by_customer") %>%
         filter(platform_id == "amz") %>%
         count() %>%
         pull()
@@ -161,7 +179,7 @@ if (!error_occurred) {
         message("Verification successful: ", amz_records, " Amazon DNA records found in app_data.df_dna_by_customer")
         
         # Check product line filter distribution
-        product_line_filter_counts <- tbl(app_data, "df_dna_by_customer") %>%
+        product_line_filter_counts <- tbl2(app_data, "df_dna_by_customer") %>%
           filter(platform_id == "amz") %>%
           group_by(product_line_id_filter) %>%
           summarize(count = n()) %>%
@@ -186,7 +204,7 @@ if (!error_occurred) {
         message("Sample DNA data by product line filter:")
         for (pl_filter in vec_product_line_id_filter) {
           message(paste0("--- Product Line Filter: ", pl_filter, " ---"))
-          sample_data <- tbl(app_data, "df_dna_by_customer") %>%
+          sample_data <- tbl2(app_data, "df_dna_by_customer") %>%
             filter(platform_id == "amz", product_line_id_filter == pl_filter) %>%
             head(3) %>%
             collect()
@@ -199,7 +217,7 @@ if (!error_occurred) {
         
         # Check distribution of DNA metrics by product line filter
         message("DNA metric distribution by product line filter:")
-        metrics_by_product_line <- tbl(app_data, "df_dna_by_customer") %>%
+        metrics_by_product_line <- tbl2(app_data, "df_dna_by_customer") %>%
           filter(platform_id == "amz") %>%
           group_by(product_line_id_filter) %>%
           summarize(

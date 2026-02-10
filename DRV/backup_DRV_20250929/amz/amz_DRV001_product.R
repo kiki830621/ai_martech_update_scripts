@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_amazon_sales_standardized, df_customer_profile
+# PRODUCES: df_customer_profile
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 #' @file amz_D01_04.R
 #' @requires DBI
 #' @requires dplyr
@@ -15,6 +22,17 @@
 #' @description Creates customer profiles from standardized Amazon sales data for application use
 
 # 1. INITIALIZE
+tbl2_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
+)
+tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
+if (is.na(tbl2_path)) {
+  stop("fn_tbl2.R not found in expected paths")
+}
+source(tbl2_path)
 autoinit()
 
 # Connect to required databases
@@ -48,7 +66,7 @@ tryCatch({
   }
   
   # Import standardized data
-  df_amazon_sales_standardized <- tbl(processed_data, "df_amazon_sales_standardized") %>% collect()
+  df_amazon_sales_standardized <- tbl2(processed_data, "df_amazon_sales_standardized") %>% collect()
   message(sprintf("Loaded %d rows from processed_data.df_amazon_sales_standardized", 
                  nrow(df_amazon_sales_standardized)))
   
@@ -88,7 +106,7 @@ if (!error_occurred) {
       message("Verification failed: Table df_customer_profile does not exist")
       test_passed <- FALSE
     } else {
-      customer_count <- tbl(app_data, "df_customer_profile") %>%
+      customer_count <- tbl2(app_data, "df_customer_profile") %>%
         filter(platform_id == "amz") %>%
         count() %>%
         pull()
@@ -97,7 +115,7 @@ if (!error_occurred) {
         message("Verification successful: ", customer_count, " Amazon customer profiles created")
         
         # Display a sample of the customer profile data
-        customer_sample <- tbl(app_data, "df_customer_profile") %>%
+        customer_sample <- tbl2(app_data, "df_customer_profile") %>%
           filter(platform_id == "amz") %>%
           head(5) %>%
           collect()
@@ -106,7 +124,7 @@ if (!error_occurred) {
         print(customer_sample)
         
         # Check for duplicates
-        duplicate_check <- tbl(app_data, "df_customer_profile") %>%
+        duplicate_check <- tbl2(app_data, "df_customer_profile") %>%
           filter(platform_id == "amz") %>%
           group_by(customer_id, platform_id) %>%
           summarize(count = n(), .groups = "drop") %>%

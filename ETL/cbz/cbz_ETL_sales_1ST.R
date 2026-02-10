@@ -18,6 +18,17 @@
 # ==============================================================================
 
 # Initialize script execution tracking
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -291,7 +302,7 @@ tryCatch({
   dbWriteTable(staged_data, "df_cbz_sales___staged", df_staged, overwrite = TRUE)
 
   # Verify write
-  actual_count <- dbGetQuery(staged_data, "SELECT COUNT(*) as count FROM df_cbz_sales___staged")$count
+  actual_count <- sql_read(staged_data, "SELECT COUNT(*) as count FROM df_cbz_sales___staged")$count
   write_elapsed <- as.numeric(Sys.time() - write_start, units = "secs")
 
   message(sprintf("MAIN: ✅ Staged data written and verified: %d records (%.2fs)",
@@ -323,7 +334,7 @@ if (script_success) {
     table_name <- "df_cbz_sales___staged"
 
     if (table_name %in% dbListTables(staged_data)) {
-      staged_count <- dbGetQuery(staged_data,
+      staged_count <- sql_read(staged_data,
         paste0("SELECT COUNT(*) as count FROM ", table_name))$count
 
       message(sprintf("TEST: ✅ Staged table verification: %d records", staged_count))
@@ -348,7 +359,7 @@ if (script_success) {
 
         # Data quality checks
         if ("order_date" %in% columns) {
-          date_check <- dbGetQuery(staged_data, paste0(
+          date_check <- sql_read(staged_data, paste0(
             "SELECT COUNT(*) as valid_dates FROM ", table_name,
             " WHERE order_date IS NOT NULL AND order_date != ''"
           ))
@@ -356,7 +367,7 @@ if (script_success) {
         }
 
         if ("quantity" %in% columns) {
-          qty_stats <- dbGetQuery(staged_data, paste0(
+          qty_stats <- sql_read(staged_data, paste0(
             "SELECT MIN(quantity) as min_qty, MAX(quantity) as max_qty, ",
             "AVG(quantity) as avg_qty, ",
             "COUNT(CASE WHEN quantity IS NULL THEN 1 END) as null_qty ",
@@ -369,7 +380,7 @@ if (script_success) {
         }
 
         if ("order_year" %in% columns) {
-          year_dist <- dbGetQuery(staged_data, paste0(
+          year_dist <- sql_read(staged_data, paste0(
             "SELECT order_year, COUNT(*) as count FROM ", table_name,
             " WHERE order_year IS NOT NULL GROUP BY order_year ORDER BY order_year"
           ))

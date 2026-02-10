@@ -6,6 +6,17 @@
 #' 
 #' @output metadata/country_extraction_metadata.csv
 
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 library(dplyr)
 library(DBI)
 library(duckdb)
@@ -28,7 +39,7 @@ con_2tr <- dbConnect(duckdb::duckdb(), "data/transformed_data.duckdb", read_only
 message("Analyzing country extraction from currency and marketplace...")
 
 # Get currency distribution
-currency_dist <- dbGetQuery(con_1st, "
+currency_dist <- sql_read(con_1st, "
   SELECT 
     currency,
     COUNT(*) as n_products,
@@ -83,12 +94,12 @@ message("Verifying extraction results in transformed data...")
 if (dbExistsTable(con_2tr, "precision_product_profiles_2TR")) {
   
   # Check if country column exists
-  cols_2tr <- dbGetQuery(con_2tr, 
+  cols_2tr <- sql_read(con_2tr, 
     "SELECT * FROM precision_product_profiles_2TR LIMIT 1") %>%
     names()
   
   if ("country" %in% cols_2tr) {
-    actual_countries <- dbGetQuery(con_2tr, "
+    actual_countries <- sql_read(con_2tr, "
       SELECT 
         country,
         COUNT(*) as n_products

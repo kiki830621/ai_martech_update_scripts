@@ -15,6 +15,17 @@
 # 1. INITIALIZE
 # ==============================================================================
 
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -69,7 +80,7 @@ tryCatch({
   # Load raw data
   message(sprintf("MAIN: Step 1/4 - Loading %s...", input_table))
   load_start <- Sys.time()
-  df_raw <- dbGetQuery(raw_data, sprintf("SELECT * FROM %s", input_table))
+  df_raw <- sql_read(raw_data, sprintf("SELECT * FROM %s", input_table))
   n_raw <- nrow(df_raw)
   message(sprintf("MAIN: Loaded %d records (%.2fs)",
                   n_raw, as.numeric(Sys.time() - load_start, units = "secs")))
@@ -143,7 +154,7 @@ tryCatch({
   dbWriteTable(staged_data, output_table, as.data.frame(dt), overwrite = TRUE)
 
   # Verify write
-  actual_count <- dbGetQuery(staged_data,
+  actual_count <- sql_read(staged_data,
     sprintf("SELECT COUNT(*) as n FROM %s", output_table))$n
   message(sprintf("MAIN: Stored %d records in %s (%.2fs)",
                   actual_count, output_table,
@@ -178,13 +189,13 @@ if (script_success) {
     message("TEST: Table exists")
 
     # Test 2: Has data
-    row_count <- dbGetQuery(staged_data,
+    row_count <- sql_read(staged_data,
       sprintf("SELECT COUNT(*) as n FROM %s", output_table))$n
     if (row_count == 0) stop("Table is empty")
     message(sprintf("TEST: %d rows", row_count))
 
     # Test 3: platform_id column exists and is 'amz'
-    platform_check <- dbGetQuery(staged_data, sprintf(
+    platform_check <- sql_read(staged_data, sprintf(
       "SELECT DISTINCT platform_id FROM %s", output_table))
     if (!"amz" %in% platform_check$platform_id) {
       stop("platform_id 'amz' not found")
@@ -192,7 +203,7 @@ if (script_success) {
     message("TEST: platform_id = 'amz' confirmed")
 
     # Test 4: No NULL SKUs
-    null_sku <- dbGetQuery(staged_data, sprintf(
+    null_sku <- sql_read(staged_data, sprintf(
       "SELECT COUNT(*) as n FROM %s WHERE sku IS NULL OR TRIM(sku) = ''", output_table))$n
     if (null_sku > 0) warning(sprintf("Found %d NULL/empty SKUs", null_sku))
     else message("TEST: No NULL/empty SKUs")

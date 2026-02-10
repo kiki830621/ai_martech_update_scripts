@@ -7,6 +7,17 @@
 # ==============================================================================
 
 # Initialize script execution tracking
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -38,7 +49,7 @@ tryCatch({
   }
   
   # Load staged reviews data
-  staged_reviews <- dbGetQuery(staged_data, paste("SELECT * FROM", source_table))
+  staged_reviews <- sql_read(staged_data, paste("SELECT * FROM", source_table))
   message("MAIN: Loaded ", nrow(staged_reviews), " staged reviews")
   
   # Verify expected columns are present after staging (using original column names)
@@ -105,7 +116,7 @@ tryCatch({
   competitor_table <- "df_amz_competitor_product_id___transformed"
   if (competitor_table %in% dbListTables(transformed_data)) {
     # Retrieve competitor products with flag - only select needed columns
-    df_competitor_product_id_with_flag <- dbGetQuery(transformed_data, 
+    df_competitor_product_id_with_flag <- sql_read(transformed_data, 
       paste0("SELECT DISTINCT product_id, product_line_id FROM ", competitor_table)) %>% 
       dplyr::mutate(included_competiter = TRUE)
     
@@ -257,7 +268,7 @@ if (script_success) {
     
     if (target_table %in% dbListTables(transformed_data)) {
       # Check row count
-      transformed_count <- dbGetQuery(transformed_data, paste0("SELECT COUNT(*) as count FROM ", target_table))$count
+      transformed_count <- sql_read(transformed_data, paste0("SELECT COUNT(*) as count FROM ", target_table))$count
 
       if (transformed_count > 0) {
         test_passed <- TRUE
@@ -265,7 +276,7 @@ if (script_success) {
         
         # Show basic data structure
         structure_query <- paste0("SELECT * FROM ", target_table, " LIMIT 3")
-        sample_data <- dbGetQuery(transformed_data, structure_query)
+        sample_data <- sql_read(transformed_data, structure_query)
         message("TEST: Sample transformed data structure:")
         print(sample_data)
         
@@ -281,7 +292,7 @@ if (script_success) {
           if ("platform_id" %in% actual_cols) {
             platform_query <- paste0("SELECT platform_id, COUNT(*) as count FROM ", target_table, 
                                     " GROUP BY platform_id ORDER BY count DESC")
-            platform_dist <- dbGetQuery(transformed_data, platform_query)
+            platform_dist <- sql_read(transformed_data, platform_query)
             message("TEST: Platform distribution:")
             print(platform_dist)
           }
@@ -290,12 +301,12 @@ if (script_success) {
           if ("product_line_id" %in% actual_cols) {
             pl_query <- paste0("SELECT product_line_id, COUNT(*) as count FROM ", target_table, 
                               " WHERE product_line_id IS NOT NULL GROUP BY product_line_id ORDER BY count DESC")
-            pl_dist <- dbGetQuery(transformed_data, pl_query)
+            pl_dist <- sql_read(transformed_data, pl_query)
             message("TEST: Product line distribution:")
             print(head(pl_dist, 10))
             
             # Check unassigned product lines
-            unassigned <- dbGetQuery(transformed_data, paste0(
+            unassigned <- sql_read(transformed_data, paste0(
               "SELECT COUNT(*) as unassigned FROM ", target_table, 
               " WHERE product_line_id IS NULL"
             ))$unassigned
@@ -307,7 +318,7 @@ if (script_success) {
           # Check product_id distribution
           if ("product_id" %in% actual_cols) {
             product_query <- paste0("SELECT COUNT(DISTINCT product_id) as unique_products FROM ", target_table)
-            unique_products <- dbGetQuery(transformed_data, product_query)$unique_products
+            unique_products <- sql_read(transformed_data, product_query)$unique_products
             message("TEST: Unique products: ", unique_products)
           }
         } else {
@@ -320,7 +331,7 @@ if (script_success) {
             "SELECT included_competiter, COUNT(*) as count FROM ", target_table,
             " GROUP BY included_competiter"
           )
-          competitor_stats <- dbGetQuery(transformed_data, competitor_query)
+          competitor_stats <- sql_read(transformed_data, competitor_query)
           
           # Calculate percentages
           total_competitor_count <- sum(competitor_stats$count)
@@ -360,7 +371,7 @@ if (script_success) {
         
         # Check quality metrics
         if ("final_quality_score" %in% actual_cols) {
-          quality_stats <- dbGetQuery(transformed_data, paste0(
+          quality_stats <- sql_read(transformed_data, paste0(
             "SELECT ",
             "MIN(final_quality_score) as min_quality, ",
             "AVG(final_quality_score) as avg_quality, ",
@@ -374,7 +385,7 @@ if (script_success) {
         
         # Check ETL phase tracking
         if ("etl_phase" %in% actual_cols) {
-          phase_check <- dbGetQuery(transformed_data, paste0(
+          phase_check <- sql_read(transformed_data, paste0(
             "SELECT COUNT(*) as transformed_count FROM ", target_table,
             " WHERE etl_phase = 'transformed'"
           ))$transformed_count

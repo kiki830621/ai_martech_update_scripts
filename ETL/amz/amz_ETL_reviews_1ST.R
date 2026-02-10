@@ -7,6 +7,17 @@
 # ==============================================================================
 
 # Initialize script execution tracking
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -37,7 +48,7 @@ tryCatch({
   
   # Load raw reviews data
   message("MAIN: Reading data from ", source_table)
-  df_amazon_reviews <- dbGetQuery(raw_data, paste("SELECT * FROM", source_table))
+  df_amazon_reviews <- sql_read(raw_data, paste("SELECT * FROM", source_table))
   initial_rows <- nrow(df_amazon_reviews)
   message("MAIN: Processing ", initial_rows, " raw Amazon reviews")
   
@@ -190,7 +201,7 @@ if (script_success) {
     
     if (target_table %in% dbListTables(staged_data)) {
       # Check row count
-      staged_count <- dbGetQuery(staged_data, paste0("SELECT COUNT(*) as count FROM ", target_table))$count
+      staged_count <- sql_read(staged_data, paste0("SELECT COUNT(*) as count FROM ", target_table))$count
 
       if (staged_count > 0) {
         test_passed <- TRUE
@@ -198,7 +209,7 @@ if (script_success) {
         
         # Show basic data structure
         structure_query <- paste0("SELECT * FROM ", target_table, " LIMIT 3")
-        sample_data <- dbGetQuery(staged_data, structure_query)
+        sample_data <- sql_read(staged_data, structure_query)
         message("TEST: Sample staged data structure:")
         print(sample_data)
         
@@ -215,7 +226,7 @@ if (script_success) {
         
         # Check data quality scores
         if ("etl_data_quality_score" %in% actual_cols) {
-          quality_stats <- dbGetQuery(staged_data, paste0(
+          quality_stats <- sql_read(staged_data, paste0(
             "SELECT ",
             "MIN(etl_data_quality_score) as min_quality, ",
             "AVG(etl_data_quality_score) as avg_quality, ",
@@ -228,7 +239,7 @@ if (script_success) {
         }
         
         # Check ASIN validation
-        asin_check <- dbGetQuery(staged_data, paste0(
+        asin_check <- sql_read(staged_data, paste0(
           "SELECT COUNT(*) as valid_asins FROM ", target_table,
           " WHERE variation IS NOT NULL AND LENGTH(variation) = 10"
         ))
@@ -236,7 +247,7 @@ if (script_success) {
         
         # Check date validation
         if ("review_year" %in% actual_cols) {
-          year_range <- dbGetQuery(staged_data, paste0(
+          year_range <- sql_read(staged_data, paste0(
             "SELECT MIN(review_year) as min_year, MAX(review_year) as max_year FROM ", target_table
           ))
           message("TEST: Review year range: ", year_range$min_year, " to ", year_range$max_year)

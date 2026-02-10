@@ -37,6 +37,17 @@
 # ==============================================================================
 # 1. INITIALIZE
 # ==============================================================================
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 autoinit()
 
 # Ensure g_project_root is available
@@ -115,7 +126,7 @@ tryCatch({
             if (has_eby) "ebay_item_number" else "1=0"
           )
 
-          result <- DBI::dbGetQuery(transformed_con, sql)
+          result <- sql_read(transformed_con, sql)
           message("  ", tbl_name, ": ", nrow(result), " rows")
           return(result)
         } else {
@@ -355,11 +366,11 @@ tryCatch({
 # ==============================================================================
 # Verify table was created correctly
 tryCatch({
-  test_count <- DBI::dbGetQuery(app_con, "SELECT COUNT(*) as n FROM df_product_mapping")
+  test_count <- sql_read(app_con, "SELECT COUNT(*) as n FROM df_product_mapping")
   message("\nVerification: df_product_mapping has ", test_count$n, " rows")
 
   # Verify M:N support: check for duplicate SKUs or eBay IDs
-  dup_check <- DBI::dbGetQuery(app_con, "
+  dup_check <- sql_read(app_con, "
     SELECT
       (SELECT COUNT(*) FROM (SELECT sku FROM df_product_mapping WHERE sku IS NOT NULL GROUP BY sku HAVING COUNT(*) > 1)) as dup_skus,
       (SELECT COUNT(*) FROM (SELECT eby_item_id FROM df_product_mapping WHERE eby_item_id IS NOT NULL GROUP BY eby_item_id HAVING COUNT(*) > 1)) as dup_eby

@@ -25,6 +25,17 @@
 # ==============================================================================
 # 1. INITIALIZE
 # ==============================================================================
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 autoinit()
 
 # Ensure g_project_root is available
@@ -92,7 +103,7 @@ tryCatch({
 
   # Check if df_product_line exists
   if (DBI::dbExistsTable(app_con, "df_product_line")) {
-    df_product_line <- DBI::dbGetQuery(app_con, "
+    df_product_line <- sql_read(app_con, "
       SELECT product_line_id, product_line_name_chinese
       FROM df_product_line
       WHERE included = TRUE AND product_line_id != 'all'
@@ -213,7 +224,7 @@ tryCatch({
 
   message("Item profile tables in raw_data:")
   for (tbl in profile_tables) {
-    row_count <- DBI::dbGetQuery(raw_con, sprintf("SELECT COUNT(*) as n FROM %s", tbl))$n
+    row_count <- sql_read(raw_con, sprintf("SELECT COUNT(*) as n FROM %s", tbl))$n
     col_count <- length(DBI::dbListFields(raw_con, tbl))
     message("  ", tbl, ": ", row_count, " rows, ", col_count, " columns")
   }

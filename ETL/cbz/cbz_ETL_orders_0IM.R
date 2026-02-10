@@ -18,6 +18,17 @@
 # ==============================================================================
 
 # Initialize script execution tracking
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -275,7 +286,7 @@ tryCatch({
       db_write_elapsed <- as.numeric(Sys.time() - db_write_start, units = "secs")
       
       # Verify write
-      actual_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as count FROM df_cbz_orders___raw")$count
+      actual_count <- sql_read(raw_data, "SELECT COUNT(*) as count FROM df_cbz_orders___raw")$count
       
       message(sprintf("MAIN: ✅ Order data: %d records written and verified (total: %.2fs, db_write: %.2fs)", 
                       actual_count, order_elapsed, db_write_elapsed))
@@ -406,7 +417,7 @@ tryCatch({
           
           dbWriteTable(raw_data, "df_cbz_orders___raw", df_cbz_orders, overwrite = TRUE)
           
-          final_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as count FROM df_cbz_orders___raw")$count
+          final_count <- sql_read(raw_data, "SELECT COUNT(*) as count FROM df_cbz_orders___raw")$count
           db_write_elapsed <- as.numeric(Sys.time() - db_write_start, units = "secs")
           
           message(sprintf("MAIN: ✅ Order file import completed: %d records (import: %.2fs, db_write: %.2fs)",
@@ -444,7 +455,7 @@ if (script_success) {
     table_name <- "df_cbz_orders___raw"
     
     if (table_name %in% dbListTables(raw_data)) {
-      order_count <- dbGetQuery(raw_data, 
+      order_count <- sql_read(raw_data, 
         paste0("SELECT COUNT(*) as count FROM ", table_name))$count
       
       test_passed <- TRUE
@@ -469,14 +480,14 @@ if (script_success) {
 
         # Order data quality checks
         if ("order_id" %in% columns) {
-          unique_orders <- dbGetQuery(raw_data, paste0(
+          unique_orders <- sql_read(raw_data, paste0(
             "SELECT COUNT(DISTINCT order_id) as unique_orders FROM ", table_name
           ))
           message(sprintf("TEST: 📦 Unique orders: %d", unique_orders$unique_orders))
         }
 
         if ("total_amount" %in% columns) {
-          amount_stats <- dbGetQuery(raw_data, paste0(
+          amount_stats <- sql_read(raw_data, paste0(
             "SELECT MIN(total_amount) as min_amount, MAX(total_amount) as max_amount, ",
             "AVG(total_amount) as avg_amount FROM ", table_name, " WHERE total_amount IS NOT NULL"
           ))
@@ -485,7 +496,7 @@ if (script_success) {
         }
 
         if ("order_status" %in% columns) {
-          status_counts <- dbGetQuery(raw_data, paste0(
+          status_counts <- sql_read(raw_data, paste0(
             "SELECT order_status, COUNT(*) as count FROM ", table_name, 
             " WHERE order_status IS NOT NULL GROUP BY order_status ORDER BY count DESC LIMIT 5"
           ))
@@ -495,7 +506,7 @@ if (script_success) {
 
         # Order data source analysis
         if ("import_source" %in% columns) {
-          source_counts <- dbGetQuery(raw_data, paste0(
+          source_counts <- sql_read(raw_data, paste0(
             "SELECT import_source, COUNT(*) as count FROM ", table_name, " GROUP BY import_source"
           ))
           message("TEST: 📊 Order data sources:")
