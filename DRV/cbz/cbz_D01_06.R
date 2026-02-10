@@ -5,7 +5,7 @@
 # PLATFORM: cbz
 # GROUP: D01
 # SEQUENCE: 06
-# PURPOSE: Orchestrate D01_03 through D01_05 for CBZ
+# PURPOSE: Orchestrate D01_00 through D01_05 for CBZ
 # CONSUMES: transformed_data.df_cbz_sales___standardized
 # PRODUCES: app_data.df_profile_by_customer, app_data.df_dna_by_customer, app_data.df_segments_by_customer
 # PRINCIPLE: MP064, DM_R044, DM_R022, DM_R048
@@ -13,10 +13,10 @@
 #cbz_D01_06
 
 #' @title D01 Master Execution (CBZ)
-#' @description Orchestrate D01_03 through D01_05 for CBZ
+#' @description Orchestrate D01_00 through D01_05 for CBZ
 #' @input_tables transformed_data.df_cbz_sales___standardized
 #' @output_tables app_data.df_profile_by_customer, app_data.df_dna_by_customer, app_data.df_segments_by_customer
-#' @business_rules Orchestrate D01_03 through D01_05 for CBZ.
+#' @business_rules Orchestrate D01_00 through D01_05 for CBZ.
 #' @platform cbz
 #' @author MAMBA Development Team
 #' @date 2025-12-30

@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_comment_property_rating_jew___raw
+# PRODUCES: none
+# DEPENDS_ON_ETL: comment_ETL_property_rating_jew_0IM
+# DEPENDS_ON_DRV: none
+#####
+
 autoinit()
 
 comment_property_rating <- dbConnectDuckdb(db_path_list$comment_property_rating, read_only = FALSE)

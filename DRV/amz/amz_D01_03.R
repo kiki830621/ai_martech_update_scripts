@@ -1,28 +1,27 @@
 #!/usr/bin/env Rscript
 #####
-# DERIVATION: D01_03 Customer DNA Analysis (AMZ)
-# VERSION: 2.3
+# DERIVATION: D01_03 Customer Profile Creation (AMZ)
+# VERSION: 3.0
 # PLATFORM: amz
 # GROUP: D01
 # SEQUENCE: 03
-# PURPOSE: Execute DNA analysis via core function
+# PURPOSE: Create customer profiles via core function
 # CORE_FUNCTION: global_scripts/16_derivations/fn_D01_03_core.R
-# CONSUMES: processed_data.df_amz_customer_rfm, processed_data.df_amz_sales_by_customer_by_date
-# PRODUCES: cleansed_data.df_dna_by_customer___cleansed
-# DEPENDS_ON_ETL: amz_ETL_sales_2TR
+# CONSUMES: transformed_data.df_amz_sales___standardized
+# PRODUCES: cleansed_data.df_profile_by_customer___cleansed
 # DEPENDS_ON_DRV: amz_D01_02
 # PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044, DM_R048
 #####
 #amz_D01_03
 
-#' @title D01_03 Customer DNA Analysis (AMZ)
-#' @description Execute DNA analysis via core function
-#' @input_tables processed_data.df_amz_customer_rfm, processed_data.df_amz_sales_by_customer_by_date
-#' @output_tables cleansed_data.df_dna_by_customer___cleansed
-#' @business_rules Execute DNA analysis via core function.
+#' @title D01_03 Customer Profile Creation (AMZ)
+#' @description Create customer profiles via core function
+#' @input_tables transformed_data.df_amz_sales___standardized
+#' @output_tables cleansed_data.df_profile_by_customer___cleansed
+#' @business_rules Create customer profiles after DNA computation.
 #' @platform amz
 #' @author MAMBA Development Team
-#' @date 2025-12-30
+#' @date 2026-02-08
 
 
 # ==============================================================================
@@ -79,6 +78,11 @@ message(sprintf("SUMMARY: Execution time (secs): %.2f", execution_time))
 # ==============================================================================
 # PART 5: DEINITIALIZE
 # ==============================================================================
+
+if (error_occurred || !test_passed) {
+  autodeinit()
+  quit(save = "no", status = 1)
+}
 
 autodeinit()
 # NO STATEMENTS AFTER THIS LINE

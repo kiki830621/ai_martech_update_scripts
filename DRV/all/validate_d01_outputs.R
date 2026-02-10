@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_dna_by_customer, df_dna_by_customer___cleansed, df_profile_by_customer, df_profile_by_customer___cleansed, df_segments_by_customer
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: D01_06
+#####
+
 #!/usr/bin/env Rscript
 # validate_d01_outputs.R
 #
@@ -11,6 +18,17 @@
 # PRINCIPLE:
 #   MP106 (Console Output Transparency), DM_R044 (Derivation Implementation Standard)
 
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 suppressPackageStartupMessages({
   library(DBI)
 })
@@ -166,7 +184,7 @@ get_row_count <- function(con, table_name, where_clause = NULL, params = list())
   } else {
     sprintf("SELECT COUNT(*) AS n FROM %s WHERE %s", table_id, where_clause)
   }
-  as.integer(DBI::dbGetQuery(con, query, params = params)$n)
+  as.integer(sql_read(con, query, params = params)$n)
 }
 
 get_distinct_count <- function(con, table_name, column, where_clause = NULL, params = list()) {
@@ -178,7 +196,7 @@ get_distinct_count <- function(con, table_name, column, where_clause = NULL, par
   } else {
     sprintf("SELECT COUNT(DISTINCT %s) AS n FROM %s WHERE %s", column, table_id, where_clause)
   }
-  as.integer(DBI::dbGetQuery(con, query, params = params)$n)
+  as.integer(sql_read(con, query, params = params)$n)
 }
 
 check_table_exists <- function(con, table_name, db_label, platform) {
@@ -307,7 +325,7 @@ check_platform_id_consistency <- function(con, table_name, db_label, platform) {
     "SELECT COUNT(*) AS n FROM %s WHERE platform_id IS NOT NULL AND platform_id <> ?",
     table_id
   )
-  mismatch_count <- as.integer(DBI::dbGetQuery(con, query, params = list(platform))$n)
+  mismatch_count <- as.integer(sql_read(con, query, params = list(platform))$n)
   if (mismatch_count > 0) {
     record_result(
       check = sprintf("Platform id consistency (%s.%s)", db_label, table_name),
@@ -352,7 +370,7 @@ check_missing_platform_id <- function(con, table_name, db_label, platform) {
   }
   table_id <- DBI::dbQuoteIdentifier(con, table_name)
   query <- sprintf("SELECT COUNT(*) AS n FROM %s WHERE platform_id IS NULL OR platform_id = ''", table_id)
-  null_count <- as.integer(DBI::dbGetQuery(con, query)$n)
+  null_count <- as.integer(sql_read(con, query)$n)
   if (null_count > 0) {
     record_result(
       check = sprintf("Missing platform_id (%s.%s)", db_label, table_name),
@@ -378,7 +396,7 @@ check_missing_platform_id <- function(con, table_name, db_label, platform) {
 check_duplicate_customers <- function(con, table_name, db_label, platform) {
   if (is.null(con) || !DBI::dbExistsTable(con, table_name)) {
     record_result(
-      check = sprintf("Duplicate customers (%s.%s)", db_label, table_name),
+      check = sprintf("Duplicate customer keys (%s.%s)", db_label, table_name),
       platform = platform,
       status = "FAIL",
       detail = "Table missing; cannot validate customer_id uniqueness"
@@ -388,7 +406,7 @@ check_duplicate_customers <- function(con, table_name, db_label, platform) {
   cols <- DBI::dbListFields(con, table_name)
   if (!"customer_id" %in% cols) {
     record_result(
-      check = sprintf("Duplicate customers (%s.%s)", db_label, table_name),
+      check = sprintf("Duplicate customer keys (%s.%s)", db_label, table_name),
       platform = platform,
       status = "FAIL",
       detail = "customer_id column not found"
@@ -396,23 +414,34 @@ check_duplicate_customers <- function(con, table_name, db_label, platform) {
     return(NA_integer_)
   }
   table_id <- DBI::dbQuoteIdentifier(con, table_name)
-  query <- sprintf("SELECT COUNT(*) - COUNT(DISTINCT customer_id) AS n FROM %s", table_id)
-  dup_count <- as.integer(DBI::dbGetQuery(con, query)$n)
+  has_product_line <- "product_line_id_filter" %in% cols
+  distinct_expr <- if (has_product_line) {
+    "concat(CAST(customer_id AS VARCHAR), '||', COALESCE(product_line_id_filter, ''))"
+  } else {
+    "CAST(customer_id AS VARCHAR)"
+  }
+  query <- sprintf("SELECT COUNT(*) - COUNT(DISTINCT %s) AS n FROM %s", distinct_expr, table_id)
+  dup_count <- as.integer(sql_read(con, query)$n)
+  key_label <- if (has_product_line) {
+    "customer_id + product_line_id_filter"
+  } else {
+    "customer_id"
+  }
   if (dup_count > 0) {
     record_result(
-      check = sprintf("Duplicate customers (%s.%s)", db_label, table_name),
+      check = sprintf("Duplicate customer keys (%s.%s)", db_label, table_name),
       platform = platform,
       status = "WARN",
-      detail = sprintf("%d duplicate customer_id rows detected", dup_count),
+      detail = sprintf("%d duplicate %s rows detected", dup_count, key_label),
       expected = "0",
       actual = dup_count
     )
   } else {
     record_result(
-      check = sprintf("Duplicate customers (%s.%s)", db_label, table_name),
+      check = sprintf("Duplicate customer keys (%s.%s)", db_label, table_name),
       platform = platform,
       status = "PASS",
-      detail = "No duplicate customer_id rows",
+      detail = sprintf("No duplicate %s rows", key_label),
       expected = "0",
       actual = dup_count
     )
@@ -442,7 +471,7 @@ check_missing_customer_id <- function(con, table_name, db_label, platform) {
   }
   table_id <- DBI::dbQuoteIdentifier(con, table_name)
   query <- sprintf("SELECT COUNT(*) AS n FROM %s WHERE customer_id IS NULL", table_id)
-  null_count <- as.integer(DBI::dbGetQuery(con, query)$n)
+  null_count <- as.integer(sql_read(con, query)$n)
   if (null_count > 0) {
     record_result(
       check = sprintf("Missing customer_id (%s.%s)", db_label, table_name),
@@ -731,14 +760,14 @@ for (platform_id in platforms) {
     )
   }
 
-  if (!is.na(counts$profile_rows) && !is.na(counts$by_customer_rows)) {
-    status <- ifelse(counts$profile_rows == counts$by_customer_rows, "PASS", "WARN")
+  if (!is.na(counts$profile_rows) && !is.na(counts$by_customer_customers)) {
+    status <- ifelse(counts$profile_rows >= counts$by_customer_customers, "PASS", "WARN")
     record_result(
       check = "Row count match (profile vs sales_by_customer)",
       platform = platform_id,
       status = status,
-      detail = "Expected equal row counts",
-      expected = counts$by_customer_rows,
+      detail = "Expected profile rows to be >= distinct customer_id count in sales_by_customer",
+      expected = paste0(">= ", counts$by_customer_customers),
       actual = counts$profile_rows
     )
   }
@@ -856,3 +885,6 @@ if (!is.null(con_transformed) && DBI::dbIsValid(con_transformed)) DBI::dbDisconn
 if (!is.null(con_processed) && DBI::dbIsValid(con_processed)) DBI::dbDisconnect(con_processed, shutdown = FALSE)
 if (!is.null(con_cleansed) && DBI::dbIsValid(con_cleansed)) DBI::dbDisconnect(con_cleansed, shutdown = FALSE)
 if (!is.null(con_app) && DBI::dbIsValid(con_app)) DBI::dbDisconnect(con_app, shutdown = FALSE)
+
+# 5. AUTODEINIT
+autodeinit()

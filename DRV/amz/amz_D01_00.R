@@ -1,11 +1,11 @@
 #!/usr/bin/env Rscript
 #####
-# DERIVATION: D01_00 Consume ETL01 Output (AMZ)
+# DERIVATION: D01_00 Consume ETL sales Output (AMZ)
 # VERSION: 2.0
 # PLATFORM: amz
 # GROUP: D01
 # SEQUENCE: 00
-# PURPOSE: Validate ETL01 output table before downstream derivations
+# PURPOSE: Validate ETL sales output table before downstream derivations
 # CORE_FUNCTION: global_scripts/16_derivations/fn_D01_00_core.R
 # CONSUMES: transformed_data.df_amz_sales___standardized
 # PRODUCES: validation_report
@@ -14,11 +14,11 @@
 #####
 #amz_D01_00
 
-#' @title D01_00 Consume ETL01 Output (AMZ)
-#' @description Validate ETL01 output table before downstream derivations
+#' @title D01_00 Consume ETL sales Output (AMZ)
+#' @description Validate ETL sales output table before downstream derivations
 #' @input_tables transformed_data.df_amz_sales___standardized
 #' @output_tables validation_report
-#' @business_rules Validate ETL01 output table before downstream derivations.
+#' @business_rules Validate ETL sales output table before downstream derivations.
 #' @platform amz
 #' @author MAMBA Development Team
 #' @date 2025-12-30

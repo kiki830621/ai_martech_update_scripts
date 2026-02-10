@@ -1,33 +1,29 @@
 #!/usr/bin/env Rscript
 #####
-# DERIVATION: D01_05 Application Views (CBZ)
-# VERSION: 2.1
+# DERIVATION: D01_05 Final Validation (CBZ)
+# VERSION: 3.0
 # PLATFORM: cbz
 # GROUP: D01
 # SEQUENCE: 05
-# PURPOSE: Normalize cleansed outputs via core function
+# PURPOSE: Validate D01 outputs via core function
 # CORE_FUNCTION: global_scripts/16_derivations/fn_D01_05_core.R
-# CONSUMES: cleansed_data.df_dna_by_customer___cleansed,
-#           cleansed_data.df_profile_by_customer___cleansed
-# PRODUCES: app_data.df_dna_by_customer,
+# CONSUMES: app_data.df_dna_by_customer,
 #           app_data.df_profile_by_customer,
-#           app_data.df_segments_by_customer,
-#           app_data.v_customer_dna_analytics,
-#           app_data.v_customer_segments,
-#           app_data.v_segment_statistics
-# DEPENDS_ON: D00_app_data_init
+#           app_data.df_segments_by_customer
+# PRODUCES: validation_result
+# DEPENDS_ON_DRV: cbz_D01_04
 # PRINCIPLE: MP064, MP144, DEV_R037, DEV_R038, DM_R022, DM_R044, DM_R048
 #####
 #cbz_D01_05
 
-#' @title D01_05 Application Views (CBZ)
-#' @description Normalize cleansed outputs via core function
-#' @input_tables cleansed_data.df_dna_by_customer___cleansed,
-#' @output_tables app_data.df_dna_by_customer,
-#' @business_rules Normalize cleansed outputs via core function.
+#' @title D01_05 Final Validation (CBZ)
+#' @description Validate D01 outputs via core function
+#' @input_tables app_data.df_dna_by_customer, app_data.df_profile_by_customer, app_data.df_segments_by_customer
+#' @output_tables validation_result
+#' @business_rules Validate app-facing D01 contracts.
 #' @platform cbz
 #' @author MAMBA Development Team
-#' @date 2025-12-30
+#' @date 2026-02-08
 
 
 # ==============================================================================
@@ -84,6 +80,11 @@ message(sprintf("SUMMARY: Execution time (secs): %.2f", execution_time))
 # ==============================================================================
 # PART 5: DEINITIALIZE
 # ==============================================================================
+
+if (error_occurred || !test_passed) {
+  autodeinit()
+  quit(save = "no", status = 1)
+}
 
 autodeinit()
 # NO STATEMENTS AFTER THIS LINE

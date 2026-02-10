@@ -1,9 +1,27 @@
+#####
+# CONSUMES: df_dna_by_customer, df_dna_by_customer_table, df_profile_by_customer, df_profile_by_customer_table, df_segments_by_customer, df_segments_by_customer_table, information_schema.table_constraints
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 # ==============================================================================
 # D00: Create/Refresh App Data Tables (Customer DNA)
 # Follows DM_R044 (derivation structure), MP058 (schema-first), MP064 (separation)
 # ==============================================================================
 
 # PART 1: INITIALIZE ----------------------------------------------------------
+tbl2_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
+)
+tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
+if (is.na(tbl2_path)) {
+  stop("fn_tbl2.R not found in expected paths")
+}
+source(tbl2_path)
 OPERATION_MODE <- "UPDATE_MODE"
 autoinit()
 

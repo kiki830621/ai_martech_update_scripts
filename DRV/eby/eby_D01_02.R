@@ -1,27 +1,29 @@
 #!/usr/bin/env Rscript
 #####
-# DERIVATION: D01_02 RFM Calculation (EBY)
-# VERSION: 2.0
+# DERIVATION: D01_02 Customer Features + DNA (EBY)
+# VERSION: 3.0
 # PLATFORM: eby
 # GROUP: D01
 # SEQUENCE: 02
-# PURPOSE: Calculate RFM metrics from customer aggregation tables
+# PURPOSE: Compute customer features and DNA via core function
 # CORE_FUNCTION: global_scripts/16_derivations/fn_D01_02_core.R
-# CONSUMES: processed_data.df_eby_sales_by_customer
-# PRODUCES: processed_data.df_eby_customer_rfm
+# CONSUMES: processed_data.df_eby_sales_by_customer,
+#           processed_data.df_eby_sales_by_customer_by_date
+# PRODUCES: processed_data.df_eby_customer_rfm,
+#           cleansed_data.df_dna_by_customer___cleansed
 # DEPENDS_ON_DRV: eby_D01_01
-# PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044
+# PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044, DM_R048
 #####
 #eby_D01_02
 
-#' @title D01_02 RFM Calculation (EBY)
-#' @description Calculate RFM metrics from customer aggregation tables
-#' @input_tables processed_data.df_eby_sales_by_customer
-#' @output_tables processed_data.df_eby_customer_rfm
-#' @business_rules Calculate RFM metrics from customer aggregation tables.
+#' @title D01_02 Customer Features + DNA (EBY)
+#' @description Compute customer features and DNA via core function
+#' @input_tables processed_data.df_eby_sales_by_customer, processed_data.df_eby_sales_by_customer_by_date
+#' @output_tables processed_data.df_eby_customer_rfm, cleansed_data.df_dna_by_customer___cleansed
+#' @business_rules Compute customer features and DNA in one step.
 #' @platform eby
 #' @author MAMBA Development Team
-#' @date 2025-12-30
+#' @date 2026-02-08
 
 
 # ==============================================================================
@@ -78,6 +80,11 @@ message(sprintf("SUMMARY: Execution time (secs): %.2f", execution_time))
 # ==============================================================================
 # PART 5: DEINITIALIZE
 # ==============================================================================
+
+if (error_occurred || !test_passed) {
+  autodeinit()
+  quit(save = "no", status = 1)
+}
 
 autodeinit()
 # NO STATEMENTS AFTER THIS LINE
