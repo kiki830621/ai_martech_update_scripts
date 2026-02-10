@@ -21,6 +21,17 @@
 # Following MP031: Initialization First
 # Following DM_R039: Database Connection Pattern Rule
 
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 message(strrep("=", 80))
 message("🔍 DEBUG MODE: MAMBA eBay Order Details Staging")
 message("DEBUG: Script: eby_ETL_order_details_1ST___MAMBA_DEBUG.R")
@@ -193,7 +204,7 @@ tryCatch({
   # Get table info
   message("DEBUG: Getting table schema...")
   tryCatch({
-    table_info <- dbGetQuery(raw_data, sprintf("PRAGMA table_info('%s')", raw_table_name))
+    table_info <- sql_read(raw_data, sprintf("PRAGMA table_info('%s')", raw_table_name))
     message(sprintf("DEBUG: Table has %d columns", nrow(table_info)))
     for (i in 1:min(5, nrow(table_info))) {
       message(sprintf("  Column %d: %s (%s)", i, table_info$name[i], table_info$type[i]))
@@ -208,7 +219,7 @@ tryCatch({
   # Check row count before reading
   message("DEBUG: Checking row count...")
   row_count_query <- sprintf("SELECT COUNT(*) as n FROM %s", raw_table_name)
-  raw_count <- dbGetQuery(raw_data, row_count_query)$n
+  raw_count <- sql_read(raw_data, row_count_query)$n
   message(sprintf("DEBUG: Table has %d rows", raw_count))
   
   if (raw_count == 0) {
@@ -563,7 +574,7 @@ tryCatch({
   
   # Test 2: Verify data staged
   message("DEBUG: Test 2 - Verifying data was staged...")
-  row_count <- dbGetQuery(staged_data, "SELECT COUNT(*) as n FROM df_eby_order_details___staged___MAMBA")$n
+  row_count <- sql_read(staged_data, "SELECT COUNT(*) as n FROM df_eby_order_details___staged___MAMBA")$n
   if (row_count == 0) {
     stop("TEST: No data in df_eby_order_details___staged___MAMBA")
   }
@@ -600,7 +611,7 @@ tryCatch({
   # Test 5: Verify JOIN keys are ready
   message("DEBUG: Test 5 - Checking JOIN readiness...")
   if (all(c("order_id", "batch_key") %in% columns)) {
-    join_key_test <- dbGetQuery(staged_data, 
+    join_key_test <- sql_read(staged_data, 
       "SELECT COUNT(*) as n FROM df_eby_order_details___staged___MAMBA 
        WHERE order_id IS NOT NULL AND batch_key IS NOT NULL")$n
     message(sprintf("DEBUG: Records ready for JOIN: %d", join_key_test))

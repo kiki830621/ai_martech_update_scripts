@@ -19,6 +19,17 @@
 # ==============================================================================
 # 1. INITIALIZE
 # ==============================================================================
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 autoinit()
 
 if (!exists("g_project_root") || is.null(g_project_root)) {
@@ -144,10 +155,10 @@ tryCatch({
 
   message("Item profile tables in transformed_data:")
   for (tbl in profile_tables) {
-    row_count <- DBI::dbGetQuery(transformed_con, sprintf("SELECT COUNT(*) as n FROM %s", tbl))$n
+    row_count <- sql_read(transformed_con, sprintf("SELECT COUNT(*) as n FROM %s", tbl))$n
 
     # Check sku/ebay coverage
-    coverage <- DBI::dbGetQuery(transformed_con, sprintf("
+    coverage <- sql_read(transformed_con, sprintf("
       SELECT
         COUNT(*) as total,
         SUM(CASE WHEN sku IS NOT NULL THEN 1 ELSE 0 END) as has_sku,

@@ -25,6 +25,17 @@
 # Date: 2025-11-12
 # ==============================================================================
 
+tbl2_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "tbl2", "fn_tbl2.R")
+)
+tbl2_path <- tbl2_candidates[file.exists(tbl2_candidates)][1]
+if (is.na(tbl2_path)) {
+  stop("fn_tbl2.R not found in expected paths")
+}
+source(tbl2_path)
 library(duckdb)
 library(dplyr)
 library(tibble)
@@ -207,7 +218,7 @@ precision_etl_1st <- function() {
       raw_table <- sprintf("raw_precision_%s", pl)
       message(sprintf("  → Reading from: %s", raw_table))
 
-      raw_data <- tbl(con_raw, raw_table) %>% collect()
+      raw_data <- tbl2(con_raw, raw_table) %>% collect()
       message(sprintf("  ✓ Retrieved %d rows", nrow(raw_data)))
 
       # === STANDARDIZATION TASKS ===

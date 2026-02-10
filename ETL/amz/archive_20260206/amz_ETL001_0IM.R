@@ -14,6 +14,17 @@
 #' @description Imports raw Amazon sales data from external files into the raw_data database
 
 # 1. INITIALIZE
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 autoinit()
 
 # Connect to required databases if not already connected
@@ -71,17 +82,17 @@ if (!error_occurred) {
   tryCatch({
     # Verify import success by checking if table exists and has data
     table_exists_query <- "SELECT name FROM sqlite_master WHERE type='table' AND name='df_amazon_sales'"
-    table_exists <- nrow(dbGetQuery(raw_data, table_exists_query)) > 0
+    table_exists <- nrow(sql_read(raw_data, table_exists_query)) > 0
     
     if (table_exists) {
       # Count records
-      row_count <- tbl(raw_data, "df_amazon_sales") %>% count() %>% pull()
+      row_count <- tbl2(raw_data, "df_amazon_sales") %>% count() %>% pull()
       
       if (row_count > 0) {
         message("Verification successful: ", row_count, " records imported into raw_data.df_amazon_sales")
         
         # Display a sample of the data for verification
-        sample_data <- tbl(raw_data, "df_amazon_sales") %>% head(5) %>% collect()
+        sample_data <- tbl2(raw_data, "df_amazon_sales") %>% head(5) %>% collect()
         print(sample_data)
         
         test_passed <- TRUE

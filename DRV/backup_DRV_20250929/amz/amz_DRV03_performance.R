@@ -1,3 +1,10 @@
+#####
+# CONSUMES: df_comment_property_ratingonly_
+# PRODUCES: none
+# DEPENDS_ON_ETL: none
+# DEPENDS_ON_DRV: none
+#####
+
 # amz_D03_03.R - Process Reviews for Amazon
 # D03_03: Process and aggregate review ratings
 #
@@ -10,6 +17,17 @@
 # - MP30: Vectorization Principle
 
 # Initialize environment
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 needgoogledrive <- TRUE
 autoinit()
 
@@ -44,13 +62,13 @@ for (product_line_id_i in vec_product_line_id_noall) {
 
   if (DBI::dbExistsTable(processed_data, table_name)) {
     # Count rows
-    row_count <- DBI::dbGetQuery(
+    row_count <- sql_read(
       processed_data,
       paste0("SELECT COUNT(*) FROM ", table_name)
     )[1, 1]
 
     # Count columns
-    col_info <- DBI::dbGetQuery(
+    col_info <- sql_read(
       processed_data,
       paste0("PRAGMA table_info(", table_name, ")")
     )

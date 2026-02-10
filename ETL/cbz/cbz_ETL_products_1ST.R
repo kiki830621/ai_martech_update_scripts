@@ -18,6 +18,17 @@
 # ==============================================================================
 
 # Initialize script execution tracking
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -208,7 +219,7 @@ tryCatch({
   dbWriteTable(staged_data, "df_cbz_products___staged", df_staged, overwrite = TRUE)
 
   # Verify write
-  actual_count <- dbGetQuery(staged_data, "SELECT COUNT(*) as count FROM df_cbz_products___staged")$count
+  actual_count <- sql_read(staged_data, "SELECT COUNT(*) as count FROM df_cbz_products___staged")$count
   write_elapsed <- as.numeric(Sys.time() - write_start, units = "secs")
 
   message(sprintf("MAIN: ✅ Staged data written and verified: %d records (%.2fs)",
@@ -240,7 +251,7 @@ if (script_success) {
     table_name <- "df_cbz_products___staged"
 
     if (table_name %in% dbListTables(staged_data)) {
-      staged_count <- dbGetQuery(staged_data,
+      staged_count <- sql_read(staged_data,
         paste0("SELECT COUNT(*) as count FROM ", table_name))$count
 
       message(sprintf("TEST: ✅ Staged table verification: %d records", staged_count))
@@ -265,7 +276,7 @@ if (script_success) {
 
         # Data quality checks
         if ("price" %in% columns) {
-          price_stats <- dbGetQuery(staged_data, paste0(
+          price_stats <- sql_read(staged_data, paste0(
             "SELECT MIN(price) as min_p, MAX(price) as max_p, ",
             "AVG(price) as avg_p FROM ", table_name, " WHERE price IS NOT NULL"
           ))
@@ -274,7 +285,7 @@ if (script_success) {
         }
 
         if ("category" %in% columns) {
-          cat_dist <- dbGetQuery(staged_data, paste0(
+          cat_dist <- sql_read(staged_data, paste0(
             "SELECT category, COUNT(*) as count FROM ", table_name,
             " WHERE category IS NOT NULL GROUP BY category ORDER BY count DESC LIMIT 5"
           ))

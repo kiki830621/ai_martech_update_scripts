@@ -7,6 +7,17 @@
 # ==============================================================================
 
 # Initialize script execution tracking
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
@@ -39,7 +50,7 @@ tryCatch({
 
   # Load raw data
   message("MAIN: Loading raw competitor products data...")
-  raw_competitor_products <- dbGetQuery(raw_data, paste("SELECT * FROM", source_table))
+  raw_competitor_products <- sql_read(raw_data, paste("SELECT * FROM", source_table))
   
   message("MAIN: Raw data loaded - ", nrow(raw_competitor_products), " rows")
 
@@ -82,10 +93,10 @@ if (script_success) {
     if (target_table %in% dbListTables(staged_data)) {
       # Check row count
       query <- paste0("SELECT COUNT(*) as count FROM ", target_table)
-      staged_count <- dbGetQuery(staged_data, query)$count
+      staged_count <- sql_read(staged_data, query)$count
       
       # Get original count for comparison
-      original_count <- dbGetQuery(raw_data, "SELECT COUNT(*) as count FROM df_amz_competitor_product_id")$count
+      original_count <- sql_read(raw_data, "SELECT COUNT(*) as count FROM df_amz_competitor_product_id")$count
 
       if (staged_count > 0) {
         message("TEST: Verification successful - ", staged_count, " rows in staged data")
@@ -93,7 +104,7 @@ if (script_success) {
         
         # Check for data quality improvements
         sample_query <- paste0("SELECT * FROM ", target_table, " LIMIT 3")
-        sample_data <- dbGetQuery(staged_data, sample_query)
+        sample_data <- sql_read(staged_data, sample_query)
         message("TEST: Sample staged data:")
         print(sample_data)
         
@@ -119,7 +130,7 @@ if (script_success) {
         
         # Check for duplicates
         dup_query <- paste0("SELECT asin, COUNT(*) as count FROM ", target_table, " GROUP BY asin HAVING COUNT(*) > 1")
-        duplicates <- dbGetQuery(staged_data, dup_query)
+        duplicates <- sql_read(staged_data, dup_query)
         
         if (nrow(duplicates) > 0) {
           message("TEST WARNING: ", nrow(duplicates), " duplicate ASINs found in staged data")

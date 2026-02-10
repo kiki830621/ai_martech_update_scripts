@@ -20,6 +20,17 @@
 # Following SO_R013: Initialization Imports Only Rule
 # Following DM_R039: Database Connection Pattern Rule
 
+sql_read_candidates <- c(
+  file.path("scripts", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R"),
+  file.path("..", "..", "..", "global_scripts", "02_db_utils", "fn_sql_read.R")
+)
+sql_read_path <- sql_read_candidates[file.exists(sql_read_candidates)][1]
+if (is.na(sql_read_path)) {
+  stop("fn_sql_read.R not found in expected paths")
+}
+source(sql_read_path)
 message(strrep("=", 80))
 message("INITIALIZE: Starting MAMBA eBay Sales Import (eby_ETL_sales_0IM___MAMBA.R)")
 message("INITIALIZE: Company-specific implementation for MAMBA")
@@ -279,7 +290,7 @@ import_mamba_eby_sales <- function(conn) {
   
   message("MAIN:  Phase 1: Importing safe numeric/date fields...")
   df_safe <- tryCatch({
-    DBI::dbGetQuery(conn, query_phase1)
+    sql_read(conn, query_phase1)
   }, error = function(e) {
     message("MAIN:  Phase 1 failed: ", e$message)
     stop("Phase 1 import failed: ", e$message)
@@ -299,7 +310,7 @@ import_mamba_eby_sales <- function(conn) {
     })
     
     # Execute query with proper encoding handling
-    result <- DBI::dbGetQuery(conn, query_phase2)
+    result <- sql_read(conn, query_phase2)
     
     # MP100 Post-processing: Clean any remaining encoding issues
     text_cols <- c("ORD010", "ORD011", "ORD012", "ORD013", "ORD014", "ORD015",
@@ -366,7 +377,7 @@ import_mamba_eby_sales <- function(conn) {
       ORDER BY CAST(ORD003 AS VARCHAR(15)) DESC
     "
     
-    result <- DBI::dbGetQuery(conn, query_fallback)
+    result <- sql_read(conn, query_fallback)
     
     # MP100 Post-processing: Apply encoding conversion in R
     text_cols <- c("ORD010", "ORD011", "ORD012", "ORD013", "ORD014", "ORD015",
@@ -498,7 +509,7 @@ tryCatch({
   # No need to create new connection - use raw_data connection
   
   if (DBI::dbExistsTable(raw_data, "df_eby_sales___raw___MAMBA")) {
-    row_count <- DBI::dbGetQuery(raw_data, 
+    row_count <- sql_read(raw_data, 
                                  "SELECT COUNT(*) as n FROM df_eby_sales___raw___MAMBA")$n
     
     if (row_count > 0) {
@@ -514,7 +525,7 @@ tryCatch({
   
   # Test 2: Verify raw column names preserved (MP064 compliance)
   if (test_passed) {
-    schema <- DBI::dbGetQuery(raw_data, 
+    schema <- sql_read(raw_data, 
                              "SELECT column_name FROM information_schema.columns 
                               WHERE table_name = 'df_eby_sales___raw___MAMBA'")
     
