@@ -46,7 +46,9 @@ build_r_command <- function(full_path) {
     stop("Cannot find .Rprofile or sc_Rprofile.R for autoinit()")
   }
   full_path_norm <- normalizePath(full_path, winslash = "/", mustWork = FALSE)
-  expr <- sprintf("setwd(%s); %s; autoinit(); source(%s)",
+  # Force UPDATE_MODE for ETL/DRV orchestration.
+  # In `R --vanilla -e`, script-path detection falls back to APP_MODE.
+  expr <- sprintf("setwd(%s); OPERATION_MODE <- 'UPDATE_MODE'; %s; autoinit(); source(%s)",
                   shQuote(project_root),
                   init_source,
                   shQuote(full_path_norm))
