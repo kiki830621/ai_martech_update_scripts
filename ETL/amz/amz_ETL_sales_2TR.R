@@ -52,6 +52,59 @@ library(data.table)
 
 source(file.path(GLOBAL_DIR, "02_db_utils", "duckdb", "fn_dbConnectDuckdb.R"))
 
+parse_mixed_datetime <- function(values, tz = "UTC") {
+  raw_chr <- trimws(as.character(values))
+  out <- rep(as.POSIXct(NA, tz = tz), length(raw_chr))
+
+  if (length(raw_chr) == 0) {
+    return(out)
+  }
+
+  is_blank <- is.na(raw_chr) | raw_chr == ""
+  if (all(is_blank)) {
+    return(out)
+  }
+
+  numeric_vals <- suppressWarnings(as.numeric(raw_chr))
+  is_excel_serial <- !is_blank & !is.na(numeric_vals) & numeric_vals > 20000 & numeric_vals < 80000
+  if (any(is_excel_serial)) {
+    out[is_excel_serial] <- as.POSIXct(
+      (numeric_vals[is_excel_serial] - 25569) * 86400,
+      origin = "1970-01-01",
+      tz = tz
+    )
+  }
+
+  need_parse <- !is_blank & is.na(out)
+  if (any(need_parse)) {
+    parse_chr <- raw_chr[need_parse]
+    parse_chr <- gsub("Z$", "", parse_chr)
+    parsed <- suppressWarnings(as.POSIXct(
+      parse_chr,
+      tz = tz,
+      tryFormats = c(
+        "%Y-%m-%d %H:%M:%OS",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%OS",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d",
+        "%Y/%m/%d %H:%M:%OS",
+        "%Y/%m/%d %H:%M:%S",
+        "%Y/%m/%d",
+        "%m/%d/%Y %H:%M:%OS",
+        "%m/%d/%Y %H:%M:%S",
+        "%m/%d/%Y",
+        "%d/%m/%Y %H:%M:%OS",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y"
+      )
+    ))
+    out[need_parse] <- parsed
+  }
+
+  out
+}
+
 message("INITIALIZE: Connecting to databases...")
 staged_data <- dbConnectDuckdb(db_path_list$staged_data, read_only = TRUE)
 transformed_data <- dbConnectDuckdb(db_path_list$transformed_data, read_only = FALSE)
@@ -96,9 +149,7 @@ tryCatch({
   date_start <- Sys.time()
 
   if ("purchase_date" %in% names(dt)) {
-    if (!inherits(dt$purchase_date, "POSIXct")) {
-      dt[, purchase_date := as.POSIXct(purchase_date)]
-    }
+    dt[, purchase_date := parse_mixed_datetime(purchase_date, tz = "UTC")]
     n_na_date <- sum(is.na(dt$purchase_date))
     if (n_na_date > 0) {
       message(sprintf("    Warning: %d records with unparseable purchase_date", n_na_date))
@@ -107,9 +158,7 @@ tryCatch({
   }
 
   if ("last_updated_date" %in% names(dt)) {
-    if (!inherits(dt$last_updated_date, "POSIXct")) {
-      dt[, last_updated_date := as.POSIXct(last_updated_date)]
-    }
+    dt[, last_updated_date := parse_mixed_datetime(last_updated_date, tz = "UTC")]
     message("    last_updated_date → POSIXct")
   }
 

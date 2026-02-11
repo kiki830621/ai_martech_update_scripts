@@ -134,7 +134,8 @@ script_map <- list(
   d01_02 = function(platform) file.path(APP_DIR, "scripts", "update_scripts", "DRV", platform, sprintf("%s_D01_02.R", platform)),
   d01_03 = function(platform) file.path(APP_DIR, "scripts", "update_scripts", "DRV", platform, sprintf("%s_D01_03.R", platform)),
   d01_04 = function(platform) file.path(APP_DIR, "scripts", "update_scripts", "DRV", platform, sprintf("%s_D01_04.R", platform)),
-  d01_05 = function(platform) file.path(APP_DIR, "scripts", "update_scripts", "DRV", platform, sprintf("%s_D01_05.R", platform))
+  d01_05 = function(platform) file.path(APP_DIR, "scripts", "update_scripts", "DRV", platform, sprintf("%s_D01_05.R", platform)),
+  d01_07 = function(platform) file.path(APP_DIR, "scripts", "update_scripts", "DRV", platform, sprintf("%s_D01_07_product_line_coverage_audit.R", platform))
 )
 
 run_script <- function(script_path, step_name, platform_id) {
@@ -163,6 +164,13 @@ tryCatch({
     run_script(script_map$d01_03(platform_id), "D01_03", platform_id)
     run_script(script_map$d01_04(platform_id), "D01_04", platform_id)
     run_script(script_map$d01_05(platform_id), "D01_05", platform_id)
+
+    audit_script <- script_map$d01_07(platform_id)
+    if (file.exists(audit_script)) {
+      run_script(audit_script, "D01_07", platform_id)
+    } else {
+      message(sprintf("[%s] D01_07 script not found, skipping coverage audit", platform_id))
+    }
   }
 
 }, error = function(e) {
