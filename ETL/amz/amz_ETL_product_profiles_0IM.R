@@ -22,6 +22,7 @@ source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
+source_profile_asin <- list()
 
 # Initialize environment using autoinit system
 # Set required dependencies before initialization
@@ -178,6 +179,17 @@ tryCatch({
       )
     }
 
+    # DM_R027 v1.1: capture source ASIN set for 0IM reconciliation
+    asin_col_idx <- which(tolower(names(df_product_profile)) == "asin")[1]
+    if (!is.na(asin_col_idx)) {
+      asin_vals <- trimws(as.character(df_product_profile[[asin_col_idx]]))
+      asin_vals <- unique(asin_vals[!is.na(asin_vals) & nzchar(asin_vals)])
+      source_profile_asin[[product_line_id]] <- asin_vals
+    } else {
+      warning("MAIN: ASIN column not found for product_line_id=", product_line_id,
+              " (tab=", resolved_tab, "); reconciliation will skip this table")
+    }
+
     df_product_profile <- df_product_profile %>%
       dplyr::mutate(
         etl_import_timestamp = Sys.time(),
@@ -260,6 +272,62 @@ if (script_success) {
     } else {
       test_passed <- FALSE
       message("TEST: Verification failed - no product profile tables found or empty")
+    }
+
+    # DM_R027 v1.1: 0IM source-to-local ASIN reconciliation gate
+    if (test_passed && length(source_profile_asin) > 0) {
+      recon_failed <- FALSE
+      for (product_line_id in names(source_profile_asin)) {
+        table_name <- paste0("df_product_profile_", product_line_id)
+        if (!dbExistsTable(raw_data, table_name)) {
+          message("TEST RECON FAIL: table not found for product_line_id=", product_line_id)
+          recon_failed <- TRUE
+          next
+        }
+
+        local_query <- sprintf(
+          "SELECT DISTINCT CAST(ASIN AS VARCHAR) AS asin
+           FROM %s
+           WHERE ASIN IS NOT NULL AND length(trim(CAST(ASIN AS VARCHAR))) > 0",
+          table_name
+        )
+        local_asin <- DBI::dbGetQuery(raw_data, local_query)$asin
+        local_asin <- unique(trimws(as.character(local_asin)))
+        local_asin <- local_asin[!is.na(local_asin) & nzchar(local_asin)]
+
+        source_asin <- unique(trimws(as.character(source_profile_asin[[product_line_id]])))
+        source_asin <- source_asin[!is.na(source_asin) & nzchar(source_asin)]
+
+        missing_in_local <- setdiff(source_asin, local_asin)
+        extra_in_local <- setdiff(local_asin, source_asin)
+
+        if (length(missing_in_local) > 0 || length(extra_in_local) > 0) {
+          recon_failed <- TRUE
+          message(
+            "TEST RECON FAIL: ", product_line_id,
+            " source_n=", length(source_asin),
+            " local_n=", length(local_asin),
+            " missing=", length(missing_in_local),
+            " extra=", length(extra_in_local)
+          )
+          if (length(missing_in_local) > 0) {
+            message("  Missing sample: ", paste(head(missing_in_local, 10), collapse = ", "))
+          }
+          if (length(extra_in_local) > 0) {
+            message("  Extra sample: ", paste(head(extra_in_local, 10), collapse = ", "))
+          }
+        } else {
+          message("TEST RECON OK: ", product_line_id,
+                  " ASIN sets match (", length(source_asin), ")")
+        }
+      }
+
+      if (recon_failed) {
+        test_passed <- FALSE
+        message("TEST: DM_R027 0IM ASIN reconciliation failed")
+      } else {
+        message("TEST: DM_R027 0IM ASIN reconciliation passed")
+      }
     }
 
   }, error = function(e) {

@@ -22,6 +22,16 @@ source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
+expected_competitor_asin <- data.frame(
+  product_line_id = character(0),
+  asin = character(0),
+  stringsAsFactors = FALSE
+)
+source_missing_profile_asin <- data.frame(
+  product_line_id = character(0),
+  asin = character(0),
+  stringsAsFactors = FALSE
+)
 
 # Initialize environment using autoinit system
 # Set required dependencies before initialization
@@ -177,6 +187,118 @@ tryCatch({
   competitor_products <- dplyr::bind_rows(result_list) %>%
     dplyr::distinct(product_line_id, asin, .keep_all = TRUE)
 
+  # Ensure QEF profile ASINs are represented in competitor list for downstream joins.
+  # Missing entries are backfilled with a warning (source coverage issue, not import failure).
+  profile_asin_rows <- list()
+  for (i in seq_len(nrow(active_product_lines))) {
+    product_line_id <- active_product_lines$product_line_id[i]
+    profile_table <- paste0("df_product_profile_", product_line_id)
+    if (!dbExistsTable(raw_data, profile_table)) {
+      message("MAIN WARNING: profile table missing for ", product_line_id,
+              " (", profile_table, "); skip QEF ASIN coverage check for this line")
+      next
+    }
+
+    profile_query <- sprintf(
+      "SELECT DISTINCT CAST(ASIN AS VARCHAR) AS asin
+       FROM %s
+       WHERE ASIN IS NOT NULL
+         AND length(trim(CAST(ASIN AS VARCHAR))) > 0",
+      profile_table
+    )
+    profile_asin <- DBI::dbGetQuery(raw_data, profile_query)$asin
+    profile_asin <- unique(trimws(as.character(profile_asin)))
+    profile_asin <- profile_asin[!is.na(profile_asin) & profile_asin != ""]
+    if (length(profile_asin) == 0) next
+
+    profile_asin_rows[[product_line_id]] <- data.frame(
+      product_line_id = product_line_id,
+      asin = profile_asin,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  if (length(profile_asin_rows) > 0) {
+    profile_asin_df <- dplyr::bind_rows(profile_asin_rows) %>%
+      dplyr::distinct(product_line_id, asin)
+    source_competitor_asin <- competitor_products %>%
+      dplyr::transmute(
+        product_line_id = trimws(as.character(product_line_id)),
+        asin = trimws(as.character(asin))
+      ) %>%
+      dplyr::filter(
+        !is.na(product_line_id), product_line_id != "",
+        !is.na(asin), asin != ""
+      ) %>%
+      dplyr::distinct(product_line_id, asin)
+
+    source_missing_profile_asin <- dplyr::anti_join(
+      profile_asin_df,
+      source_competitor_asin,
+      by = c("product_line_id", "asin")
+    )
+
+    if (nrow(source_missing_profile_asin) > 0) {
+      qef_brand_label <- "QEF_SELF"
+      if (exists("brand_name", inherits = TRUE)) {
+        brand_name_candidate <- trimws(as.character(get("brand_name", inherits = TRUE)))
+        if (!is.na(brand_name_candidate) && nzchar(brand_name_candidate)) {
+          qef_brand_label <- brand_name_candidate
+        }
+      }
+      if (identical(qef_brand_label, "QEF_SELF") && requireNamespace("yaml", quietly = TRUE)) {
+        app_config_path <- if (exists("CONFIG_PATH", inherits = TRUE)) {
+          get("CONFIG_PATH", inherits = TRUE)
+        } else {
+          "app_config.yaml"
+        }
+        if (file.exists(app_config_path)) {
+          app_cfg <- tryCatch(yaml::read_yaml(app_config_path), error = function(e) NULL)
+          app_cfg_brand <- trimws(as.character(app_cfg$brand_name %||% ""))
+          if (!is.na(app_cfg_brand) && nzchar(app_cfg_brand)) {
+            qef_brand_label <- app_cfg_brand
+          }
+        }
+      }
+
+      message(
+        "MAIN WARNING: Found ", nrow(source_missing_profile_asin),
+        " profile ASIN not present in competitor source; auto-backfilling into df_amz_competitor_product_id"
+      )
+      sample_missing <- head(
+        paste0(source_missing_profile_asin$product_line_id, ":", source_missing_profile_asin$asin),
+        10
+      )
+      message("MAIN WARNING: Missing sample: ", paste(sample_missing, collapse = ", "))
+
+      backfill_rows <- source_missing_profile_asin %>%
+        dplyr::mutate(
+          sales_data = NA_character_,
+          review_data = NA_character_,
+          brand = qef_brand_label,
+          source_header = "AUTO_PROFILE_ASIN_BACKFILL"
+        )
+
+      competitor_products <- dplyr::bind_rows(competitor_products, backfill_rows) %>%
+        dplyr::distinct(product_line_id, asin, .keep_all = TRUE)
+      message("MAIN: Backfilled ", nrow(backfill_rows), " QEF profile ASIN rows")
+    }
+  } else {
+    message("MAIN WARNING: No profile ASIN data available; skip QEF ASIN coverage check")
+  }
+
+  # DM_R027 v1.1: capture source ASIN keys for 0IM reconciliation
+  expected_competitor_asin <- competitor_products %>%
+    dplyr::transmute(
+      product_line_id = trimws(as.character(product_line_id)),
+      asin = trimws(as.character(asin))
+    ) %>%
+    dplyr::filter(
+      !is.na(product_line_id), product_line_id != "",
+      !is.na(asin), asin != ""
+    ) %>%
+    dplyr::distinct(product_line_id, asin)
+
   DBI::dbWriteTable(raw_data, "df_amz_competitor_product_id", competitor_products, overwrite = TRUE)
   message("MAIN: Wrote ", nrow(competitor_products), " rows into df_amz_competitor_product_id")
 
@@ -225,6 +347,80 @@ if (script_success) {
           message("TEST WARNING: Missing expected columns: ", paste(missing_cols, collapse = ", "))
         } else {
           message("TEST: All required columns present")
+        }
+
+        if (nrow(source_missing_profile_asin) > 0) {
+          message(
+            "TEST WARNING: ", nrow(source_missing_profile_asin),
+            " profile ASIN were absent in competitor source and auto-backfilled"
+          )
+          warning_sample <- head(
+            paste0(source_missing_profile_asin$product_line_id, ":", source_missing_profile_asin$asin),
+            10
+          )
+          message("TEST WARNING: Backfill sample: ", paste(warning_sample, collapse = ", "))
+        }
+
+        # DM_R027 v1.1: 0IM source-to-local ASIN reconciliation gate
+        if (test_passed && nrow(expected_competitor_asin) > 0) {
+          local_asin_query <- paste(
+            "SELECT DISTINCT",
+            "CAST(product_line_id AS VARCHAR) AS product_line_id,",
+            "CAST(asin AS VARCHAR) AS asin",
+            "FROM df_amz_competitor_product_id",
+            "WHERE product_line_id IS NOT NULL",
+            "AND length(trim(CAST(product_line_id AS VARCHAR))) > 0",
+            "AND asin IS NOT NULL",
+            "AND length(trim(CAST(asin AS VARCHAR))) > 0"
+          )
+          local_competitor_asin <- DBI::dbGetQuery(raw_data, local_asin_query) %>%
+            dplyr::mutate(
+              product_line_id = trimws(as.character(product_line_id)),
+              asin = trimws(as.character(asin))
+            ) %>%
+            dplyr::filter(
+              !is.na(product_line_id), product_line_id != "",
+              !is.na(asin), asin != ""
+            ) %>%
+            dplyr::distinct(product_line_id, asin)
+
+          missing_in_local <- dplyr::anti_join(
+            expected_competitor_asin,
+            local_competitor_asin,
+            by = c("product_line_id", "asin")
+          )
+          extra_in_local <- dplyr::anti_join(
+            local_competitor_asin,
+            expected_competitor_asin,
+            by = c("product_line_id", "asin")
+          )
+
+          if (nrow(missing_in_local) > 0 || nrow(extra_in_local) > 0) {
+            test_passed <- FALSE
+            message(
+              "TEST RECON FAIL: competitor_ids source_n=", nrow(expected_competitor_asin),
+              " local_n=", nrow(local_competitor_asin),
+              " missing=", nrow(missing_in_local),
+              " extra=", nrow(extra_in_local)
+            )
+            if (nrow(missing_in_local) > 0) {
+              missing_sample <- head(
+                paste0(missing_in_local$product_line_id, ":", missing_in_local$asin),
+                10
+              )
+              message("  Missing sample: ", paste(missing_sample, collapse = ", "))
+            }
+            if (nrow(extra_in_local) > 0) {
+              extra_sample <- head(
+                paste0(extra_in_local$product_line_id, ":", extra_in_local$asin),
+                10
+              )
+              message("  Extra sample: ", paste(extra_sample, collapse = ", "))
+            }
+            message("TEST: DM_R027 0IM ASIN reconciliation failed")
+          } else {
+            message("TEST: DM_R027 0IM ASIN reconciliation passed")
+          }
         }
         
       } else {
