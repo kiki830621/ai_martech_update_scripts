@@ -30,9 +30,10 @@ source(sql_read_path)
 script_success <- FALSE
 test_passed <- FALSE
 main_error <- NULL
+import_result <- NULL
 script_start_time <- Sys.time()
 script_name <- "amz_ETL_sales_0IM"
-script_version <- "1.0.0"
+script_version <- "1.1.0"
 
 message(strrep("=", 80))
 message("INITIALIZE: Starting Amazon Sales Import (0IM Phase)")
@@ -111,7 +112,39 @@ tryCatch({
 
   # Import using shared function (overwrite for clean import)
   message("MAIN: Importing Amazon sales data...")
-  import_df_amazon_sales(rawdata_path, raw_data, overwrite = TRUE, verbose = TRUE)
+  audit_dir <- file.path(
+    APP_DIR, "output", "etl_validation", "amz", "sales_0IM"
+  )
+  dir.create(audit_dir, recursive = TRUE, showWarnings = FALSE)
+  audit_csv <- file.path(
+    audit_dir,
+    sprintf("sales_0IM_audit_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S"))
+  )
+
+  import_result <- import_df_amazon_sales(
+    folder_path = rawdata_path,
+    connection = raw_data,
+    overwrite = TRUE,
+    verbose = TRUE,
+    fail_on_any_error = TRUE,
+    return_report = TRUE,
+    write_audit_csv = audit_csv,
+    col_types = "text"
+  )
+  message("MAIN: 0IM audit report: ", audit_csv)
+
+  if (!isTRUE(import_result$summary$success)) {
+    stop(sprintf(
+      paste(
+        "0IM completeness gate failed:",
+        "files_failed=%d, per_file_reconciliation_ok=%s, key_reconciliation_ok=%s, transaction_result=%s"
+      ),
+      import_result$summary$files_failed,
+      import_result$summary$per_file_reconciliation_ok,
+      import_result$summary$key_reconciliation_ok,
+      import_result$summary$transaction_result
+    ))
+  }
 
   # Verify import
   if (dbExistsTable(raw_data, "df_amazon_sales")) {
@@ -153,6 +186,43 @@ if (script_success) {
       stop("Table df_amazon_sales is empty")
     }
     message(sprintf("TEST: %d rows imported", row_count))
+
+    # Test 2.5: Source file completeness gate
+    if (is.null(import_result) || is.null(import_result$summary)) {
+      stop("Import report not found; cannot verify 0IM completeness")
+    }
+    if (import_result$summary$files_failed > 0) {
+      stop(sprintf("Import completeness failed: %d files failed", import_result$summary$files_failed))
+    }
+    if (!isTRUE(import_result$summary$per_file_reconciliation_ok)) {
+      stop("Per-file row reconciliation failed")
+    }
+    if (identical(import_result$summary$key_reconciliation_ok, FALSE)) {
+      stop("ASIN key reconciliation failed")
+    }
+    if (!identical(import_result$summary$transaction_result, "COMMIT")) {
+      stop(sprintf(
+        "Transaction boundary failed: expected COMMIT, got %s",
+        import_result$summary$transaction_result
+      ))
+    }
+    if (row_count != import_result$summary$rows_expected_from_imported_files) {
+      stop(sprintf(
+        "Row reconciliation failed: table=%d expected=%d",
+        row_count,
+        import_result$summary$rows_expected_from_imported_files
+      ))
+    }
+    message(sprintf(
+      paste(
+        "TEST: 0IM completeness passed",
+        "(files_total=%d imported=%d empty=%d failed=%d)"
+      ),
+      import_result$summary$files_total,
+      import_result$summary$files_imported,
+      import_result$summary$files_empty,
+      import_result$summary$files_failed
+    ))
 
     # Test 3: Required columns exist
     columns <- dbListFields(raw_data, "df_amazon_sales")
