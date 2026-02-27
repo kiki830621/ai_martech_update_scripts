@@ -76,10 +76,41 @@ tryCatch({
   }
   
   # Import competitor sales data using existing function
-  import_df_amz_competitor_sales(
+  import_result <- core_import_df_amz_competitor_sales(
     main_folder = competitor_sales_dir,
     db_connection = raw_data
   )
+  imported_count <- if (
+    is.list(import_result) && !is.null(import_result$total_rows_imported)
+  ) {
+    import_result$total_rows_imported
+  } else {
+    import_result
+  }
+  if (is.null(imported_count) || is.na(imported_count) || imported_count == 0L) {
+    stop("VALIDATE FAILED: ETL competitor sales import produced zero rows")
+  }
+
+  if (is.list(import_result)) {
+    if (length(import_result$skipped_folders_invalid_reference) > 0L) {
+      message(
+        "ETL competitor_sales: invalid/unmatched product-line folders (skipped): ",
+        paste(import_result$skipped_folders_invalid_reference, collapse = ", ")
+      )
+    }
+    if (length(import_result$skipped_folders_no_supported_files) > 0L) {
+      message(
+        "ETL competitor_sales: no supported files (skipped folders) = ",
+        paste(import_result$skipped_folders_no_supported_files, collapse = ", ")
+      )
+    }
+    if (length(import_result$skipped_folders_no_rows) > 0L) {
+      message(
+        "ETL competitor_sales: supported files but no imported rows (reviewed folders) = ",
+        paste(import_result$skipped_folders_no_rows, collapse = ", ")
+      )
+    }
+  }
   
   script_success <- TRUE
   message("MAIN: ETL competitor_sales Import Phase completed successfully")

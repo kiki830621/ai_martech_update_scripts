@@ -12,6 +12,9 @@
 #' @platform eby
 #' @author MAMBA Development Team
 #' @date 2025-12-30
+#' @logical_step_id D03_01
+#' @logical_step_status reassigned
+#' @legacy_step_id D03_08
 
 # eby_D03_08.R - Comment Property Rating Analysis for eBay
 # D03_08: Create sampled_long tables for AI rating

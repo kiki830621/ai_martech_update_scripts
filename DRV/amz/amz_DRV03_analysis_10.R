@@ -38,19 +38,52 @@ competitor_sales_dir <- file.path(RAW_DATA_DIR, "competitor_sales")
 # Log beginning of process
 message("Starting D03_10 (Import Competitor Sales Data) for Amazon product lines")
 message("Reading data from: ", competitor_sales_dir)
+if (!dir.exists(competitor_sales_dir)) {
+  stop("VALIDATE FAILED: competitor_sales directory does not exist: ", competitor_sales_dir)
+}
 
 # Import competitor sales data
-import_df_amz_competitor_sales(
+import_result <- core_import_df_amz_competitor_sales(
   main_folder = competitor_sales_dir,
   db_connection = raw_data
 )
+imported_count <- if (
+  is.list(import_result) && !is.null(import_result$total_rows_imported)
+) {
+  import_result$total_rows_imported
+} else {
+  import_result
+}
+if (is.null(imported_count) || is.na(imported_count) || imported_count == 0L) {
+  stop("VALIDATE FAILED: D03_10 competitor sales import returned no rows")
+}
+if (is.list(import_result)) {
+  if (length(import_result$skipped_folders_no_supported_files) > 0L) {
+    message(
+      "D03_10: no supported files in these folders (skipped): ",
+      paste(import_result$skipped_folders_no_supported_files, collapse = ", ")
+    )
+  }
+  if (length(import_result$skipped_folders_no_rows) > 0L) {
+    message(
+      "D03_10: supported files found but no imported rows in these folders: ",
+      paste(import_result$skipped_folders_no_rows, collapse = ", ")
+    )
+  }
+}
 
 # Verify imported data
 message("\nVerifying imported data:")
+if (!("df_amz_competitor_sales" %in% dbListTables(raw_data))) {
+  stop("VALIDATE FAILED: table df_amz_competitor_sales is missing after import")
+}
 sales_count <- sql_read(
   raw_data,
   "SELECT COUNT(*) AS count FROM df_amz_competitor_sales"
 )[1, 1]
+if (is.na(sales_count) || sales_count == 0L) {
+  stop("VALIDATE FAILED: df_amz_competitor_sales is empty after D03_10 import")
+}
 
 asin_count <- sql_read(
   raw_data,

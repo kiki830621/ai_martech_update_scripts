@@ -12,6 +12,9 @@
 #' @platform eby
 #' @author MAMBA Development Team
 #' @date 2025-12-30
+#' @logical_step_id D03_02
+#' @logical_step_status reassigned
+#' @legacy_step_id D03_06
 
 # eby_D03_06.R - Rate Reviews for eBay
 # D03_06: Analyze review text to extract sentiment by property

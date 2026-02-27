@@ -14,8 +14,17 @@ library(yaml)
 # =============================================================================
 
 pipeline_dir <- "."
-# Config is at project root (2 levels up from scripts/update_scripts/)
-config_path <- file.path("..", "..", "_targets_config.yaml")
+
+# Resolve project root: prefer MAMBA_PROJECT_ROOT env var (set by Makefile)
+# to avoid symlink + '..' path resolution issues. Fall back to relative path
+# for backward compatibility when invoked outside Makefile.
+project_root_env <- Sys.getenv("MAMBA_PROJECT_ROOT", "")
+if (nzchar(project_root_env) && dir.exists(project_root_env)) {
+  project_root <- project_root_env
+} else {
+  project_root <- normalizePath(file.path(pipeline_dir, "..", ".."), mustWork = FALSE)
+}
+config_path <- file.path(project_root, "_targets_config.yaml")
 
 # Environment filters (optional)
 target_platform <- Sys.getenv("MAMBA_PLATFORM", "all")
@@ -31,7 +40,8 @@ script_to_target_name <- function(script_path) {
 }
 
 build_r_command <- function(full_path) {
-  project_root <- normalizePath(file.path(pipeline_dir, "..", ".."), mustWork = FALSE)
+  # Use the already-resolved project_root (from env var or fallback)
+  # instead of re-deriving from relative path
   rprofile_path <- normalizePath(file.path(project_root, ".Rprofile"), winslash = "/", mustWork = FALSE)
   sc_rprofile_path <- normalizePath(
     file.path(project_root, "scripts", "global_scripts", "22_initializations", "sc_Rprofile.R"),

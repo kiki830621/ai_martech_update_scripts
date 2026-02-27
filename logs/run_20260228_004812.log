@@ -1,0 +1,1638 @@
++ amz_ETL_sku_mapping_0IM dispatched
+[ETL:amz] amz_ETL_sku_mapping_0IM.R
+
+R version 4.5.2 (2025-10-31) -- "[Not] Part in a Rumble"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: aarch64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> setwd('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING'); OPERATION_MODE <- 'UPDATE_MODE'; source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/.Rprofile'); autoinit(); source('/Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/shared/update_scripts/ETL/amz/amz_ETL_sku_mapping_0IM.R')
+>> OPERATION_MODE = UPDATE_MODE
+✅ Loaded package 'stringr' successfully.
+✅ Loaded package 'glue' successfully.
+✅ Loaded package 'tools' successfully.
+✅ Loaded package 'yaml' successfully.
+✅ Loaded package 'future' successfully.
+✅ Loaded package 'future.mirai' successfully.
+✅ Loaded package 'promises' successfully.
+✅ Loaded package 'later' successfully.
+✅ Loaded package 'dotenv' successfully.
+✅ Loaded package 'DBI' successfully.
+✅ Loaded package 'duckdb' successfully.
+
+Attaching package: ‘arrow’
+
+The following object is masked from ‘package:utils’:
+
+    timestamp
+
+✅ Loaded package 'arrow' successfully.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+✅ Loaded package 'dplyr' successfully.
+✅ Loaded package 'tidyr' successfully.
+✅ Loaded package 'readr' successfully.
+✅ Loaded package 'readxl' successfully.
+✅ Loaded package 'openxlsx' successfully.
+
+Attaching package: ‘data.table’
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+✅ Loaded package 'data.table' successfully.
+✅ Loaded package 'jsonlite' successfully.
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:data.table’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following object is masked from ‘package:arrow’:
+
+    duration
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+✅ Loaded package 'lubridate' successfully.
+
+Attaching package: ‘scales’
+
+The following object is masked from ‘package:readr’:
+
+    col_factor
+
+✅ Loaded package 'scales' successfully.
+
+Attaching package: ‘purrr’
+
+The following object is masked from ‘package:scales’:
+
+    discard
+
+The following object is masked from ‘package:jsonlite’:
+
+    flatten
+
+The following object is masked from ‘package:data.table’:
+
+    transpose
+
+✅ Loaded package 'purrr' successfully.
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ forcats 1.0.0     ✔ tibble  3.3.0
+✔ ggplot2 4.0.0     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ data.table::between() masks dplyr::between()
+✖ scales::col_factor()  masks readr::col_factor()
+✖ purrr::discard()      masks scales::discard()
+✖ lubridate::duration() masks arrow::duration()
+✖ dplyr::filter()       masks stats::filter()
+✖ data.table::first()   masks dplyr::first()
+✖ purrr::flatten()      masks jsonlite::flatten()
+✖ lubridate::hour()     masks data.table::hour()
+✖ lubridate::isoweek()  masks data.table::isoweek()
+✖ dplyr::lag()          masks stats::lag()
+✖ data.table::last()    masks dplyr::last()
+✖ lubridate::mday()     masks data.table::mday()
+✖ lubridate::minute()   masks data.table::minute()
+✖ lubridate::month()    masks data.table::month()
+✖ lubridate::quarter()  masks data.table::quarter()
+✖ lubridate::second()   masks data.table::second()
+✖ purrr::transpose()    masks data.table::transpose()
+✖ lubridate::wday()     masks data.table::wday()
+✖ lubridate::week()     masks data.table::week()
+✖ lubridate::yday()     masks data.table::yday()
+✖ lubridate::year()     masks data.table::year()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+✅ Loaded package 'tidyverse' successfully.
+✅ Loaded package 'httr2' successfully.
+✅ Loaded package 'fastDummies' successfully.
+
+Attaching package: ‘dbplyr’
+
+The following objects are masked from ‘package:dplyr’:
+
+    ident, sql
+
+✅ Loaded package 'dbplyr' successfully.
+The duckplyr package is configured to fall back to dplyr when it encounters an
+incompatibility. Fallback events can be collected and uploaded for analysis to
+guide future development. By default, data will be collected but no data will
+be uploaded.
+ℹ Automatic fallback uploading is not controlled and therefore disabled, see
+  `?duckplyr::fallback()`.
+✔ Number of reports ready for upload: 894.
+→ Review with `duckplyr::fallback_review()`, upload with
+  `duckplyr::fallback_upload()`.
+ℹ Configure automatic uploading with `duckplyr::fallback_config()`.
+✔ Overwriting dplyr methods with duckplyr methods.
+ℹ Turn off with `duckplyr::methods_restore()`.
+
+Attaching package: ‘duckplyr’
+
+The following object is masked from ‘package:duckdb’:
+
+    read_csv_duckdb
+
+✅ Loaded package 'duckplyr' successfully.
+
+Attaching package: ‘psych’
+
+The following objects are masked from ‘package:ggplot2’:
+
+    %+%, alpha
+
+The following objects are masked from ‘package:scales’:
+
+    alpha, rescale
+
+✅ Loaded package 'psych' successfully.
+✅ Loaded package 'furrr' successfully.
+✅ Loaded package 'dtplyr' successfully.
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+The following object is masked from ‘package:future’:
+
+    cluster
+
+✅ Loaded package 'caret' successfully.
+
+Attaching package: ‘progressr’
+
+The following object is masked from ‘package:caret’:
+
+    progress
+
+✅ Loaded package 'progressr' successfully.
+✅ Loaded package 'googledrive' successfully.
+
+Attaching package: ‘googlesheets4’
+
+The following objects are masked from ‘package:googledrive’:
+
+    request_generate, request_make
+
+✅ Loaded package 'googlesheets4' successfully.
+
+Attaching package: ‘shiny’
+
+The following object is masked from ‘package:jsonlite’:
+
+    validate
+
+✅ Loaded package 'shiny' successfully.
+
+Attaching package: ‘bslib’
+
+The following object is masked from ‘package:utils’:
+
+    page
+
+✅ Loaded package 'bslib' successfully.
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:arrow’:
+
+    schema
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+✅ Loaded package 'plotly' successfully.
+
+Attaching package: ‘shinyjs’
+
+The following object is masked from ‘package:shiny’:
+
+    runExample
+
+The following object is masked from ‘package:lubridate’:
+
+    show
+
+The following object is masked from ‘package:duckdb’:
+
+    show
+
+The following object is masked from ‘package:DBI’:
+
+    show
+
+The following object is masked from ‘package:future’:
+
+    reset
+
+The following objects are masked from ‘package:methods’:
+
+    removeClass, show
+
+✅ Loaded package 'shinyjs' successfully.
+✅ Loaded package 'htmltools' successfully.
+
+Attaching package: ‘fontawesome’
+
+The following object is masked from ‘package:psych’:
+
+    fa
+
+✅ Loaded package 'fontawesome' successfully.
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+✅ Loaded package 'DT' successfully.
+Package initialization complete for UPDATE_MODE:
+- 41 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+
+Attaching package: ‘httr’
+
+The following object is masked from ‘package:plotly’:
+
+    config
+
+The following object is masked from ‘package:progressr’:
+
+    progress
+
+The following object is masked from ‘package:caret’:
+
+    progress
+
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+
+Attaching package: ‘bs4Dash’
+
+The following objects are masked from ‘package:bslib’:
+
+    accordion, popover, tooltip
+
+The following objects are masked from ‘package:shiny’:
+
+    actionButton, column, insertTab, navbarMenu, tabsetPanel
+
+The following object is masked from ‘package:psych’:
+
+    progressBar
+
+The following object is masked from ‘package:graphics’:
+
+    box
+
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case loaded successfully
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, transformed_data, processed_data, cleansed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+Initialization already completed – skipping.
+UPDATE_MODE: Checking for .env file...
+UPDATE_MODE: ✅ Environment variables loaded from .env using dotenv package
+✅ Package 'stringr' already attached.
+✅ Package 'glue' already attached.
+✅ Package 'tools' already attached.
+✅ Package 'yaml' already attached.
+✅ Package 'future' already attached.
+✅ Package 'future.mirai' already attached.
+✅ Package 'promises' already attached.
+✅ Package 'later' already attached.
+✅ Package 'dotenv' already attached.
+✅ Package 'DBI' already attached.
+✅ Package 'duckdb' already attached.
+✅ Package 'arrow' already attached.
+✅ Package 'dplyr' already attached.
+✅ Package 'tidyr' already attached.
+✅ Package 'readr' already attached.
+✅ Package 'readxl' already attached.
+✅ Package 'openxlsx' already attached.
+✅ Package 'data.table' already attached.
+✅ Package 'jsonlite' already attached.
+✅ Package 'lubridate' already attached.
+✅ Package 'scales' already attached.
+✅ Package 'purrr' already attached.
+✅ Package 'tidyverse' already attached.
+✅ Package 'httr2' already attached.
+✅ Package 'fastDummies' already attached.
+✅ Package 'dbplyr' already attached.
+✅ Package 'duckplyr' already attached.
+✅ Package 'psych' already attached.
+✅ Package 'furrr' already attached.
+✅ Package 'dtplyr' already attached.
+✅ Package 'caret' already attached.
+✅ Package 'progressr' already attached.
+✅ Package 'googledrive' already attached.
+✅ Package 'googlesheets4' already attached.
+✅ Package 'shiny' already attached.
+✅ Package 'bslib' already attached.
+✅ Package 'plotly' already attached.
+✅ Package 'shinyjs' already attached.
+✅ Package 'htmltools' already attached.
+✅ Package 'fontawesome' already attached.
+✅ Package 'DT' already attached.
+Package initialization complete for UPDATE_MODE:
+- 41 packages loaded successfully
+
+New names:
+• `` -> `...3`
+🔧 Starting to load global scripts...
+📁 Loading directory: 14_sql_utils 
+   📋 Found 6 R files
+   🔄 Loading: fn_create_summary_table.R ... ✅
+   🔄 Loading: fn_generate_column_definitions.R ... ✅
+   🔄 Loading: fn_process_column_def.R ... ✅
+   🔄 Loading: fn_quote_identifier.R ... ✅
+   🔄 Loading: fn_read_csvxlsx.R ... ✅
+   🔄 Loading: fn_sanitize_identifier.R ... ✅
+   ✅ Completed directory: 14_sql_utils 
+
+📁 Loading directory: 02_db_utils 
+   📋 Found 34 R files
+   🔄 Loading: fn_dbAttachDuckdb.R ... ✅
+   🔄 Loading: fn_dbConnectDuckdb.R ... ✅
+   🔄 Loading: fn_dbDetach_all.R ... ✅
+   🔄 Loading: fn_dbDetachDuckdb.R ... ✅
+   🔄 Loading: fn_dbOverwrite.R ... ✅
+   🔄 Loading: fn_duckdb_connection.R ... ✅
+   🔄 Loading: fn_duckdb_copy_optimized.R ... ✅
+   🔄 Loading: fn_duckdb_disconnect_with_export.R ... ✅
+   🔄 Loading: fn_duckdb_import_export.R ... ✅
+   🔄 Loading: fn_duckdb_list_columns.R ... ✅
+   🔄 Loading: fn_duckdb_mamba_patterns.R ... ✅
+   🔄 Loading: fn_duckdb_nested_types.R ... ✅
+   🔄 Loading: fn_duckdb_query_patterns.R ... ✅
+   🔄 Loading: fn_duckdb_type_conversion.R ... ✅
+   🔄 Loading: fn_export_duckdb_dataframes.R ... ✅
+   🔄 Loading: fn_get_default_db_paths.R ... ✅
+   🔄 Loading: fn_getAppDataConnection.R ... ✅
+   🔄 Loading: fn_set_db_paths.R ... ✅
+   🔄 Loading: fn_coalesce_suffix_cols.R ... ✅
+   🔄 Loading: fn_data_cleaning.R ... ✅
+   🔄 Loading: fn_dbConnect_from_list.R ... ✅
+   🔄 Loading: fn_dbConnectAppData.R ... ✅
+   🔄 Loading: fn_dbCopyTable.R ... ✅
+   🔄 Loading: fn_dbDiagnose.R ... ✅
+   🔄 Loading: fn_dbDisconnect_all.R ... ✅
+   🔄 Loading: fn_dbPrintInfo.R ... ✅
+   🔄 Loading: fn_ensure_mamba_tunnel_enhanced.R ... ✅
+   🔄 Loading: fn_ensure_mamba_tunnel.R ... ✅
+   🔄 Loading: fn_list_column_handling.R ... ✅
+   🔄 Loading: fn_nrow2.R ... ✅
+   🔄 Loading: fn_print_query.R ... ✅
+   🔄 Loading: fn_sql_read.R ... ✅
+   🔄 Loading: fn_dbConnectSupabase.R ... ✅
+   🔄 Loading: fn_tbl2.R ... ✅
+   ✅ Completed directory: 02_db_utils 
+
+📁 Loading directory: 04_utils 
+   📋 Found 134 R files
+   🔄 Loading: fn_detect_marketing_channel_availability.R ... ✅
+   🔄 Loading: fn_initialize_data_availability.R ... ✅
+   🔄 Loading: fn_is_available.R ... ✅
+   🔄 Loading: fn_load_platform_dictionary.R ... ✅
+   🔄 Loading: fn_render_adaptive_radio_buttons.R ... ✅
+   🔄 Loading: package.R ... ✅
+   🔄 Loading: fn_library2.R ... ✅
+   🔄 Loading: fn_nrow2.R ... ✅
+   🔄 Loading: fn_operators.R ...Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+ ✅
+   🔄 Loading: fn_acceleration_helpers.R ...Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+ ✅
+   🔄 Loading: fn_add_drv_metadata.R ... ✅
+   🔄 Loading: fn_aggregate_customer_purchases.R ... ✅
+   🔄 Loading: fn_aggregate_features.R ... ✅
+   🔄 Loading: fn_analysis_dna.R ... ✅
+   🔄 Loading: fn_batch_renumber_resources.R ... ✅
+   🔄 Loading: fn_build_condition_grid.R ... ✅
+   🔄 Loading: fn_cached_data_access.R ... ✅
+   🔄 Loading: fn_caesar_cipher.R ... ✅
+   🔄 Loading: fn_calculate_period_comparison.R ... ✅
+   🔄 Loading: fn_calculate_period_range.R ... ✅
+   🔄 Loading: fn_check_root_cleanliness.R ... ✅
+   🔄 Loading: fn_check_staged.R ... ✅
+   🔄 Loading: fn_clean_column_names_remove_english.R ... ✅
+   🔄 Loading: fn_clean_column_names.R ... ✅
+   🔄 Loading: fn_clean_duplicate_columns.R ... ✅
+   🔄 Loading: fn_cleanse_amazon_reviews.R ... ✅
+   🔄 Loading: fn_cleanse_eby_reviews.R ... ✅
+   🔄 Loading: fn_cleanup_backups.R ... ✅
+   🔄 Loading: fn_coalesce_suffix_cols.R ... ✅
+   🔄 Loading: fn_combine_aligned_tables.R ... ✅
+   🔄 Loading: fn_complete_time_series.R ... ✅
+   🔄 Loading: fn_confusion_matrix.R ... ✅
+   🔄 Loading: fn_convert_currency_to_usd.R ... ✅
+   🔄 Loading: fn_create_update_script.R ... ✅
+   🔄 Loading: fn_decode_rating.R ... ✅
+   🔄 Loading: fn_detect_advanced_metrics_availability.R ... ✅
+   🔄 Loading: fn_detect_marketing_channel_availability.R ... ✅
+   🔄 Loading: fn_email_to_id.R ... ✅
+   🔄 Loading: fn_enrich_poisson_R120_metadata.R ... ✅
+   🔄 Loading: fn_enrich_time_labels.R ... ✅
+   🔄 Loading: fn_enrich_with_display_names.R ... ✅
+   🔄 Loading: fn_fct_na_value_to_level.R ... ✅
+   🔄 Loading: fn_filter_covariates.R ... ✅
+   🔄 Loading: fn_finalize_position_table.R ... ✅
+   🔄 Loading: fn_find_number_or_nan.R ... ✅
+   🔄 Loading: fn_functionalize.R ... ✅
+   🔄 Loading: fn_generate_display_name.R ... ✅
+   🔄 Loading: fn_generate_doc.R ... ✅
+   🔄 Loading: fn_generate_dummy_matrix.R ... ✅
+   🔄 Loading: fn_get_language_scope.R ... ✅
+   🔄 Loading: fn_get_or_create_customer_id.R ... ✅
+   🔄 Loading: fn_get_platform_config.R ... ✅
+   🔄 Loading: fn_get_product_id_label.R ... ✅
+   🔄 Loading: fn_get_r_files_recursive.R ... ✅
+   🔄 Loading: fn_get_variable_label.R ... ✅
+   🔄 Loading: fn_git_sync.R ... ✅
+   🔄 Loading: fn_handle_na.R ... ✅
+   🔄 Loading: fn_import_csvxlsx.R ... ✅
+   🔄 Loading: fn_import_raw_data.R ... ✅
+   🔄 Loading: fn_initialize_covariate_exclusion.R ... ✅
+   🔄 Loading: fn_initialize_data_availability.R ... ✅
+   🔄 Loading: fn_initialize_packages.R ... ✅
+   🔄 Loading: fn_initialize_ui_translation.R ... ✅
+   🔄 Loading: fn_interpret_coefficient_dual.R ... ✅
+   🔄 Loading: fn_is_feature_enabled_for_platform.R ... ✅
+   🔄 Loading: fn_keep_numeric_columns.R ... ✅
+   🔄 Loading: fn_left_join_remove_duplicate.R ... ✅
+   🔄 Loading: fn_left_join_remove_duplicate2.R ... ✅
+   🔄 Loading: fn_load_app_config.R ... ✅
+   🔄 Loading: fn_load_customer_data.R ... ✅
+   🔄 Loading: fn_load_db_paths.R ... ✅
+   🔄 Loading: fn_load_env_file.R ... ✅
+   🔄 Loading: fn_load_product_lines.R ... ✅
+   🔄 Loading: fn_manage_packages.R ... ✅
+   🔄 Loading: fn_merge_pipeline_config.R ... ✅
+   🔄 Loading: fn_merge_position_tables.R ... ✅
+   🔄 Loading: fn_monitor_r_script.R ... ✅
+   🔄 Loading: fn_mutate_customer_id.R ... ✅
+   🔄 Loading: fn_na_handling_stats.R ... ✅
+   🔄 Loading: fn_parse_date_time3.R ... ✅
+   🔄 Loading: fn_parse_datetime_columns.R ... ✅
+   🔄 Loading: fn_process_amz_reviews.R ... ✅
+   🔄 Loading: fn_process_comment_property_ratings_by_asin.R ... ✅
+   🔄 Loading: fn_process_comment_property_ratings_by_product.R ... ✅
+   🔄 Loading: fn_process_eby_reviews.R ... ✅
+   🔄 Loading: fn_process_position_table.R ... ✅
+   🔄 Loading: fn_read_multiple_sheets.R ... ✅
+   🔄 Loading: fn_recommendation_product_id.R ... ✅
+   🔄 Loading: fn_remove_columns_by_proportion.R ... ✅
+   🔄 Loading: fn_remove_high_corr.R ... ✅
+   🔄 Loading: fn_remove_na_columns.R ... ✅
+   🔄 Loading: fn_remove_na_rows_in_columns.R ... ✅
+   🔄 Loading: fn_remove_na_strings.R ... ✅
+   🔄 Loading: fn_remove_novariation.R ... ✅
+   🔄 Loading: fn_renumber_resource.R ... ✅
+   🔄 Loading: fn_replace_non_numeric.R ... ✅
+   🔄 Loading: fn_replace_spaces.R ... ✅
+   🔄 Loading: fn_resolve_script_path.R ... ✅
+   🔄 Loading: fn_run_drv_script.R ... ✅
+   🔄 Loading: fn_run_poisson_regression.R ... ✅
+   🔄 Loading: fn_safe_get.R ... ✅
+   🔄 Loading: fn_set_acceleration.R ...Performance acceleration control function loaded
+ ✅
+   🔄 Loading: fn_should_exclude_covariate.R ... ✅
+   🔄 Loading: fn_source_directory.R ... ✅
+   🔄 Loading: fn_source_with_verbose.R ... ✅
+   🔄 Loading: fn_standardize_attribute_names.R ... ✅
+   🔄 Loading: fn_string_to_numeric.R ... ✅
+   🔄 Loading: fn_summarize_database_utils.R ... ✅
+   🔄 Loading: fn_summarize_database.R ... ✅
+   🔄 Loading: fn_transform_parse_date_time.R ... ✅
+   🔄 Loading: fn_translate_display_name_with_ai.R ... ✅
+   🔄 Loading: fn_translation.R ... ✅
+   🔄 Loading: fn_update_global_scripts.R ... ✅
+   🔄 Loading: fn_update_product_property_dtah.R ... ✅
+   🔄 Loading: fn_update_time_range.R ... ✅
+   🔄 Loading: fn_validate_etl_drv_template.R ... ✅
+   🔄 Loading: fn_validate_path_consistency.R ... ✅
+   🔄 Loading: fn_verify_consistency.R ... ✅
+   🔄 Loading: fn_verify_platform_consistency.R ... ✅
+   🔄 Loading: fn_verify_row_alignment.R ... ✅
+   🔄 Loading: fn_verify_unique.R ... ✅
+   🔄 Loading: fn_write_table_safe.R ... ✅
+   🔄 Loading: fn_write_utf8_csv.R ... ✅
+   🔄 Loading: find_data_file.R ... ✅
+   🔄 Loading: get_descriptors.R ... ✅
+   🔄 Loading: get_rigid_id.R ... ✅
+   🔄 Loading: list_data_files.R ... ✅
+   🔄 Loading: list_versions.R ... ✅
+   🔄 Loading: load_version.R ... ✅
+   🔄 Loading: object_identification.R ...Object identification utilities loaded successfully.
+ ✅
+   🔄 Loading: save_version.R ... ✅
+   🔄 Loading: fn_paste_.R ... ✅
+   🔄 Loading: fn_remove_illegal_utf8.R ... ✅
+   🔄 Loading: package.R ... ✅
+   ✅ Completed directory: 04_utils 
+
+📁 Loading directory: 03_config 
+   📋 Found 5 R files
+   🔄 Loading: detect_root_path.R ... ✅
+   🔄 Loading: get_company_path.R ... ✅
+   🔄 Loading: write_root_path_for_bash.R ... ✅
+   🔄 Loading: global_parameters.R ... ✅
+   🔄 Loading: global_path_settings.R ...[1] "資料夾已存在於: ../data"
+ ✅
+   ✅ Completed directory: 03_config 
+
+📁 Loading directory: 01_db 
+   📋 Found 26 R files
+   🔄 Loading: 0101g_create_or_replace_amazon_competitor_sales_dta.R ... ✅
+   🔄 Loading: 0102g_create_or_replace_officialwebsite_km_sales_dta.R ... ✅
+   🔄 Loading: 103g_create_or_replace_product_property_dictionary.R ... ✅
+   🔄 Loading: 104g_create_or_replace_amazon_review_dta.R ... ✅
+   🔄 Loading: 105g_create_or_replace_amazon_sales_dta.R ... ✅
+   🔄 Loading: 106g_create_or_replace_sales_by_customer_date_dta.R ... ✅
+   🔄 Loading: 107g_create_or_replace_nrec_accu_dta.R ... ✅
+   🔄 Loading: 108g_create_or_replace_time_range_dta.R ... ✅
+   🔄 Loading: 109g_create_if_not_exist_gender_dictionary.R ... ✅
+   🔄 Loading: 110g_create_or_replace_sales_by_time_state_dta.R ... ✅
+   🔄 Loading: 111g_create_or_replace_sales_by_time_zip_dta.R ... ✅
+   🔄 Loading: 112g_create_or_replace_nes_trend.R ... ✅
+   🔄 Loading: 114g_setup_table.R ... ✅
+   🔄 Loading: db_setup.R ...Sourced database paths function from: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/02_db_utils/duckdb/fn_get_default_db_paths.R
+Sourced database connection function from: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/02_db_utils/fn_dbConnect_from_list.R
+ ✅
+   🔄 Loading: fn_create_df_dna_by_customer.R ... ✅
+   🔄 Loading: fn_create_df_dna_by_customer_table.R ... ✅
+   🔄 Loading: fn_create_df_dna_plot_data.R ... ✅
+   🔄 Loading: fn_create_df_profile_by_customer_table.R ... ✅
+   🔄 Loading: fn_create_df_profile_by_customer.R ... ✅
+   🔄 Loading: fn_create_df_segments_by_customer_table.R ... ✅
+   🔄 Loading: fn_initialize_app_database.R ... ✅
+   🔄 Loading: column_templates.R ... ✅
+   🔄 Loading: fn_apply_column_templates.R ... ✅
+   🔄 Loading: fn_generate_create_table_query.R ... ✅
+   🔄 Loading: list_column_templates.R ... ✅
+   🔄 Loading: sc_create_mock_duckdb.R ...DuckDB will be created at: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb
+
+======== MOCK DUCKDB CREATION UTILITY ========
+Creating database at: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb 
+
+Tables being created:
+- customer_profile: Basic customer information
+- orders: Sample order data
+
+To use this database in your code:
+con <- DBI::dbConnect(duckdb::duckdb(), dbdir = " /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb ")
+
+Usage examples:
+1. Get customers: dbGetQuery(con, "SELECT * FROM customer_profile")
+2. Get orders: dbGetQuery(con, "SELECT * FROM orders")
+3. Join data: dbGetQuery(con, "SELECT c.name, o.amount FROM customer_profile c JOIN orders o ON c.id = o.customer_id")
+
+Remember to disconnect when done: dbDisconnect(con, shutdown = TRUE)
+=============================================
+Created tables in /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb: customer_profile, orders
+  id    name signup_date
+1  1   Alice  2021-01-01
+2  2     Bob  2021-06-15
+3  3 Charlie  2021-12-31
+Disconnected and shutdown /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb
+
+======== ADDITIONAL NOTES ========
+The mock database has been successfully created and populated.
+
+To extend this database in the future:
+1. Add more sample tables by creating additional data frames
+2. For larger datasets, consider using dbWriteTable with read.csv()
+3. Create relationships between tables with foreign keys
+
+For testing universal_data_accessor function:
+- This database can be used with the universal_data_accessor function
+- Example: universal_data_accessor(db_conn, "customer_profile")
+
+For backup/versioning:
+- Make a copy of the database file for version control
+- Example: file.copy(" /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb ", " /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb .backup")
+================================
+ ✅
+   ✅ Completed directory: 01_db 
+
+📁 Loading directory: 05_etl_utils 
+   📋 Found 54 R files
+   🔄 Loading: fn_import_adapter_csv.R ... ✅
+   🔄 Loading: fn_import_adapter_excel.R ... ✅
+   🔄 Loading: fn_import_adapter_gsheets.R ... ✅
+   🔄 Loading: fn_import_competitor_products.R ... ✅
+   🔄 Loading: fn_import_product_profiles.R ... ✅
+   🔄 Loading: fn_cleanse_amazon_reviews_etl.R ... ✅
+   🔄 Loading: fn_stage_comment_properties.R ... ✅
+   🔄 Loading: fn_stage_competitor_products.R ... ✅
+   🔄 Loading: fn_stage_product_profiles.R ... ✅
+   🔄 Loading: fn_process_amz_reviews_etl.R ... ✅
+   🔄 Loading: fn_transform_comment_properties.R ... ✅
+   🔄 Loading: fn_transform_competitor_products.R ... ✅
+   🔄 Loading: fn_transform_product_profiles.R ... ✅
+   🔄 Loading: 1001g_generate_amazon_check_data.R ... ✅
+   🔄 Loading: 203g_process_amazon_review.R ... ✅
+   🔄 Loading: 204g_process_and_join_positions.R ... ✅
+   🔄 Loading: 205g_process_amazon_sales.R ... ✅
+   🔄 Loading: 211g_process_address_and_time_amazon_sales.R ... ✅
+   🔄 Loading: 212g_process_promotion_recoding_amazon.R ... ✅
+   🔄 Loading: 401g_update_amazon_poisson_precision_marketing_dummy.R ... ✅
+   🔄 Loading: 403g_patch_amazon_reviews.R ... ✅
+   🔄 Loading: core_import_df_amz_competitor_sales.R ... ✅
+   🔄 Loading: fn_import_comment_properties.R ... ✅
+   🔄 Loading: fn_import_comment_property_ratings.R ... ✅
+   🔄 Loading: import_amazon_sales.R ... ✅
+   🔄 Loading: 209g_process_zip.R ... ✅
+   🔄 Loading: 214g_process_and_save_all_products_states_and_times.R ... ✅
+   🔄 Loading: closest_position.R ... ✅
+   🔄 Loading: convert_chinese_chars_and_names.R ... ✅
+   🔄 Loading: convert_chinese_chars.R ... ✅
+   🔄 Loading: convert_list_columns.R ... ✅
+   🔄 Loading: convert_to_local_time.R ... ✅
+   🔄 Loading: convert_units_to_smallest.R ... ✅
+   🔄 Loading: Day_time_partition.R ... ✅
+   🔄 Loading: DNA_Function_data.table.R ... ✅
+   🔄 Loading: DNA_Function_dplyr.R ... ✅
+   🔄 Loading: fn_detect_data_types.R ... ✅
+   🔄 Loading: Holidays_Recode.R ... ✅
+   🔄 Loading: load_all_RDS.R ... ✅
+   🔄 Loading: load_selected_rds.R ... ✅
+   🔄 Loading: process_by_customer_time.R ... ✅
+   🔄 Loading: fn_read_csvxlsx.R ... ✅
+   🔄 Loading: revert_chinese_chars_and_names.R ... ✅
+   🔄 Loading: revert_chinese_chars.R ... ✅
+   🔄 Loading: save_customer_time_data.R ... ✅
+   🔄 Loading: save_list_elements.R ... ✅
+   🔄 Loading: StateNameTranformation.R ...hash-2.2.6.3 provided by Decision Patterns
+
+
+Attaching package: ‘hash’
+
+The following object is masked from ‘package:psych’:
+
+    make.keys
+
+The following object is masked from ‘package:data.table’:
+
+    copy
+
+
+Attaching package: ‘stringdist’
+
+The following object is masked from ‘package:tidyr’:
+
+    extract
+
+ ✅
+   🔄 Loading: fn_convert_all_columns_to_utf8.R ... ✅
+   🔄 Loading: fn_make_names.R ... ✅
+   🔄 Loading: Time_Recode.R ... ✅
+   🔄 Loading: 212g_process_address_and_time_officialwebsite_sales.R ... ✅
+   🔄 Loading: 213g_process_promotion_recoding_officialwebsite.R ... ✅
+   🔄 Loading: 300g_import_website_km_sales.R ... ✅
+   🔄 Loading: CopyOf211g_process_address_and_time_officialwebsite_sales.R ... ✅
+   ✅ Completed directory: 05_etl_utils 
+
+📁 Loading directory: 06_queries 
+   📋 Found 9 R files
+   🔄 Loading: 300g_query_product_property_comeptitors.R ... ✅
+   🔄 Loading: 301g_query_product_property_dictionary_km.R ... ✅
+   🔄 Loading: 302g_query_comment_property_rating.R ... ✅
+   🔄 Loading: 303g_query_comment_property_ratingonly_by_asin.R ... ✅
+   🔄 Loading: 304g_query_promotion_codebook.R ... ✅
+   🔄 Loading: 305g_query_find_nes_median.R ... ✅
+   🔄 Loading: 306g_query_sales_by_time_state.R ... ✅
+   🔄 Loading: 307g_query_sales_by_time_zip.R ... ✅
+   🔄 Loading: 308g_query_nes_trend.R ... ✅
+   ✅ Completed directory: 06_queries 
+
+⏭️  Skipping non-existent directory: 05_data_processing 
+📁 Loading directory: 07_models 
+   📋 Found 15 R files
+   🔄 Loading: choice_model_lik.R ...
+Attaching package: ‘EnvStats’
+
+The following objects are masked from ‘package:stats’:
+
+    predict, predict.lm
+
+The following object is masked from ‘package:base’:
+
+    print.default
+
+
+Attaching package: ‘Matrix’
+
+The following objects are masked from ‘package:tidyr’:
+
+    expand, pack, unpack
+
+Loading required package: miscTools
+
+Please cite the 'maxLik' package as:
+Henningsen, Arne and Toomet, Ott (2011). maxLik: A package for maximum likelihood estimation in R. Computational Statistics 26(3), 443-458. DOI 10.1007/s00180-010-0217-1.
+
+If you have questions, suggestions, or comments regarding the 'maxLik' package, please use a forum or 'tracker' at maxLik's R-Forge site:
+https://r-forge.r-project.org/projects/maxlik/
+
+Attaching package: ‘pracma’
+
+The following objects are masked from ‘package:maxLik’:
+
+    gradient, hessian
+
+The following objects are masked from ‘package:Matrix’:
+
+    expm, lu, tril, triu
+
+The following object is masked from ‘package:hash’:
+
+    clear
+
+The following objects are masked from ‘package:lares’:
+
+    tic, toc
+
+The following objects are masked from ‘package:psych’:
+
+    logit, polar
+
+The following object is masked from ‘package:purrr’:
+
+    cross
+
+The following object is masked from ‘package:arrow’:
+
+    null
+
+
+Attaching package: ‘fastmatch’
+
+The following object is masked from ‘package:dplyr’:
+
+    coalesce
+
+ ✅
+   🔄 Loading: choice_model_optimization.R ... ✅
+   🔄 Loading: Design_gen.R ... ✅
+   🔄 Loading: Design_matrix_Generation_Poisson.R ... ✅
+   🔄 Loading: Design_matrix_Generation_Poisson2.R ... ✅
+   🔄 Loading: ladder.R ... ✅
+   🔄 Loading: Optimal Pricing.R ... ✅
+   🔄 Loading: Poisson_Regression_InsightForge.R ... ✅
+   🔄 Loading: Poisson_Regression.R ... ✅
+   🔄 Loading: SGD.R ... ✅
+   🔄 Loading: SGD2.R ... ✅
+   🔄 Loading: Sort_Optimal_Pricing_Forluma.R ...Sales ~ month_1 + 客戶服務 + month_5 + month_6 + month_7 + RatingNum + month_8 + month_9 + month_10 + year + Charging_type_4 + 星期二 + 星期一 + 星期三 + Revenue + 星期四 + 星期六 + is_pre7day_holiday + 材質_不鏽鋼 + Rating + 顏色_白 + AmazonReviewRating + 顏色_綠 + 顏色_海軍藍 + month_12 + 是否可開多種罐型_4.5 + 是否有保固 + logprice + 顏色_橘:logprice + month_1:logprice + month_2:logprice + month_4:logprice + month_5:logprice + month_6:logprice + month_7:logprice + 可靠性:logprice + month_8:logprice + month_9:logprice + month_10:logprice + month_11:logprice + month_12:logprice + year:logprice + 星期一:logprice + 星期二:logprice + 星期日:logprice + 星期三:logprice + 星期四:logprice + is_pre7day_holiday:logprice + 星期五:logprice + logprice2 + month_1:logprice2 + month_2:logprice2 + month_3:logprice2 + month_4:logprice2 + month_5:logprice2 + month_6:logprice2 + month_7:logprice2 + month_8:logprice2 + month_9:logprice2 + month_10:logprice2 + month_11:logprice2 + year:logprice2 + 星期日:logprice2 ✅
+   🔄 Loading: stepwise_selection2.R ... ✅
+   🔄 Loading: stepwise_selection3.R ... ✅
+   🔄 Loading: Stepwise.R ... ✅
+   ✅ Completed directory: 07_models 
+
+📁 Loading directory: 08_ai 
+   📋 Found 13 R files
+   🔄 Loading: 510g_setup_python.R ... ✅
+   🔄 Loading: 601g_ai_review_rating.R ... ✅
+   🔄 Loading: 603g_ai_review_ratings_estimate.R ... ✅
+   🔄 Loading: 701g_decode_ai_review_ratings.R ... ✅
+   🔄 Loading: fn_chat_api_stream.R ... ✅
+   🔄 Loading: fn_chat_api.R ... ✅
+   🔄 Loading: fn_decode_rating.R ... ✅
+   🔄 Loading: fn_load_openai_prompt.R ... ✅
+   🔄 Loading: fn_process_property_ratings.R ... ✅
+   🔄 Loading: fn_process_review_ratings.R ... ✅
+   🔄 Loading: fn_rate_comments.R ... ✅
+   🔄 Loading: fn_response_api.R ... ✅
+   🔄 Loading: fn_strip_code_fence.R ... ✅
+   ✅ Completed directory: 08_ai 
+
+📁 Loading directory: 09_python_scripts 
+   ℹ️  No R files found in 09_python_scripts 
+📁 Loading directory: 10_rshinyapp_components 
+   📋 Found 69 R files
+   🔄 Loading: common.R ... ✅
+   🔄 Loading: login_module.R ... ✅
+   🔄 Loading: module_login_supabase.R ... ✅
+   🔄 Loading: fn_create_kpi_box.R ... ✅
+   🔄 Loading: macro_overview.R ... ✅
+   🔄 Loading: macroNESTransition.R ... ✅
+   🔄 Loading: macroTrend.R ... ✅
+   🔄 Loading: server_macro_overview.R ... ✅
+   🔄 Loading: server_macro_trends.R ... ✅
+   🔄 Loading: ui_macro_overview.R ... ✅
+   🔄 Loading: ui_macro_trends.R ... ✅
+   🔄 Loading: campaign_analysis.R ... ✅
+   🔄 Loading: sales_analysis.R ... ✅
+   🔄 Loading: target_profiling.R ... ✅
+   🔄 Loading: microCustomer2.R ... ✅
+   🔄 Loading: microDNADistribution_backup_20251006.R ... ✅
+   🔄 Loading: microDNADistribution.R ... ✅
+   🔄 Loading: microMacroKPI.R ... ✅
+   🔄 Loading: microTransactionsDefaults.R ... ✅
+   🔄 Loading: microTransactionsServer.R ... ✅
+   🔄 Loading: microTransactionsUI.R ... ✅
+   🔄 Loading: passwordOnlyDefaults.R ... ✅
+   🔄 Loading: passwordOnlyServer.R ... ✅
+   🔄 Loading: passwordOnlyUI.R ... ✅
+   🔄 Loading: periodComparisonDefaults.R ... ✅
+   🔄 Loading: periodComparisonServer.R ... ✅
+   🔄 Loading: periodComparisonUI.R ... ✅
+   🔄 Loading: poissonCommentAnalysis.R ... ✅
+   🔄 Loading: poissonFeatureAnalysis.R ... ✅
+   🔄 Loading: poissonTimeAnalysis.R ... ✅
+   🔄 Loading: positionDNAPlotly.R ... ✅
+   🔄 Loading: positionIdealRate.R ... ✅
+   🔄 Loading: positionKFE.R ... ✅
+   🔄 Loading: positionMSPlotly.R ... ✅
+   🔄 Loading: positionStrategy.R ... ✅
+   🔄 Loading: positionTable.R ... ✅
+   🔄 Loading: implement_report_integration.R ... ✅
+   🔄 Loading: report_integration_addon.R ... ✅
+   🔄 Loading: reportIntegration_backup_20250928.R ... ✅
+   🔄 Loading: reportIntegration_improved.R ... ✅
+   🔄 Loading: reportIntegration.R ... ✅
+   🔄 Loading: sidebarCommonDefaults.R ... ✅
+   🔄 Loading: sidebarCommonFilters.R ... ✅
+   🔄 Loading: sidebarCommonServer.R ... ✅
+   🔄 Loading: sidebarCommonUI.R ... ✅
+   🔄 Loading: sidebarFactoryDefaults.R ... ✅
+   🔄 Loading: sidebarFactoryServer.R ... ✅
+   🔄 Loading: sidebarFactoryUI.R ... ✅
+   🔄 Loading: sidebarHybridDefaults.R ... ✅
+   🔄 Loading: sidebarHybridServer.R ... ✅
+   🔄 Loading: sidebarHybridUI.R ... ✅
+   🔄 Loading: sidebarMacroDefaults.R ... ✅
+   🔄 Loading: sidebarMacroServer.R ... ✅
+   🔄 Loading: sidebarMacroUI.R ... ✅
+   🔄 Loading: sidebarMainDefaults.R ... ✅
+   🔄 Loading: sidebarMainServer.R ... ✅
+   🔄 Loading: sidebarMainUI.R ... ✅
+   🔄 Loading: sidebarMicroDefaults.R ... ✅
+   🔄 Loading: sidebarMicroServer.R ... ✅
+   🔄 Loading: sidebarMicroUI.R ... ✅
+   🔄 Loading: sidebarTargetDefaults.R ... ✅
+   🔄 Loading: sidebarTargetServer.R ... ✅
+   🔄 Loading: sidebarTargetUI.R ... ✅
+   🔄 Loading: sidebarUnionDefaults.R ... ✅
+   🔄 Loading: sidebarUnionFilters.R ... ✅
+   🔄 Loading: sidebarUnionServer.R ... ✅
+   🔄 Loading: sidebarUnionUI.R ... ✅
+   🔄 Loading: server_target_segmentation.R ... ✅
+   🔄 Loading: ui_target_segmentation.R ... ✅
+   ✅ Completed directory: 10_rshinyapp_components 
+
+📁 Loading directory: 11_rshinyapp_utils 
+   📋 Found 32 R files
+   🔄 Loading: clean_column_names_remove_english.R ... ✅
+   🔄 Loading: CreateChoices.R ... ✅
+   🔄 Loading: fn_access_processing_data.R ... ✅
+   🔄 Loading: fn_build_app_from_config.R ... ✅
+   🔄 Loading: fn_check_data_access.R ... ✅
+   🔄 Loading: fn_get_data_for_table.R ... ✅
+   🔄 Loading: fn_get_position_complete_case.R ... ✅
+   🔄 Loading: fn_lazy_component.R ... ✅
+   🔄 Loading: fn_process_data_source.R ... ✅
+   🔄 Loading: fn_read_from_app_data.R ... ✅
+   🔄 Loading: fn_read_yaml_config.R ... ✅
+   🔄 Loading: fn_renderUI2.R ... ✅
+   🔄 Loading: fn_safe_value.R ... ✅
+   🔄 Loading: formattime.R ... ✅
+   🔄 Loading: clean_column_names_remove_english.R ... ✅
+   🔄 Loading: CreateChoices.R ... ✅
+   🔄 Loading: formattime.R ... ✅
+   🔄 Loading: getDynamicOptions.R ... ✅
+   🔄 Loading: process_sales_data.R ... ✅
+   🔄 Loading: Recode_time_TraceBack.R ... ✅
+   🔄 Loading: remove_elements.R ... ✅
+   🔄 Loading: safe_get.R ... ✅
+   🔄 Loading: getDynamicOptions.R ... ✅
+   🔄 Loading: helpers.R ... ✅
+   🔄 Loading: load_position_functions.R ...🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+ ✅
+   🔄 Loading: module_login_password_only.R ... ✅
+   🔄 Loading: process_sales_data.R ... ✅
+   🔄 Loading: Recode_time_TraceBack.R ... ✅
+   🔄 Loading: remove_elements.R ... ✅
+   🔄 Loading: safe_get.R ... ✅
+   🔄 Loading: safe_type_operations.R ... ✅
+   🔄 Loading: module_supabase_auth.R ... ✅
+   ✅ Completed directory: 11_rshinyapp_utils 
+
+📁 Loading directory: 17_transform 
+   📋 Found 2 R files
+   🔄 Loading: fn_transform_sales_by_customer.by_date_to_sales_by_customer.R ... ✅
+   🔄 Loading: fn_transform_sales_to_sales_by_customer.by_date.R ... ✅
+   ✅ Completed directory: 17_transform 
+
+📊 Loading Summary:
+   ✅ Successfully loaded: 399 files
+   ❌ Failed to load: 0 files
+🎯 Global scripts loading completed!
+
+UPDATE_MODE initialization finished. Databases available: app_data, raw_data, staged_data, transformed_data, processed_data, cleansed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+There were 50 or more warnings (use warnings() to see the first 50)
+>> OPERATION_MODE = UPDATE_MODE
+Initialization already completed – skipping.
+✅ Package 'stringr' already attached.
+✅ Package 'glue' already attached.
+✅ Package 'tools' already attached.
+✅ Package 'yaml' already attached.
+✅ Package 'future' already attached.
+✅ Package 'future.mirai' already attached.
+✅ Package 'promises' already attached.
+✅ Package 'later' already attached.
+✅ Package 'dotenv' already attached.
+✅ Package 'DBI' already attached.
+✅ Package 'duckdb' already attached.
+✅ Package 'arrow' already attached.
+✅ Package 'dplyr' already attached.
+✅ Package 'tidyr' already attached.
+✅ Package 'readr' already attached.
+✅ Package 'readxl' already attached.
+✅ Package 'openxlsx' already attached.
+✅ Package 'data.table' already attached.
+✅ Package 'jsonlite' already attached.
+✅ Package 'lubridate' already attached.
+✅ Package 'scales' already attached.
+✅ Package 'purrr' already attached.
+✅ Package 'tidyverse' already attached.
+✅ Package 'httr2' already attached.
+✅ Package 'fastDummies' already attached.
+✅ Package 'dbplyr' already attached.
+✅ Package 'duckplyr' already attached.
+✅ Package 'psych' already attached.
+✅ Package 'furrr' already attached.
+✅ Package 'dtplyr' already attached.
+✅ Package 'caret' already attached.
+✅ Package 'progressr' already attached.
+✅ Package 'googledrive' already attached.
+✅ Package 'googlesheets4' already attached.
+✅ Package 'shiny' already attached.
+✅ Package 'bslib' already attached.
+✅ Package 'plotly' already attached.
+✅ Package 'shinyjs' already attached.
+✅ Package 'htmltools' already attached.
+✅ Package 'fontawesome' already attached.
+✅ Package 'DT' already attached.
+Package initialization complete for UPDATE_MODE:
+- 41 packages loaded successfully
+
+Environment variables loaded from .env using dotenv package
+✓ OPENAI_API_KEY is set
+Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+Performance acceleration control function loaded
+Object identification utilities loaded successfully.
+[1] "資料夾已存在於: ../data"
+🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+New names:
+• `` -> `...3`
+APP_MODE initialization finished. Databases available: app_data, raw_data, staged_data, transformed_data, processed_data, cleansed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+Initialization already completed – skipping.
+UPDATE_MODE: Checking for .env file...
+UPDATE_MODE: ✅ Environment variables loaded from .env using dotenv package
+✅ Package 'stringr' already attached.
+✅ Package 'glue' already attached.
+✅ Package 'tools' already attached.
+✅ Package 'yaml' already attached.
+✅ Package 'future' already attached.
+✅ Package 'future.mirai' already attached.
+✅ Package 'promises' already attached.
+✅ Package 'later' already attached.
+✅ Package 'dotenv' already attached.
+✅ Package 'DBI' already attached.
+✅ Package 'duckdb' already attached.
+✅ Package 'arrow' already attached.
+✅ Package 'dplyr' already attached.
+✅ Package 'tidyr' already attached.
+✅ Package 'readr' already attached.
+✅ Package 'readxl' already attached.
+✅ Package 'openxlsx' already attached.
+✅ Package 'data.table' already attached.
+✅ Package 'jsonlite' already attached.
+✅ Package 'lubridate' already attached.
+✅ Package 'scales' already attached.
+✅ Package 'purrr' already attached.
+✅ Package 'tidyverse' already attached.
+✅ Package 'httr2' already attached.
+✅ Package 'fastDummies' already attached.
+✅ Package 'dbplyr' already attached.
+✅ Package 'duckplyr' already attached.
+✅ Package 'psych' already attached.
+✅ Package 'furrr' already attached.
+✅ Package 'dtplyr' already attached.
+✅ Package 'caret' already attached.
+✅ Package 'progressr' already attached.
+✅ Package 'googledrive' already attached.
+✅ Package 'googlesheets4' already attached.
+✅ Package 'shiny' already attached.
+✅ Package 'bslib' already attached.
+✅ Package 'plotly' already attached.
+✅ Package 'shinyjs' already attached.
+✅ Package 'htmltools' already attached.
+✅ Package 'fontawesome' already attached.
+✅ Package 'DT' already attached.
+Package initialization complete for UPDATE_MODE:
+- 41 packages loaded successfully
+
+New names:
+• `` -> `...3`
+🔧 Starting to load global scripts...
+📁 Loading directory: 14_sql_utils 
+   📋 Found 6 R files
+   🔄 Loading: fn_create_summary_table.R ... ✅
+   🔄 Loading: fn_generate_column_definitions.R ... ✅
+   🔄 Loading: fn_process_column_def.R ... ✅
+   🔄 Loading: fn_quote_identifier.R ... ✅
+   🔄 Loading: fn_read_csvxlsx.R ... ✅
+   🔄 Loading: fn_sanitize_identifier.R ... ✅
+   ✅ Completed directory: 14_sql_utils 
+
+📁 Loading directory: 02_db_utils 
+   📋 Found 34 R files
+   🔄 Loading: fn_dbAttachDuckdb.R ... ✅
+   🔄 Loading: fn_dbConnectDuckdb.R ... ✅
+   🔄 Loading: fn_dbDetach_all.R ... ✅
+   🔄 Loading: fn_dbDetachDuckdb.R ... ✅
+   🔄 Loading: fn_dbOverwrite.R ... ✅
+   🔄 Loading: fn_duckdb_connection.R ... ✅
+   🔄 Loading: fn_duckdb_copy_optimized.R ... ✅
+   🔄 Loading: fn_duckdb_disconnect_with_export.R ... ✅
+   🔄 Loading: fn_duckdb_import_export.R ... ✅
+   🔄 Loading: fn_duckdb_list_columns.R ... ✅
+   🔄 Loading: fn_duckdb_mamba_patterns.R ... ✅
+   🔄 Loading: fn_duckdb_nested_types.R ... ✅
+   🔄 Loading: fn_duckdb_query_patterns.R ... ✅
+   🔄 Loading: fn_duckdb_type_conversion.R ... ✅
+   🔄 Loading: fn_export_duckdb_dataframes.R ... ✅
+   🔄 Loading: fn_get_default_db_paths.R ... ✅
+   🔄 Loading: fn_getAppDataConnection.R ... ✅
+   🔄 Loading: fn_set_db_paths.R ... ✅
+   🔄 Loading: fn_coalesce_suffix_cols.R ... ✅
+   🔄 Loading: fn_data_cleaning.R ... ✅
+   🔄 Loading: fn_dbConnect_from_list.R ... ✅
+   🔄 Loading: fn_dbConnectAppData.R ... ✅
+   🔄 Loading: fn_dbCopyTable.R ... ✅
+   🔄 Loading: fn_dbDiagnose.R ... ✅
+   🔄 Loading: fn_dbDisconnect_all.R ... ✅
+   🔄 Loading: fn_dbPrintInfo.R ... ✅
+   🔄 Loading: fn_ensure_mamba_tunnel_enhanced.R ... ✅
+   🔄 Loading: fn_ensure_mamba_tunnel.R ... ✅
+   🔄 Loading: fn_list_column_handling.R ... ✅
+   🔄 Loading: fn_nrow2.R ... ✅
+   🔄 Loading: fn_print_query.R ... ✅
+   🔄 Loading: fn_sql_read.R ... ✅
+   🔄 Loading: fn_dbConnectSupabase.R ... ✅
+   🔄 Loading: fn_tbl2.R ... ✅
+   ✅ Completed directory: 02_db_utils 
+
+📁 Loading directory: 04_utils 
+   📋 Found 134 R files
+   🔄 Loading: fn_detect_marketing_channel_availability.R ... ✅
+   🔄 Loading: fn_initialize_data_availability.R ... ✅
+   🔄 Loading: fn_is_available.R ... ✅
+   🔄 Loading: fn_load_platform_dictionary.R ... ✅
+   🔄 Loading: fn_render_adaptive_radio_buttons.R ... ✅
+   🔄 Loading: package.R ... ✅
+   🔄 Loading: fn_library2.R ... ✅
+   🔄 Loading: fn_nrow2.R ... ✅
+   🔄 Loading: fn_operators.R ...Custom operators loaded: %|>%, %||%, %+%, %notin%, %between%, %col%, %apply%
+ ✅
+   🔄 Loading: fn_acceleration_helpers.R ...Loaded acceleration helper functions (P106: Performance Acceleration Principle)
+ ✅
+   🔄 Loading: fn_add_drv_metadata.R ... ✅
+   🔄 Loading: fn_aggregate_customer_purchases.R ... ✅
+   🔄 Loading: fn_aggregate_features.R ... ✅
+   🔄 Loading: fn_analysis_dna.R ... ✅
+   🔄 Loading: fn_batch_renumber_resources.R ... ✅
+   🔄 Loading: fn_build_condition_grid.R ... ✅
+   🔄 Loading: fn_cached_data_access.R ... ✅
+   🔄 Loading: fn_caesar_cipher.R ... ✅
+   🔄 Loading: fn_calculate_period_comparison.R ... ✅
+   🔄 Loading: fn_calculate_period_range.R ... ✅
+   🔄 Loading: fn_check_root_cleanliness.R ... ✅
+   🔄 Loading: fn_check_staged.R ... ✅
+   🔄 Loading: fn_clean_column_names_remove_english.R ... ✅
+   🔄 Loading: fn_clean_column_names.R ... ✅
+   🔄 Loading: fn_clean_duplicate_columns.R ... ✅
+   🔄 Loading: fn_cleanse_amazon_reviews.R ... ✅
+   🔄 Loading: fn_cleanse_eby_reviews.R ... ✅
+   🔄 Loading: fn_cleanup_backups.R ... ✅
+   🔄 Loading: fn_coalesce_suffix_cols.R ... ✅
+   🔄 Loading: fn_combine_aligned_tables.R ... ✅
+   🔄 Loading: fn_complete_time_series.R ... ✅
+   🔄 Loading: fn_confusion_matrix.R ... ✅
+   🔄 Loading: fn_convert_currency_to_usd.R ... ✅
+   🔄 Loading: fn_create_update_script.R ... ✅
+   🔄 Loading: fn_decode_rating.R ... ✅
+   🔄 Loading: fn_detect_advanced_metrics_availability.R ... ✅
+   🔄 Loading: fn_detect_marketing_channel_availability.R ... ✅
+   🔄 Loading: fn_email_to_id.R ... ✅
+   🔄 Loading: fn_enrich_poisson_R120_metadata.R ... ✅
+   🔄 Loading: fn_enrich_time_labels.R ... ✅
+   🔄 Loading: fn_enrich_with_display_names.R ... ✅
+   🔄 Loading: fn_fct_na_value_to_level.R ... ✅
+   🔄 Loading: fn_filter_covariates.R ... ✅
+   🔄 Loading: fn_finalize_position_table.R ... ✅
+   🔄 Loading: fn_find_number_or_nan.R ... ✅
+   🔄 Loading: fn_functionalize.R ... ✅
+   🔄 Loading: fn_generate_display_name.R ... ✅
+   🔄 Loading: fn_generate_doc.R ... ✅
+   🔄 Loading: fn_generate_dummy_matrix.R ... ✅
+   🔄 Loading: fn_get_language_scope.R ... ✅
+   🔄 Loading: fn_get_or_create_customer_id.R ... ✅
+   🔄 Loading: fn_get_platform_config.R ... ✅
+   🔄 Loading: fn_get_product_id_label.R ... ✅
+   🔄 Loading: fn_get_r_files_recursive.R ... ✅
+   🔄 Loading: fn_get_variable_label.R ... ✅
+   🔄 Loading: fn_git_sync.R ... ✅
+   🔄 Loading: fn_handle_na.R ... ✅
+   🔄 Loading: fn_import_csvxlsx.R ... ✅
+   🔄 Loading: fn_import_raw_data.R ... ✅
+   🔄 Loading: fn_initialize_covariate_exclusion.R ... ✅
+   🔄 Loading: fn_initialize_data_availability.R ... ✅
+   🔄 Loading: fn_initialize_packages.R ... ✅
+   🔄 Loading: fn_initialize_ui_translation.R ... ✅
+   🔄 Loading: fn_interpret_coefficient_dual.R ... ✅
+   🔄 Loading: fn_is_feature_enabled_for_platform.R ... ✅
+   🔄 Loading: fn_keep_numeric_columns.R ... ✅
+   🔄 Loading: fn_left_join_remove_duplicate.R ... ✅
+   🔄 Loading: fn_left_join_remove_duplicate2.R ... ✅
+   🔄 Loading: fn_load_app_config.R ... ✅
+   🔄 Loading: fn_load_customer_data.R ... ✅
+   🔄 Loading: fn_load_db_paths.R ... ✅
+   🔄 Loading: fn_load_env_file.R ... ✅
+   🔄 Loading: fn_load_product_lines.R ... ✅
+   🔄 Loading: fn_manage_packages.R ... ✅
+   🔄 Loading: fn_merge_pipeline_config.R ... ✅
+   🔄 Loading: fn_merge_position_tables.R ... ✅
+   🔄 Loading: fn_monitor_r_script.R ... ✅
+   🔄 Loading: fn_mutate_customer_id.R ... ✅
+   🔄 Loading: fn_na_handling_stats.R ... ✅
+   🔄 Loading: fn_parse_date_time3.R ... ✅
+   🔄 Loading: fn_parse_datetime_columns.R ... ✅
+   🔄 Loading: fn_process_amz_reviews.R ... ✅
+   🔄 Loading: fn_process_comment_property_ratings_by_asin.R ... ✅
+   🔄 Loading: fn_process_comment_property_ratings_by_product.R ... ✅
+   🔄 Loading: fn_process_eby_reviews.R ... ✅
+   🔄 Loading: fn_process_position_table.R ... ✅
+   🔄 Loading: fn_read_multiple_sheets.R ... ✅
+   🔄 Loading: fn_recommendation_product_id.R ... ✅
+   🔄 Loading: fn_remove_columns_by_proportion.R ... ✅
+   🔄 Loading: fn_remove_high_corr.R ... ✅
+   🔄 Loading: fn_remove_na_columns.R ... ✅
+   🔄 Loading: fn_remove_na_rows_in_columns.R ... ✅
+   🔄 Loading: fn_remove_na_strings.R ... ✅
+   🔄 Loading: fn_remove_novariation.R ... ✅
+   🔄 Loading: fn_renumber_resource.R ... ✅
+   🔄 Loading: fn_replace_non_numeric.R ... ✅
+   🔄 Loading: fn_replace_spaces.R ... ✅
+   🔄 Loading: fn_resolve_script_path.R ... ✅
+   🔄 Loading: fn_run_drv_script.R ... ✅
+   🔄 Loading: fn_run_poisson_regression.R ... ✅
+   🔄 Loading: fn_safe_get.R ... ✅
+   🔄 Loading: fn_set_acceleration.R ...Performance acceleration control function loaded
+ ✅
+   🔄 Loading: fn_should_exclude_covariate.R ... ✅
+   🔄 Loading: fn_source_directory.R ... ✅
+   🔄 Loading: fn_source_with_verbose.R ... ✅
+   🔄 Loading: fn_standardize_attribute_names.R ... ✅
+   🔄 Loading: fn_string_to_numeric.R ... ✅
+   🔄 Loading: fn_summarize_database_utils.R ... ✅
+   🔄 Loading: fn_summarize_database.R ... ✅
+   🔄 Loading: fn_transform_parse_date_time.R ... ✅
+   🔄 Loading: fn_translate_display_name_with_ai.R ... ✅
+   🔄 Loading: fn_translation.R ... ✅
+   🔄 Loading: fn_update_global_scripts.R ... ✅
+   🔄 Loading: fn_update_product_property_dtah.R ... ✅
+   🔄 Loading: fn_update_time_range.R ... ✅
+   🔄 Loading: fn_validate_etl_drv_template.R ... ✅
+   🔄 Loading: fn_validate_path_consistency.R ... ✅
+   🔄 Loading: fn_verify_consistency.R ... ✅
+   🔄 Loading: fn_verify_platform_consistency.R ... ✅
+   🔄 Loading: fn_verify_row_alignment.R ... ✅
+   🔄 Loading: fn_verify_unique.R ... ✅
+   🔄 Loading: fn_write_table_safe.R ... ✅
+   🔄 Loading: fn_write_utf8_csv.R ... ✅
+   🔄 Loading: find_data_file.R ... ✅
+   🔄 Loading: get_descriptors.R ... ✅
+   🔄 Loading: get_rigid_id.R ... ✅
+   🔄 Loading: list_data_files.R ... ✅
+   🔄 Loading: list_versions.R ... ✅
+   🔄 Loading: load_version.R ... ✅
+   🔄 Loading: object_identification.R ...Object identification utilities loaded successfully.
+ ✅
+   🔄 Loading: save_version.R ... ✅
+   🔄 Loading: fn_paste_.R ... ✅
+   🔄 Loading: fn_remove_illegal_utf8.R ... ✅
+   🔄 Loading: package.R ... ✅
+   ✅ Completed directory: 04_utils 
+
+📁 Loading directory: 03_config 
+   📋 Found 5 R files
+   🔄 Loading: detect_root_path.R ... ✅
+   🔄 Loading: get_company_path.R ... ✅
+   🔄 Loading: write_root_path_for_bash.R ... ✅
+   🔄 Loading: global_parameters.R ... ✅
+   🔄 Loading: global_path_settings.R ...[1] "資料夾已存在於: ../data"
+ ✅
+   ✅ Completed directory: 03_config 
+
+📁 Loading directory: 01_db 
+   📋 Found 26 R files
+   🔄 Loading: 0101g_create_or_replace_amazon_competitor_sales_dta.R ... ✅
+   🔄 Loading: 0102g_create_or_replace_officialwebsite_km_sales_dta.R ... ✅
+   🔄 Loading: 103g_create_or_replace_product_property_dictionary.R ... ✅
+   🔄 Loading: 104g_create_or_replace_amazon_review_dta.R ... ✅
+   🔄 Loading: 105g_create_or_replace_amazon_sales_dta.R ... ✅
+   🔄 Loading: 106g_create_or_replace_sales_by_customer_date_dta.R ... ✅
+   🔄 Loading: 107g_create_or_replace_nrec_accu_dta.R ... ✅
+   🔄 Loading: 108g_create_or_replace_time_range_dta.R ... ✅
+   🔄 Loading: 109g_create_if_not_exist_gender_dictionary.R ... ✅
+   🔄 Loading: 110g_create_or_replace_sales_by_time_state_dta.R ... ✅
+   🔄 Loading: 111g_create_or_replace_sales_by_time_zip_dta.R ... ✅
+   🔄 Loading: 112g_create_or_replace_nes_trend.R ... ✅
+   🔄 Loading: 114g_setup_table.R ... ✅
+   🔄 Loading: db_setup.R ...Sourced database paths function from: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/02_db_utils/duckdb/fn_get_default_db_paths.R
+Sourced database connection function from: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/02_db_utils/fn_dbConnect_from_list.R
+ ✅
+   🔄 Loading: fn_create_df_dna_by_customer.R ... ✅
+   🔄 Loading: fn_create_df_dna_by_customer_table.R ... ✅
+   🔄 Loading: fn_create_df_dna_plot_data.R ... ✅
+   🔄 Loading: fn_create_df_profile_by_customer_table.R ... ✅
+   🔄 Loading: fn_create_df_profile_by_customer.R ... ✅
+   🔄 Loading: fn_create_df_segments_by_customer_table.R ... ✅
+   🔄 Loading: fn_initialize_app_database.R ... ✅
+   🔄 Loading: column_templates.R ... ✅
+   🔄 Loading: fn_apply_column_templates.R ... ✅
+   🔄 Loading: fn_generate_create_table_query.R ... ✅
+   🔄 Loading: list_column_templates.R ... ✅
+   🔄 Loading: sc_create_mock_duckdb.R ...DuckDB will be created at: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb
+
+======== MOCK DUCKDB CREATION UTILITY ========
+Creating database at: /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb 
+
+Tables being created:
+- customer_profile: Basic customer information
+- orders: Sample order data
+
+To use this database in your code:
+con <- DBI::dbConnect(duckdb::duckdb(), dbdir = " /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb ")
+
+Usage examples:
+1. Get customers: dbGetQuery(con, "SELECT * FROM customer_profile")
+2. Get orders: dbGetQuery(con, "SELECT * FROM orders")
+3. Join data: dbGetQuery(con, "SELECT c.name, o.amount FROM customer_profile c JOIN orders o ON c.id = o.customer_id")
+
+Remember to disconnect when done: dbDisconnect(con, shutdown = TRUE)
+=============================================
+Created tables in /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb: customer_profile, orders
+  id    name signup_date
+1  1   Alice  2021-01-01
+2  2     Bob  2021-06-15
+3  3 Charlie  2021-12-31
+Disconnected and shutdown /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb
+
+======== ADDITIONAL NOTES ========
+The mock database has been successfully created and populated.
+
+To extend this database in the future:
+1. Add more sample tables by creating additional data frames
+2. For larger datasets, consider using dbWriteTable with read.csv()
+3. Create relationships between tables with foreign keys
+
+For testing universal_data_accessor function:
+- This database can be used with the universal_data_accessor function
+- Example: universal_data_accessor(db_conn, "customer_profile")
+
+For backup/versioning:
+- Make a copy of the database file for version control
+- Example: file.copy(" /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb ", " /Users/che/Library/CloudStorage/Dropbox/che_workspace/projects/ai_martech/l4_enterprise/D_RACING/scripts/global_scripts/30_global_data/mock_data.duckdb .backup")
+================================
+ ✅
+   ✅ Completed directory: 01_db 
+
+📁 Loading directory: 05_etl_utils 
+   📋 Found 54 R files
+   🔄 Loading: fn_import_adapter_csv.R ... ✅
+   🔄 Loading: fn_import_adapter_excel.R ... ✅
+   🔄 Loading: fn_import_adapter_gsheets.R ... ✅
+   🔄 Loading: fn_import_competitor_products.R ... ✅
+   🔄 Loading: fn_import_product_profiles.R ... ✅
+   🔄 Loading: fn_cleanse_amazon_reviews_etl.R ... ✅
+   🔄 Loading: fn_stage_comment_properties.R ... ✅
+   🔄 Loading: fn_stage_competitor_products.R ... ✅
+   🔄 Loading: fn_stage_product_profiles.R ... ✅
+   🔄 Loading: fn_process_amz_reviews_etl.R ... ✅
+   🔄 Loading: fn_transform_comment_properties.R ... ✅
+   🔄 Loading: fn_transform_competitor_products.R ... ✅
+   🔄 Loading: fn_transform_product_profiles.R ... ✅
+   🔄 Loading: 1001g_generate_amazon_check_data.R ... ✅
+   🔄 Loading: 203g_process_amazon_review.R ... ✅
+   🔄 Loading: 204g_process_and_join_positions.R ... ✅
+   🔄 Loading: 205g_process_amazon_sales.R ... ✅
+   🔄 Loading: 211g_process_address_and_time_amazon_sales.R ... ✅
+   🔄 Loading: 212g_process_promotion_recoding_amazon.R ... ✅
+   🔄 Loading: 401g_update_amazon_poisson_precision_marketing_dummy.R ... ✅
+   🔄 Loading: 403g_patch_amazon_reviews.R ... ✅
+   🔄 Loading: core_import_df_amz_competitor_sales.R ... ✅
+   🔄 Loading: fn_import_comment_properties.R ... ✅
+   🔄 Loading: fn_import_comment_property_ratings.R ... ✅
+   🔄 Loading: import_amazon_sales.R ... ✅
+   🔄 Loading: 209g_process_zip.R ... ✅
+   🔄 Loading: 214g_process_and_save_all_products_states_and_times.R ... ✅
+   🔄 Loading: closest_position.R ... ✅
+   🔄 Loading: convert_chinese_chars_and_names.R ... ✅
+   🔄 Loading: convert_chinese_chars.R ... ✅
+   🔄 Loading: convert_list_columns.R ... ✅
+   🔄 Loading: convert_to_local_time.R ... ✅
+   🔄 Loading: convert_units_to_smallest.R ... ✅
+   🔄 Loading: Day_time_partition.R ... ✅
+   🔄 Loading: DNA_Function_data.table.R ... ✅
+   🔄 Loading: DNA_Function_dplyr.R ... ✅
+   🔄 Loading: fn_detect_data_types.R ... ✅
+   🔄 Loading: Holidays_Recode.R ... ✅
+   🔄 Loading: load_all_RDS.R ... ✅
+   🔄 Loading: load_selected_rds.R ... ✅
+   🔄 Loading: process_by_customer_time.R ... ✅
+   🔄 Loading: fn_read_csvxlsx.R ... ✅
+   🔄 Loading: revert_chinese_chars_and_names.R ... ✅
+   🔄 Loading: revert_chinese_chars.R ... ✅
+   🔄 Loading: save_customer_time_data.R ... ✅
+   🔄 Loading: save_list_elements.R ... ✅
+   🔄 Loading: StateNameTranformation.R ... ✅
+   🔄 Loading: fn_convert_all_columns_to_utf8.R ... ✅
+   🔄 Loading: fn_make_names.R ... ✅
+   🔄 Loading: Time_Recode.R ... ✅
+   🔄 Loading: 212g_process_address_and_time_officialwebsite_sales.R ... ✅
+   🔄 Loading: 213g_process_promotion_recoding_officialwebsite.R ... ✅
+   🔄 Loading: 300g_import_website_km_sales.R ... ✅
+   🔄 Loading: CopyOf211g_process_address_and_time_officialwebsite_sales.R ... ✅
+   ✅ Completed directory: 05_etl_utils 
+
+📁 Loading directory: 06_queries 
+   📋 Found 9 R files
+   🔄 Loading: 300g_query_product_property_comeptitors.R ... ✅
+   🔄 Loading: 301g_query_product_property_dictionary_km.R ... ✅
+   🔄 Loading: 302g_query_comment_property_rating.R ... ✅
+   🔄 Loading: 303g_query_comment_property_ratingonly_by_asin.R ... ✅
+   🔄 Loading: 304g_query_promotion_codebook.R ... ✅
+   🔄 Loading: 305g_query_find_nes_median.R ... ✅
+   🔄 Loading: 306g_query_sales_by_time_state.R ... ✅
+   🔄 Loading: 307g_query_sales_by_time_zip.R ... ✅
+   🔄 Loading: 308g_query_nes_trend.R ... ✅
+   ✅ Completed directory: 06_queries 
+
+⏭️  Skipping non-existent directory: 05_data_processing 
+📁 Loading directory: 07_models 
+   📋 Found 15 R files
+   🔄 Loading: choice_model_lik.R ... ✅
+   🔄 Loading: choice_model_optimization.R ... ✅
+   🔄 Loading: Design_gen.R ... ✅
+   🔄 Loading: Design_matrix_Generation_Poisson.R ... ✅
+   🔄 Loading: Design_matrix_Generation_Poisson2.R ... ✅
+   🔄 Loading: ladder.R ... ✅
+   🔄 Loading: Optimal Pricing.R ... ✅
+   🔄 Loading: Poisson_Regression_InsightForge.R ... ✅
+   🔄 Loading: Poisson_Regression.R ... ✅
+   🔄 Loading: SGD.R ... ✅
+   🔄 Loading: SGD2.R ... ✅
+   🔄 Loading: Sort_Optimal_Pricing_Forluma.R ...Sales ~ month_1 + 客戶服務 + month_5 + month_6 + month_7 + RatingNum + month_8 + month_9 + month_10 + year + Charging_type_4 + 星期二 + 星期一 + 星期三 + Revenue + 星期四 + 星期六 + is_pre7day_holiday + 材質_不鏽鋼 + Rating + 顏色_白 + AmazonReviewRating + 顏色_綠 + 顏色_海軍藍 + month_12 + 是否可開多種罐型_4.5 + 是否有保固 + logprice + 顏色_橘:logprice + month_1:logprice + month_2:logprice + month_4:logprice + month_5:logprice + month_6:logprice + month_7:logprice + 可靠性:logprice + month_8:logprice + month_9:logprice + month_10:logprice + month_11:logprice + month_12:logprice + year:logprice + 星期一:logprice + 星期二:logprice + 星期日:logprice + 星期三:logprice + 星期四:logprice + is_pre7day_holiday:logprice + 星期五:logprice + logprice2 + month_1:logprice2 + month_2:logprice2 + month_3:logprice2 + month_4:logprice2 + month_5:logprice2 + month_6:logprice2 + month_7:logprice2 + month_8:logprice2 + month_9:logprice2 + month_10:logprice2 + month_11:logprice2 + year:logprice2 + 星期日:logprice2 ✅
+   🔄 Loading: stepwise_selection2.R ... ✅
+   🔄 Loading: stepwise_selection3.R ... ✅
+   🔄 Loading: Stepwise.R ... ✅
+   ✅ Completed directory: 07_models 
+
+📁 Loading directory: 08_ai 
+   📋 Found 13 R files
+   🔄 Loading: 510g_setup_python.R ... ✅
+   🔄 Loading: 601g_ai_review_rating.R ... ✅
+   🔄 Loading: 603g_ai_review_ratings_estimate.R ... ✅
+   🔄 Loading: 701g_decode_ai_review_ratings.R ... ✅
+   🔄 Loading: fn_chat_api_stream.R ... ✅
+   🔄 Loading: fn_chat_api.R ... ✅
+   🔄 Loading: fn_decode_rating.R ... ✅
+   🔄 Loading: fn_load_openai_prompt.R ... ✅
+   🔄 Loading: fn_process_property_ratings.R ... ✅
+   🔄 Loading: fn_process_review_ratings.R ... ✅
+   🔄 Loading: fn_rate_comments.R ... ✅
+   🔄 Loading: fn_response_api.R ... ✅
+   🔄 Loading: fn_strip_code_fence.R ... ✅
+   ✅ Completed directory: 08_ai 
+
+📁 Loading directory: 09_python_scripts 
+   ℹ️  No R files found in 09_python_scripts 
+📁 Loading directory: 10_rshinyapp_components 
+   📋 Found 69 R files
+   🔄 Loading: common.R ... ✅
+   🔄 Loading: login_module.R ... ✅
+   🔄 Loading: module_login_supabase.R ... ✅
+   🔄 Loading: fn_create_kpi_box.R ... ✅
+   🔄 Loading: macro_overview.R ... ✅
+   🔄 Loading: macroNESTransition.R ... ✅
+   🔄 Loading: macroTrend.R ... ✅
+   🔄 Loading: server_macro_overview.R ... ✅
+   🔄 Loading: server_macro_trends.R ... ✅
+   🔄 Loading: ui_macro_overview.R ... ✅
+   🔄 Loading: ui_macro_trends.R ... ✅
+   🔄 Loading: campaign_analysis.R ... ✅
+   🔄 Loading: sales_analysis.R ... ✅
+   🔄 Loading: target_profiling.R ... ✅
+   🔄 Loading: microCustomer2.R ... ✅
+   🔄 Loading: microDNADistribution_backup_20251006.R ... ✅
+   🔄 Loading: microDNADistribution.R ... ✅
+   🔄 Loading: microMacroKPI.R ... ✅
+   🔄 Loading: microTransactionsDefaults.R ... ✅
+   🔄 Loading: microTransactionsServer.R ... ✅
+   🔄 Loading: microTransactionsUI.R ... ✅
+   🔄 Loading: passwordOnlyDefaults.R ... ✅
+   🔄 Loading: passwordOnlyServer.R ... ✅
+   🔄 Loading: passwordOnlyUI.R ... ✅
+   🔄 Loading: periodComparisonDefaults.R ... ✅
+   🔄 Loading: periodComparisonServer.R ... ✅
+   🔄 Loading: periodComparisonUI.R ... ✅
+   🔄 Loading: poissonCommentAnalysis.R ... ✅
+   🔄 Loading: poissonFeatureAnalysis.R ... ✅
+   🔄 Loading: poissonTimeAnalysis.R ... ✅
+   🔄 Loading: positionDNAPlotly.R ... ✅
+   🔄 Loading: positionIdealRate.R ... ✅
+   🔄 Loading: positionKFE.R ... ✅
+   🔄 Loading: positionMSPlotly.R ... ✅
+   🔄 Loading: positionStrategy.R ... ✅
+   🔄 Loading: positionTable.R ... ✅
+   🔄 Loading: implement_report_integration.R ... ✅
+   🔄 Loading: report_integration_addon.R ... ✅
+   🔄 Loading: reportIntegration_backup_20250928.R ... ✅
+   🔄 Loading: reportIntegration_improved.R ... ✅
+   🔄 Loading: reportIntegration.R ... ✅
+   🔄 Loading: sidebarCommonDefaults.R ... ✅
+   🔄 Loading: sidebarCommonFilters.R ... ✅
+   🔄 Loading: sidebarCommonServer.R ... ✅
+   🔄 Loading: sidebarCommonUI.R ... ✅
+   🔄 Loading: sidebarFactoryDefaults.R ... ✅
+   🔄 Loading: sidebarFactoryServer.R ... ✅
+   🔄 Loading: sidebarFactoryUI.R ... ✅
+   🔄 Loading: sidebarHybridDefaults.R ... ✅
+   🔄 Loading: sidebarHybridServer.R ... ✅
+   🔄 Loading: sidebarHybridUI.R ... ✅
+   🔄 Loading: sidebarMacroDefaults.R ... ✅
+   🔄 Loading: sidebarMacroServer.R ... ✅
+   🔄 Loading: sidebarMacroUI.R ... ✅
+   🔄 Loading: sidebarMainDefaults.R ... ✅
+   🔄 Loading: sidebarMainServer.R ... ✅
+   🔄 Loading: sidebarMainUI.R ... ✅
+   🔄 Loading: sidebarMicroDefaults.R ... ✅
+   🔄 Loading: sidebarMicroServer.R ... ✅
+   🔄 Loading: sidebarMicroUI.R ... ✅
+   🔄 Loading: sidebarTargetDefaults.R ... ✅
+   🔄 Loading: sidebarTargetServer.R ... ✅
+   🔄 Loading: sidebarTargetUI.R ... ✅
+   🔄 Loading: sidebarUnionDefaults.R ... ✅
+   🔄 Loading: sidebarUnionFilters.R ... ✅
+   🔄 Loading: sidebarUnionServer.R ... ✅
+   🔄 Loading: sidebarUnionUI.R ... ✅
+   🔄 Loading: server_target_segmentation.R ... ✅
+   🔄 Loading: ui_target_segmentation.R ... ✅
+   ✅ Completed directory: 10_rshinyapp_components 
+
+📁 Loading directory: 11_rshinyapp_utils 
+   📋 Found 32 R files
+   🔄 Loading: clean_column_names_remove_english.R ... ✅
+   🔄 Loading: CreateChoices.R ... ✅
+   🔄 Loading: fn_access_processing_data.R ... ✅
+   🔄 Loading: fn_build_app_from_config.R ... ✅
+   🔄 Loading: fn_check_data_access.R ... ✅
+   🔄 Loading: fn_get_data_for_table.R ... ✅
+   🔄 Loading: fn_get_position_complete_case.R ... ✅
+   🔄 Loading: fn_lazy_component.R ... ✅
+   🔄 Loading: fn_process_data_source.R ... ✅
+   🔄 Loading: fn_read_from_app_data.R ... ✅
+   🔄 Loading: fn_read_yaml_config.R ... ✅
+   🔄 Loading: fn_renderUI2.R ... ✅
+   🔄 Loading: fn_safe_value.R ... ✅
+   🔄 Loading: formattime.R ... ✅
+   🔄 Loading: clean_column_names_remove_english.R ... ✅
+   🔄 Loading: CreateChoices.R ... ✅
+   🔄 Loading: formattime.R ... ✅
+   🔄 Loading: getDynamicOptions.R ... ✅
+   🔄 Loading: process_sales_data.R ... ✅
+   🔄 Loading: Recode_time_TraceBack.R ... ✅
+   🔄 Loading: remove_elements.R ... ✅
+   🔄 Loading: safe_get.R ... ✅
+   🔄 Loading: getDynamicOptions.R ... ✅
+   🔄 Loading: helpers.R ... ✅
+   🔄 Loading: load_position_functions.R ...🔄 Loading Position Table Access Functions...
+✅ fn_get_position_complete_case already available
+✅ fn_get_position_demonstrate_case already available
+🎯 Position Table Access Functions ready for use!
+
+📋 Available functions:
+   • fn_get_position_complete_case() - for modules needing Ideal/Rating/Revenue rows
+   • fn_get_position_demonstrate_case() - for modules showing only market data
+
+🔍 Both functions support type filtering to show only '屬性' columns
+ ✅
+   🔄 Loading: module_login_password_only.R ... ✅
+   🔄 Loading: process_sales_data.R ... ✅
+   🔄 Loading: Recode_time_TraceBack.R ... ✅
+   🔄 Loading: remove_elements.R ... ✅
+   🔄 Loading: safe_get.R ... ✅
+   🔄 Loading: safe_type_operations.R ... ✅
+   🔄 Loading: module_supabase_auth.R ... ✅
+   ✅ Completed directory: 11_rshinyapp_utils 
+
+📁 Loading directory: 17_transform 
+   📋 Found 2 R files
+   🔄 Loading: fn_transform_sales_by_customer.by_date_to_sales_by_customer.R ... ✅
+   🔄 Loading: fn_transform_sales_to_sales_by_customer.by_date.R ... ✅
+   ✅ Completed directory: 17_transform 
+
+📊 Loading Summary:
+   ✅ Successfully loaded: 399 files
+   ❌ Failed to load: 0 files
+🎯 Global scripts loading completed!
+
+UPDATE_MODE initialization finished. Databases available: app_data, raw_data, staged_data, transformed_data, processed_data, cleansed_data, meta_data, comment_property_rating, comment_property_rating_temp, comment_property_rating_results
+
+Error in eval(ei, envir) : 
+  VALIDATE FAILED: sku_mapping requires source_type='excel', got ''
+Calls: source -> withVisible -> eval -> eval
+In addition: There were 50 or more warnings (use warnings() to see the first 50)
+Execution halted
+✖ amz_ETL_sku_mapping_0IM errored
+✖ errored pipeline [5.6s, 0 completed, 0 skipped]
+Error:
+! Error in tar_make():
+  ETL failed (amz_ETL_sku_mapping_0IM.R)
+  See https://books.ropensci.org/targets/debugging.html
+Execution halted

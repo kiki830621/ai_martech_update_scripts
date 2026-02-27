@@ -27,14 +27,18 @@ LAYER ?= both
 R := Rscript
 
 # Directories (Per SO_P016: Config at project root, scripts in subrepo)
+# NOTE: Use $(shell cd ... && pwd) to resolve absolute paths without '..'
+# components. This is critical when update_scripts is a symlink, because
+# file-system operations resolve symlinks before applying '..', which
+# would navigate to the wrong parent directory.
 PIPELINE_DIR := $(shell pwd)
-PROJECT_ROOT := $(PIPELINE_DIR)/../..
-GLOBAL_SCRIPTS := $(PIPELINE_DIR)/../global_scripts
+PROJECT_ROOT := $(shell cd "$(PIPELINE_DIR)/../.." && pwd)
+GLOBAL_SCRIPTS := $(shell cd "$(PIPELINE_DIR)/../global_scripts" && pwd)
 CONFIG_PATH := $(PROJECT_ROOT)/_targets_config.yaml
 BASE_TEMPLATE := $(GLOBAL_SCRIPTS)/21_rshinyapp_templates/config/_targets_config.base.yaml
 APP_CONFIG := $(PROJECT_ROOT)/app_config.yaml
 LOGS_DIR := $(PIPELINE_DIR)/logs
-STORE_DIR := $(PIPELINE_DIR)/_targets
+STORE_DIR := $(PROJECT_ROOT)/_targets
 
 # Timestamp for logs
 TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
@@ -91,10 +95,11 @@ run:
 	@echo "Started: $$(date)"
 	@echo "═══════════════════════════════════════════════════════════════════"
 	@mkdir -p $(LOGS_DIR)
+	MAMBA_PROJECT_ROOT=$(PROJECT_ROOT) \
 	MAMBA_PLATFORM=$(PLATFORM) \
 	MAMBA_LAYER=$(LAYER) \
 	MAMBA_TARGET=$(TARGET) \
-	$(R) -e "targets::tar_make()" 2>&1 | tee $(LOGS_DIR)/run_$(TIMESTAMP).log
+	$(R) -e "targets::tar_make(store = '$(STORE_DIR)')" 2>&1 | tee $(LOGS_DIR)/run_$(TIMESTAMP).log
 	@echo ""
 	@echo "═══════════════════════════════════════════════════════════════════"
 	@echo "Completed: $$(date)"
@@ -105,10 +110,11 @@ run-dry:
 	@echo "Dry run - showing what would execute:"
 	@echo "Platform: $(PLATFORM) | Layer: $(LAYER) | Target: $(TARGET)"
 	@echo ""
+	MAMBA_PROJECT_ROOT=$(PROJECT_ROOT) \
 	MAMBA_PLATFORM=$(PLATFORM) \
 	MAMBA_LAYER=$(LAYER) \
 	MAMBA_TARGET=$(TARGET) \
-	$(R) -e "targets::tar_manifest()" | head -50
+	$(R) -e "targets::tar_manifest(store = '$(STORE_DIR)')" | head -50
 
 # Platform shortcuts
 run-cbz:
@@ -137,11 +143,11 @@ run-drv:
 status:
 	@echo "Pipeline Status"
 	@echo "==============="
-	@$(R) -e "targets::tar_progress()" 2>/dev/null || echo "No pipeline state found. Run 'make run' first."
+	@$(R) -e "targets::tar_progress(store = '$(STORE_DIR)')" 2>/dev/null || echo "No pipeline state found. Run 'make run' first."
 
 vis:
 	@echo "Opening dependency visualization..."
-	@$(R) -e "targets::tar_visnetwork()" 2>/dev/null || echo "No pipeline state found. Run 'make run' first."
+	@$(R) -e "targets::tar_visnetwork(store = '$(STORE_DIR)')" 2>/dev/null || echo "No pipeline state found. Run 'make run' first."
 
 logs:
 	@echo "Recent log files:"
@@ -200,7 +206,7 @@ config-validate:
 
 clean:
 	@echo "Destroying pipeline cache..."
-	@$(R) -e "targets::tar_destroy()" 2>/dev/null || true
+	@$(R) -e "targets::tar_destroy(store = '$(STORE_DIR)')" 2>/dev/null || true
 	@rm -rf $(STORE_DIR)
 	@echo "Cache destroyed. Next 'make run' will rebuild from scratch."
 

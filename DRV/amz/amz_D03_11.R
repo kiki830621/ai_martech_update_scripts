@@ -1,8 +1,8 @@
 #####
-# CONSUMES: none
-# PRODUCES: none
+# CONSUMES: df_comment_property_ratingonly_*, df_amz_competitor_sales
+# PRODUCES: position tables in app_data
 # DEPENDS_ON_ETL: none
-# DEPENDS_ON_DRV: none
+# DEPENDS_ON_DRV: amz_D03_10
 #####
 
 
@@ -12,6 +12,8 @@
 #' @platform amz
 #' @author MAMBA Development Team
 #' @date 2025-12-30
+#' @logical_step_id D03_11
+#' @logical_step_status implemented
 
 # amz_D03_11.R - Create Position Table for Amazon
 # D03_11: Combines all processed data into the final position table
@@ -39,6 +41,7 @@ message("Starting D03_11 (Create Position Table) for Amazon product lines")
 message("\n== PHASE 1: Processing individual product lines ==")
 
 success_count <- 0
+failed_lines <- character()
 for (product_line_id_i in vec_product_line_id_noall) {
   success <- process_position_table(
     product_line_id = product_line_id_i,
@@ -50,7 +53,20 @@ for (product_line_id_i in vec_product_line_id_noall) {
   
   if (success) {
     success_count <- success_count + 1
+  } else {
+    failed_lines <- c(failed_lines, product_line_id_i)
   }
+}
+
+if (length(failed_lines) > 0) {
+  stop(
+    "D03_05 failed: per-product-line processing failed for: ",
+    paste(failed_lines, collapse = ", ")
+  )
+}
+
+if (success_count == 0L) {
+  stop("D03_05 failed: no product line was successfully processed.")
 }
 
 # Phase 2: Merge all product line data
@@ -62,16 +78,30 @@ merge_success <- merge_position_tables(
 
 # Phase 3: Finalize the position table
 if (merge_success) {
-  finalize_success <- finalize_position_table(
-    app_data = app_data,
-    coalesce_suffix_cols = coalesce_suffix_cols
-  )
+  finalize_position_args <- list(app_data = app_data)
+  finalize_fn_formals <- names(formals(finalize_position_table))
+  if ("coalesce_suffix_cols" %in% finalize_fn_formals) {
+    finalize_position_args$coalesce_suffix_cols <- coalesce_suffix_cols
+  }
+  finalize_success <- do.call(finalize_position_table, finalize_position_args)
   
   # Verify the final position table
   verify_position_table(app_data)
   
   # Clean up temporary tables
   cleanup_temp_position_tables(app_data)
+}
+
+if (!isTRUE(merge_success)) {
+  stop("D03_05 failed: merge_position_tables() returned FALSE.")
+}
+
+if (!isTRUE(exists("finalize_success") && finalize_success)) {
+  stop("D03_05 failed: finalize_position_table() returned FALSE.")
+}
+
+if (!DBI::dbExistsTable(app_data, "df_position")) {
+  stop("D03_05 failed: final table app_data.df_position was not created.")
 }
 
 # Report overall results

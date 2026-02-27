@@ -1,11 +1,11 @@
 #####
-# CONSUMES: df_product_asin, df_product_profile, df_product_profile_, df_product_profile_dictionary
+# CONSUMES: df_product_profile_* (per product_line_id)
 # PRODUCES: df_product_profile_dictionary
 # DEPENDS_ON_ETL: none
 # DEPENDS_ON_DRV: none
 #####
 
-#' @file amz_S03_00.R
+#' @file amz_D03_00.R
 #' @requires DBI
 #' @requires dplyr
 #' @requires purrr
@@ -22,6 +22,8 @@
 #' @description Creates a unified table that maps ASINs to their respective product_line_id_filter
 #'              by combining data from multiple product profile tables
 #' @business_rules Creates a unified table that maps ASINs to their respective product_line_id_filter.
+#' @logical_step_id D03_00
+#' @logical_step_status implemented
 
 # 1. INITIALIZE
 tbl2_candidates <- c(
@@ -135,19 +137,19 @@ tryCatch({
 if (!error_occurred) {
   tryCatch({
     # Verify mapping table exists and has data
-    if (!dbExistsTable(processed_data, "df_product_asin")) {
-      message("Verification failed: Table df_product_asin does not exist")
+    if (!dbExistsTable(processed_data, "df_product_profile_dictionary")) {
+      message("Verification failed: Table df_product_profile_dictionary does not exist")
       test_passed <- FALSE
     } else {
       # Check record count
-      mapping_count <- tbl2(processed_data, "df_product_asin") %>% count() %>% pull()
-      
+      mapping_count <- tbl2(processed_data, "df_product_profile_dictionary") %>% count() %>% pull()
+
       if (mapping_count > 0) {
-        message("Verification successful: ", mapping_count, " ASIN to product_line_id_filter mappings created")
+        message("Verification successful: ", mapping_count, " ASIN to product_line_id mappings created")
         
         # Check distribution by product line
-        product_line_counts <- tbl2(processed_data, "df_product_asin") %>%
-          group_by(product_line_id_filter) %>%
+        product_line_counts <- tbl2(processed_data, "df_product_profile_dictionary") %>%
+          group_by(product_line_id) %>%
           summarize(count = n()) %>%
           collect()
         
@@ -156,8 +158,8 @@ if (!error_occurred) {
         
         # Show sample entries
         message("Sample entries:")
-        sample_data <- tbl2(processed_data, "df_product_asin") %>%
-          group_by(product_line_id_filter) %>%
+        sample_data <- tbl2(processed_data, "df_product_profile_dictionary") %>%
+          group_by(product_line_id) %>%
           slice_head(n = 2) %>%
           ungroup() %>%
           collect()

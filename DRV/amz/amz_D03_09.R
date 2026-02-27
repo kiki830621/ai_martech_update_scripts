@@ -1,8 +1,8 @@
 #####
-# CONSUMES: df_comment_property_ratingonly_
-# PRODUCES: none
+# CONSUMES: df_comment_property_ratingonly_*
+# PRODUCES: df_comment_property_ratingonly_*
 # DEPENDS_ON_ETL: none
-# DEPENDS_ON_DRV: none
+# DEPENDS_ON_DRV: amz_D03_08
 #####
 
 
@@ -12,9 +12,12 @@
 #' @platform amz
 #' @author MAMBA Development Team
 #' @date 2025-12-30
+#' @logical_step_id D03_03
+#' @logical_step_status reassigned
+#' @legacy_step_id D03_09
 
-# amz_D03_03.R - Process Reviews for Amazon
-# D03_03: Process and aggregate review ratings
+# amz_D03_09.R - Process Reviews for Amazon
+# D03_09: Process and aggregate review ratings
 #
 # Following principles:
 # - MP47: Functional Programming

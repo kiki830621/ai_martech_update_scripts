@@ -1,8 +1,8 @@
 #####
 # CONSUMES: df_comment_property_rating_
-# PRODUCES: none
+# PRODUCES: df_comment_property_rating_*___append_long
 # DEPENDS_ON_ETL: none
-# DEPENDS_ON_DRV: none
+# DEPENDS_ON_DRV: amz_D03_00
 #####
 
 
@@ -12,9 +12,12 @@
 #' @platform amz
 #' @author MAMBA Development Team
 #' @date 2025-12-30
+#' @logical_step_id D03_02
+#' @logical_step_status reassigned
+#' @legacy_step_id D03_06
 
-# amz_D03_02.R - Rate Reviews for Amazon
-# D03_02: Analyze review text to extract sentiment by property
+# amz_D03_06.R - Rate Reviews for Amazon
+# D03_06: Analyze review text to extract sentiment by property
 #
 # This script processes long-format review data from comment_property_rating 
 # database, uses AI to rate reviews against properties, and stores results

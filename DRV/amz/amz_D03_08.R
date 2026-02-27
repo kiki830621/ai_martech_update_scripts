@@ -1,8 +1,8 @@
 #####
 # CONSUMES: df_all_comment_property___transformed, df_amz_review___transformed, df_comment_property___filtered, df_comment_property_rating_, df_review___all, df_review___long, df_review___new_columns, df_review___sampled, df_review___selected, transformed_data.df_all_comment_property___transformed, transformed_data.df_amz_review___transformed
-# PRODUCES: none
-# DEPENDS_ON_ETL: all_ETL_comment_property_2TR, amz_ETL_review_2TR
-# DEPENDS_ON_DRV: none
+# PRODUCES: df_comment_property_rating_*___raw, df_comment_property_rating_*___sampled, df_comment_property_rating_*___sampled_long
+# DEPENDS_ON_ETL: amz_ETL_comment_properties_2TR, amz_ETL_reviews_2TR
+# DEPENDS_ON_DRV: amz_D03_07
 #####
 
 
@@ -12,9 +12,12 @@
 #' @platform amz
 #' @author MAMBA Development Team
 #' @date 2025-12-30
+#' @logical_step_id D03_01
+#' @logical_step_status reassigned
+#' @legacy_step_id D03_08
 
-# amz_D03_01.R - Comment Property Rating Analysis
-# D03_01: Comment Property Rating Analysis (repositioned from legacy D03_06)
+# amz_D03_08.R - Comment Property Rating Analysis
+# D03_08: Comment Property Rating Analysis (repositioned from D03_01)
 #
 # This script creates property rating tables and performs wide-to-long transformation
 # for comment property analysis. It reads from transformed_data and stores the long 
@@ -60,19 +63,80 @@ dbAttachDuckdb(
   read_only = TRUE
 )
 
-# Verify mounted database access
+# Prefer mounted access first, with automatic fallback to direct DB connection
+transformed_fallback_conn <- NULL
+transformed_read_error <- NULL
+read_from_mounted <- TRUE
+
+quote_in_clause <- function(values, con) {
+  values <- vapply(values, as.character, character(1))
+  quoted <- vapply(values, function(v) as.character(DBI::dbQuoteString(con, v)), character(1))
+  paste0("(", paste(quoted, collapse = ", "), ")")
+}
+
+read_transformed_table <- function(product_line_id_i, table_name, select_fields = "*", extra_where = NULL) {
+  product_filter <- paste0(
+    "product_line_id = ",
+    as.character(DBI::dbQuoteString(comment_property_rating, product_line_id_i))
+  )
+  where_clause <- product_filter
+  if (!is.null(extra_where)) {
+    where_clause <- paste(where_clause, "AND", extra_where)
+  }
+  
+  query <- function(with_mount = TRUE) {
+    table_ref <- if (with_mount) {
+      sprintf('"transformed_data"."%s"', table_name)
+    } else {
+      sprintf('"%s"', table_name)
+    }
+    sprintf(
+      "SELECT %s FROM %s WHERE %s",
+      select_fields,
+      table_ref,
+      where_clause
+    )
+  }
+  
+  if (!read_from_mounted) {
+    if (is.null(transformed_fallback_conn) || !DBI::dbIsValid(transformed_fallback_conn)) {
+      transformed_fallback_conn <<- dbConnectDuckdb(db_path_list$transformed_data, read_only = TRUE)
+    }
+    DBI::dbGetQuery(transformed_fallback_conn, query(FALSE))
+  } else {
+    tryCatch(
+      {
+        DBI::dbGetQuery(comment_property_rating, query(TRUE))
+      },
+      error = function(e) {
+        message("Mounted transformed_data read failed for ", table_name, ": ", e$message)
+        message("Falling back to direct transformed_data connection for this and subsequent reads")
+        read_from_mounted <<- FALSE
+        transformed_fallback_conn <<- dbConnectDuckdb(db_path_list$transformed_data, read_only = TRUE)
+        DBI::dbGetQuery(transformed_fallback_conn, query(FALSE))
+      }
+    )
+  }
+}
+
+# Verify mounted database access and warm up fallback logic
 tryCatch({
-  # Test if we can access the mounted tables
-  test_query1 <- "SELECT COUNT(*) FROM transformed_data.df_amz_review___transformed"
+  test_query1 <- "SELECT COUNT(*) AS n FROM transformed_data.df_amz_review___transformed LIMIT 1"
   test_result1 <- sql_read(comment_property_rating, test_query1)
   
-  test_query2 <- "SELECT COUNT(*) FROM transformed_data.df_all_comment_property___transformed"
+  test_query2 <- "SELECT COUNT(*) AS n FROM transformed_data.df_all_comment_property___transformed LIMIT 1"
   test_result2 <- sql_read(comment_property_rating, test_query2)
   
   message("Successfully mounted transformed_data database")
   message("Found ", test_result1[[1]], " reviews and ", test_result2[[1]], " properties")
 }, error = function(e) {
-  stop("Cannot access mounted tables from transformed_data: ", e$message)
+  transformed_read_error <<- e$message
+  message("Mounted transformed_data validation failed: ", transformed_read_error)
+  message("Will fallback to direct transformed_data connection during reads.")
+  read_from_mounted <<- FALSE
+  if (is.null(transformed_fallback_conn)) {
+    transformed_fallback_conn <<- dbConnectDuckdb(db_path_list$transformed_data, read_only = TRUE)
+  }
 })
 
 # Execute the comment property ratings analysis with wide-to-long transformation
@@ -88,9 +152,10 @@ for (product_line_id_i in vec_product_line_id_noall) {
   # Read ALL review data from mounted transformed_data using tbl2
   # Note: ETL reviews (amz_ETL_reviews) has standardized field names: review_title, review_body
   # Include ALL products (both competitor and non-competitor) for raw data
-  df_review___all <- tbl2(comment_property_rating, "transformed_data.df_amz_review___transformed") %>% 
-    filter(product_line_id == product_line_id_i) %>% 
-    collect()
+  df_review___all <- read_transformed_table(
+    product_line_id_i = product_line_id_i,
+    table_name = "df_amz_review___transformed"
+  )
   
   message("Loaded ", nrow(df_review___all), " reviews from transformed_data (all products)")
 
@@ -101,10 +166,11 @@ for (product_line_id_i in vec_product_line_id_noall) {
   }
 
   # Read property definitions from mounted transformed_data using tbl2
-  df_comment_property___filtered <- tbl2(comment_property_rating, "transformed_data.df_all_comment_property___transformed") %>%
-    filter(product_line_id == product_line_id_i) %>%
-    filter(type %in% !!type_filter) %>%
-    collect()
+  df_comment_property___filtered <- read_transformed_table(
+    product_line_id_i = product_line_id_i,
+    table_name = "df_all_comment_property___transformed",
+    extra_where = paste0("type IN ", quote_in_clause(type_filter, comment_property_rating))
+  )
 
   message("Loaded ", nrow(df_comment_property___filtered), " properties from transformed_data")
 
@@ -236,6 +302,9 @@ for (product_line_id_i in vec_product_line_id_noall) {
 }
 
 # Clean up and disconnect
+if (!is.null(transformed_fallback_conn) && DBI::dbIsValid(transformed_fallback_conn)) {
+  dbDisconnect(transformed_fallback_conn)
+}
 autodeinit()
 
 # Log completion
