@@ -7,7 +7,7 @@
 # Following MP103: Proper autodeinit() usage as absolute last statement
 #
 # ETL Keys Phase 0IM (Import): Read KEYS.xlsx product mapping into raw_data.duckdb
-# Input: rawdata_QEF_DESIGN/KEYS.xlsx
+# Input: RAW_DATA_DIR/KEYS.xlsx
 #   Columns: ProductLine, 產品名稱, 網址, ASIN, SKU, 成本, 利潤
 # Output: raw_data.duckdb → df_amz_product_keys
 # ==============================================================================
@@ -81,7 +81,7 @@ tryCatch({
     stop(sprintf("VALIDATE FAILED: keys requires source_type='excel', got '%s'", source_type))
   }
 
-  rawdata_root <- file.path(APP_DIR, "data", "local_data", "rawdata_QEF_DESIGN")
+  rawdata_root <- RAW_DATA_DIR %||% file.path(APP_DIR, "data", "local_data", "rawdata_QEF_DESIGN")
   rawdata_rel_path <- as.character(etl_profile$rawdata_path %||% "")
   if (!nzchar(rawdata_rel_path)) {
     stop("VALIDATE FAILED: keys profile missing rawdata_path")

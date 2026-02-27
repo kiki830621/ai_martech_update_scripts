@@ -8,7 +8,7 @@
 # Following MP099: Real-Time Progress Reporting
 #
 # ETL Sales Phase 0IM (Import): Read raw data into raw_data.duckdb
-# Input: rawdata_QEF_DESIGN/amazon_sales/ (monthly xlsx files)
+# Input: RAW_DATA_DIR/amazon_sales/ (monthly xlsx files)
 # Output: raw_data.duckdb → df_amazon_sales
 # ==============================================================================
 
@@ -84,7 +84,7 @@ tryCatch({
     stop(sprintf("VALIDATE FAILED: Unsupported source_type for sales: %s", source_type))
   }
 
-  rawdata_root <- file.path(APP_DIR, "data", "local_data", "rawdata_QEF_DESIGN")
+  rawdata_root <- RAW_DATA_DIR %||% file.path(APP_DIR, "data", "local_data", "rawdata_QEF_DESIGN")
   rawdata_pattern <- as.character(etl_profile$rawdata_pattern %||% "")
   if (!nzchar(rawdata_pattern)) {
     stop("VALIDATE FAILED: sales profile missing rawdata_pattern")
