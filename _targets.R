@@ -202,10 +202,22 @@ build_targets <- function() {
 
   if (nzchar(target_script)) {
     start <- script_to_target_name(target_script)
-    if (!start %in% names(defs)) {
-      stop(sprintf("Requested target '%s' not found in configuration", target_script))
+    if (start %in% names(defs)) {
+      # Exact match: single target
+      start_set <- start
+    } else {
+      # Prefix match: e.g. "amz_D01" matches all "amz_D01_*" targets
+      prefix_pattern <- paste0("^", start, "_")
+      prefix_matches <- grep(prefix_pattern, names(defs), value = TRUE)
+      if (length(prefix_matches) > 0) {
+        message(sprintf("[Pipeline] TARGET=%s expanded to %d targets: %s",
+                        target_script, length(prefix_matches),
+                        paste(prefix_matches, collapse = ", ")))
+        start_set <- prefix_matches
+      } else {
+        stop(sprintf("Requested target '%s' not found (exact or prefix) in configuration", target_script))
+      }
     }
-    start_set <- start
   } else {
     if (run_layer == "etl") {
       start_set <- names(defs)[vapply(defs, function(x) x$type == "etl", logical(1))]
