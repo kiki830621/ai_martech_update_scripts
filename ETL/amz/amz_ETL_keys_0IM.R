@@ -1,4 +1,4 @@
-# amz_ETL_keys_0IM.R - Import KEYS.xlsx Product Mapping
+# amz_ETL_keys_0IM.R - Import Product Key Mapping (Excel or Google Sheets)
 # ==============================================================================
 # Following MP064: ETL-Derivation Separation Principle
 # Following DM_R028: ETL Data Type Separation Rule
@@ -6,9 +6,8 @@
 # Following DEV_R032: Five-Part Script Structure Standard
 # Following MP103: Proper autodeinit() usage as absolute last statement
 #
-# ETL Keys Phase 0IM (Import): Read KEYS.xlsx product mapping into raw_data.duckdb
-# Input: RAW_DATA_DIR/KEYS.xlsx
-#   Columns: ProductLine, 產品名稱, 網址, ASIN, SKU, 成本, 利潤
+# ETL Keys Phase 0IM (Import): Read product mapping into raw_data.duckdb
+# Supports: source_type="excel" (KEYS.xlsx) or "gsheets" (Google Sheets)
 # Output: raw_data.duckdb → df_amz_product_keys
 # ==============================================================================
 
@@ -32,10 +31,10 @@ test_passed <- FALSE
 main_error <- NULL
 script_start_time <- Sys.time()
 script_name <- "amz_ETL_keys_0IM"
-script_version <- "1.0.0"
+script_version <- "2.0.0"  # v2: Added gsheets support + product line name mapping
 
 message(strrep("=", 80))
-message("INITIALIZE: Starting KEYS.xlsx Product Mapping Import (0IM Phase)")
+message("INITIALIZE: Starting Product Key Mapping Import (0IM Phase)")
 message(sprintf("INITIALIZE: Start time: %s", format(script_start_time, "%Y-%m-%d %H:%M:%S")))
 message(sprintf("INITIALIZE: Script: %s v%s", script_name, script_version))
 message(strrep("=", 80))
@@ -43,6 +42,11 @@ message(strrep("=", 80))
 if (!exists("autoinit", mode = "function")) {
   source(file.path("scripts", "global_scripts", "22_initializations", "sc_Rprofile.R"))
 }
+
+# Enable Google API unconditionally (same pattern as competitor_ids_0IM.R)
+# Overhead is negligible even if source_type turns out to be "excel"
+needgoogledrive <- TRUE
+
 OPERATION_MODE <- "UPDATE_MODE"
 autoinit()
 
@@ -72,59 +76,79 @@ message(sprintf("INITIALIZE: Initialization completed (%.2fs)", init_elapsed))
 # 2. MAIN
 # ==============================================================================
 
-message("MAIN: Starting KEYS.xlsx import...")
+message("MAIN: Starting product key mapping import...")
 main_start_time <- Sys.time()
 
 tryCatch({
   source_type <- tolower(as.character(etl_profile$source_type %||% ""))
-  if (source_type != "excel") {
-    stop(sprintf("VALIDATE FAILED: keys requires source_type='excel', got '%s'", source_type))
+
+  # ---- Step 1: Read data (dual path: gsheets or excel) ----
+  if (source_type == "gsheets") {
+    # Google Sheets path (following amz_ETL_competitor_ids_0IM.R pattern)
+    sheet_id <- as.character(etl_profile$sheet_id %||% "")
+    sheet_name <- as.character(etl_profile$sheet_name %||% "")
+    if (!nzchar(sheet_id)) stop("VALIDATE FAILED: keys profile missing sheet_id")
+    if (!nzchar(sheet_name)) stop("VALIDATE FAILED: keys profile missing sheet_name")
+
+    gs_id <- googlesheets4::as_sheets_id(sheet_id)
+    message(sprintf("MAIN: Step 1/3 - Reading Google Sheet '%s'...", sheet_name))
+    df_keys <- as.data.table(googlesheets4::read_sheet(gs_id, sheet = sheet_name, col_types = "c"))
+
+  } else if (source_type == "excel") {
+    # Excel path (original logic)
+    rawdata_root <- RAW_DATA_DIR %||% file.path(APP_DIR, "data", "local_data", paste0("rawdata_", COMPANY_CODE))
+    rawdata_rel_path <- as.character(etl_profile$rawdata_path %||% "")
+    if (!nzchar(rawdata_rel_path)) stop("VALIDATE FAILED: keys profile missing rawdata_path")
+    keys_path <- file.path(rawdata_root, rawdata_rel_path)
+    if (!file.exists(keys_path)) stop(sprintf("VALIDATE FAILED: rawdata_path not found '%s'", rawdata_rel_path))
+    message(sprintf("MAIN: Step 1/3 - Reading %s...", keys_path))
+    df_keys <- as.data.table(read_excel(keys_path))
+
+  } else {
+    stop(sprintf("VALIDATE FAILED: keys requires source_type 'excel' or 'gsheets', got '%s'", source_type))
   }
 
-  rawdata_root <- RAW_DATA_DIR %||% file.path(APP_DIR, "data", "local_data", "rawdata_QEF_DESIGN")
-  rawdata_rel_path <- as.character(etl_profile$rawdata_path %||% "")
-  if (!nzchar(rawdata_rel_path)) {
-    stop("VALIDATE FAILED: keys profile missing rawdata_path")
-  }
-
-  # Define path to KEYS.xlsx from config
-  keys_path <- file.path(rawdata_root, rawdata_rel_path)
-
-  if (!file.exists(keys_path)) {
-    stop(sprintf("VALIDATE FAILED: rawdata_path not found '%s'", rawdata_rel_path))
-  }
-  message(sprintf("VALIDATE: Found declared rawdata_path '%s'", rawdata_rel_path))
-
-  # Read KEYS.xlsx
-  message(sprintf("MAIN: Step 1/3 - Reading %s...", keys_path))
-  df_keys <- as.data.table(read_excel(keys_path))
   n_rows <- nrow(df_keys)
   message(sprintf("MAIN: Read %d rows with columns: %s",
                   n_rows, paste(names(df_keys), collapse = ", ")))
 
   if (n_rows == 0) {
-    stop("KEYS.xlsx is empty")
+    stop("Keys data source is empty")
   }
 
-  # Step 2: Standardize column names to snake_case
+  # ---- Step 2: Standardize column names to snake_case ----
   message("MAIN: Step 2/3 - Standardizing columns...")
 
-  # Rename Chinese/mixed columns to English snake_case
-  # Original: ProductLine, 產品名稱, 網址, ASIN, SKU, 成本, 利潤
+  # Expanded col_mapping for both Excel (Chinese) and Google Sheets (English) formats
   col_mapping <- c(
-    "ProductLine" = "product_line_id",
+    # Excel Chinese format
+    "ProductLine"  = "product_line_id",
     "\u7522\u54c1\u540d\u7a31" = "product_name",      # 產品名稱
     "\u7db2\u5740" = "url",                              # 網址
     "ASIN" = "asin",
     "SKU" = "sku",
     "\u6210\u672c" = "cost",                             # 成本
-    "\u5229\u6f64" = "profit"                            # 利潤
+    "\u5229\u6f64" = "profit",                           # 利潤
+    # Google Sheets English format variants
+    "Product Line" = "product_line_id",
+    "product_line" = "product_line_id",
+    "Name" = "product_name",
+    "product_name" = "product_name",
+    "AMZ ASIN" = "asin",
+    "amz_asin" = "asin",
+    "URL" = "url",
+    "url" = "url",
+    "Cost" = "cost",
+    "Profit" = "profit"
   )
 
   for (old_name in names(col_mapping)) {
     if (old_name %in% names(df_keys)) {
-      setnames(df_keys, old_name, col_mapping[[old_name]])
-      message(sprintf("    Renamed: %s -> %s", old_name, col_mapping[[old_name]]))
+      target <- col_mapping[[old_name]]
+      if (!target %in% names(df_keys)) {
+        setnames(df_keys, old_name, target)
+        message(sprintf("    Renamed: %s -> %s", old_name, target))
+      }
     }
   }
 
@@ -140,6 +164,38 @@ tryCatch({
   char_cols <- names(df_keys)[vapply(df_keys, is.character, logical(1))]
   for (col in char_cols) {
     set(df_keys, j = col, value = trimws(df_keys[[col]]))
+  }
+
+  # ---- Map product line names to IDs if needed ----
+  if ("product_line_id" %in% names(df_keys)) {
+    pl_csv_path <- file.path(APP_DIR, "data", "app_data", "parameters", "scd_type1", "df_product_line.csv")
+    if (file.exists(pl_csv_path)) {
+      df_pl <- fread(pl_csv_path)
+      known_ids <- df_pl$product_line_id
+      # Build name → id mappings (English + Chinese)
+      name_to_id_en <- setNames(df_pl$product_line_id, df_pl$product_line_name_english)
+      name_to_id_zh <- setNames(df_pl$product_line_id, df_pl$product_line_name_chinese)
+
+      needs_mapping <- !df_keys$product_line_id %in% known_ids & !is.na(df_keys$product_line_id)
+      if (any(needs_mapping)) {
+        vals <- df_keys$product_line_id[needs_mapping]
+        mapped_en <- name_to_id_en[vals]
+        mapped_zh <- name_to_id_zh[vals]
+        df_keys$product_line_id[needs_mapping] <- ifelse(!is.na(mapped_en), mapped_en, mapped_zh)
+        n_mapped <- sum(!is.na(mapped_en) | !is.na(mapped_zh))
+        n_unmapped <- sum(needs_mapping) - n_mapped
+        message(sprintf("MAIN: Mapped %d product line names to IDs (of %d needing mapping)",
+                        n_mapped, sum(needs_mapping)))
+        # Warn about values that could not be mapped (#340)
+        if (n_unmapped > 0) {
+          unmapped_vals <- unique(vals[is.na(mapped_en) & is.na(mapped_zh)])
+          warning(sprintf("MAIN: %d product_line_id values could not be mapped: %s",
+                          n_unmapped, paste(unmapped_vals, collapse = ", ")))
+        }
+      }
+    } else {
+      message("MAIN WARNING: df_product_line.csv not found, skipping name-to-ID mapping")
+    }
   }
 
   # Add platform_id
