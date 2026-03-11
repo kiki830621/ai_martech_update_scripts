@@ -47,7 +47,7 @@ TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
 # MAIN TARGETS
 # =============================================================================
 
-.PHONY: help run run-dry status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs
+.PHONY: help run run-dry status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs e2e e2e-filter
 
 help:
 	@echo "MAMBA Pipeline Orchestration"
@@ -268,3 +268,25 @@ unschedule:
 schedule-status:
 	@echo "Checking schedule status..."
 	@launchctl list | grep $(PLIST_NAME) && echo "✓ Scheduled" || echo "✗ Not scheduled"
+
+# =============================================================================
+# E2E TESTING (TD_R007)
+# =============================================================================
+
+e2e:
+	@if [ ! -d "$(PROJECT_ROOT)/scripts/global_scripts/98_test/e2e" ]; then \
+		echo "✗ E2E test directory not found at $(PROJECT_ROOT)/scripts/global_scripts/98_test/e2e"; \
+		echo "  Run from a company project: cd D_RACING/scripts/update_scripts && make e2e"; \
+		exit 1; \
+	fi
+	@echo "Running E2E tests from $(PROJECT_ROOT)..."
+	@cd $(PROJECT_ROOT) && $(R) -e "testthat::test_dir('scripts/global_scripts/98_test/e2e')"
+
+e2e-filter:
+	@if [ ! -d "$(PROJECT_ROOT)/scripts/global_scripts/98_test/e2e" ]; then \
+		echo "✗ E2E test directory not found at $(PROJECT_ROOT)/scripts/global_scripts/98_test/e2e"; \
+		echo "  Run from a company project: cd D_RACING/scripts/update_scripts && make e2e"; \
+		exit 1; \
+	fi
+	@echo "Running E2E tests matching filter='$(FILTER)'..."
+	@cd $(PROJECT_ROOT) && $(R) -e "testthat::test_dir('scripts/global_scripts/98_test/e2e', filter='$(FILTER)')"
