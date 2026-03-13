@@ -181,16 +181,19 @@ tryCatch({
         vals <- df_keys$product_line_id[needs_mapping]
         mapped_en <- name_to_id_en[vals]
         mapped_zh <- name_to_id_zh[vals]
-        df_keys$product_line_id[needs_mapping] <- ifelse(!is.na(mapped_en), mapped_en, mapped_zh)
+        # Use mapped value if found; preserve original value as fallback (#340)
+        resolved <- ifelse(!is.na(mapped_en), mapped_en,
+                           ifelse(!is.na(mapped_zh), mapped_zh, vals))
+        df_keys$product_line_id[needs_mapping] <- resolved
         n_mapped <- sum(!is.na(mapped_en) | !is.na(mapped_zh))
         n_unmapped <- sum(needs_mapping) - n_mapped
         message(sprintf("MAIN: Mapped %d product line names to IDs (of %d needing mapping)",
                         n_mapped, sum(needs_mapping)))
-        # Warn about values that could not be mapped (#340)
         if (n_unmapped > 0) {
           unmapped_vals <- unique(vals[is.na(mapped_en) & is.na(mapped_zh)])
-          warning(sprintf("MAIN: %d product_line_id values could not be mapped: %s",
-                          n_unmapped, paste(unmapped_vals, collapse = ", ")))
+          warning(sprintf(
+            "MAIN: %d product_line_id values could not be mapped (kept as-is): %s. Add them to df_product_line.csv.",
+            n_unmapped, paste(unmapped_vals, collapse = ", ")))
         }
       }
     } else {

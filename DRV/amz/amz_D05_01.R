@@ -52,9 +52,16 @@ result <- NULL
 tryCatch({
   result <- run_D05_01(platform_id = platform_id)
   test_passed <- isTRUE(result$success)
+  if (!test_passed) {
+    # Log the failure reason from core function so pipeline logs are actionable (#341)
+    fail_msg <- if (!is.null(result$message)) result$message else "no message returned"
+    message(sprintf("MAIN: Core function returned success=FALSE — %s", fail_msg))
+    error_occurred <- TRUE
+  }
 }, error = function(e) {
   error_occurred <<- TRUE
   message(sprintf("MAIN: ERROR - %s", e$message))
+  message(sprintf("MAIN: ERROR traceback - %s", paste(deparse(sys.calls()), collapse = "\n")))
 })
 
 # ==============================================================================
