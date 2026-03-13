@@ -27,7 +27,8 @@ D04_VALIDATE_SCRIPT := $(PROJECT_ROOT)/scripts/global_scripts/00_principles/docs
 	d01-00 d01-00-cbz d01-00-eby \
 	d01-01 d01-01-cbz d01-01-eby \
 	d01-02 d01-02-cbz d01-02-eby \
-	d01-03 d01-03-cbz d01-03-eby
+	d01-03 d01-03-cbz d01-03-eby \
+	d05 d05-amz
 
 # Default: show help
 help:
@@ -71,6 +72,9 @@ help:
 	@echo "  make d04-07-all  Run D04_07 Precision Time Series (ALL)"
 	@echo "  make d04-09-all  Run D04_09 Feature Preparation (ALL)"
 	@echo "  make d04-08-all  Run D04_08 Precision Poisson (ALL)"
+	@echo "D05 Macro Trend Analysis:"
+	@echo "  make d05         Run D05 for all platforms"
+	@echo "  make d05-amz     Run D05_01 Macro Monthly Summary (AMZ)"
 	@echo ""
 	@echo "Scheduling Commands (for the machine that will run scheduled jobs):"
 	@echo "  make schedule         Set up weekly auto-execution"
@@ -378,6 +382,21 @@ d04-09-all:
 	@echo "Running D04_09 Feature Preparation (ALL)..."
 	@echo "Started: $$(date '+%Y-%m-%d %H:%M:%S')"
 	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/all/all_D04_09.R
+	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
+
+# ==============================================================================
+# D05: Macro Trend Analysis (AMZ)
+# ==============================================================================
+
+d05: d05-amz
+	@echo ""
+	@echo "All D05 pipelines completed!"
+
+d05-amz:
+	@echo ""
+	@echo "Running D05_01 Macro Monthly Summary (AMZ)..."
+	@echo "Started: $$(date '+%Y-%m-%d %H:%M:%S')"
+	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/amz/amz_D05_01.R
 	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
 
 # Show pipeline status

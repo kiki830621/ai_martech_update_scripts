@@ -5,18 +5,18 @@
 # PLATFORM: all
 # GROUP: D01
 # SEQUENCE: 06
-# PURPOSE: Orchestrate D01_00 through D01_05 across platforms
+# PURPOSE: Orchestrate D01_00 through D01_08 across platforms
 # CONSUMES: transformed_data.df_{platform}_sales___standardized
-# PRODUCES: app_data.df_profile_by_customer, app_data.df_dna_by_customer, app_data.df_segments_by_customer
+# PRODUCES: app_data.df_profile_by_customer, app_data.df_dna_by_customer, app_data.df_segments_by_customer, app_data.df_rsv_classified
 # PRINCIPLE: MP064, DM_R044, DM_R022, DM_R048
 #####
 #all_D01_06
 
 #' @title D01 Master Execution (All Platforms)
-#' @description Orchestrate D01_00 through D01_05 across platforms
+#' @description Orchestrate D01_00 through D01_08 across platforms
 #' @input_tables transformed_data.df_{platform}_sales___standardized
-#' @output_tables app_data.df_profile_by_customer, app_data.df_dna_by_customer, app_data.df_segments_by_customer
-#' @business_rules Orchestrate D01_00 through D01_05 across platforms.
+#' @output_tables app_data.df_profile_by_customer, app_data.df_dna_by_customer, app_data.df_segments_by_customer, app_data.df_rsv_classified
+#' @business_rules Orchestrate D01_00 through D01_08 across platforms.
 #' @platform all
 #' @author MAMBA Development Team
 #' @date 2025-12-30
@@ -173,6 +173,17 @@ tryCatch({
     }
   }
 
+  # D01_08: RSV Pre-classification (cross-platform, runs once after all platforms)
+  # Forward platform list so D01_08 processes the same platforms as this master script
+  Sys.setenv(D01_PLATFORMS = paste(platforms, collapse = ","))
+  d01_08_script <- file.path(APP_DIR, "scripts", "update_scripts", "DRV", "all", "all_D01_08.R")
+  if (file.exists(d01_08_script)) {
+    run_script(d01_08_script, "D01_08", "all")
+  } else {
+    stop("[all] D01_08 script not found: ", d01_08_script,
+         ". RSV pre-classification is a required pipeline step.")
+  }
+
 }, error = function(e) {
   error_occurred <<- TRUE
   message(sprintf("MAIN: ERROR - %s", e$message))
@@ -205,5 +216,9 @@ message(sprintf("SUMMARY: Execution time (secs): %.2f", execution_time))
 # PART 5: DEINITIALIZE
 # ==============================================================================
 
+if (error_occurred || !test_passed) {
+  autodeinit()
+  quit(save = "no", status = 1)
+}
 autodeinit()
 # NO STATEMENTS AFTER THIS LINE

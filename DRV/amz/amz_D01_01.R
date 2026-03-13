@@ -9,7 +9,7 @@
 # CORE_FUNCTION: global_scripts/16_derivations/fn_D01_01_core.R
 # CONSUMES: transformed_data.df_amz_sales___standardized
 # PRODUCES: processed_data.df_amz_sales_by_customer_by_date, processed_data.df_amz_sales_by_customer
-# DEPENDS_ON_ETL: amz_ETL_sales_2TR
+# DEPENDS_ON_ETL: amz_ETL_sales_2TS
 # DEPENDS_ON_DRV: amz_D01_00
 # PRINCIPLE: MP064, MP145, DEV_R037, DEV_R038, DM_R022, DM_R044
 #####

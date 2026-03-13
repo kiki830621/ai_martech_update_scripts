@@ -1,8 +1,8 @@
 #####
-# CONSUMES: df_dna_by_customer, df_dna_by_customer___cleansed, df_profile_by_customer, df_profile_by_customer___cleansed, df_segments_by_customer
+# CONSUMES: df_dna_by_customer, df_dna_by_customer___cleansed, df_profile_by_customer, df_profile_by_customer___cleansed, df_segments_by_customer, df_rsv_classified
 # PRODUCES: none
 # DEPENDS_ON_ETL: none
-# DEPENDS_ON_DRV: D01_06
+# DEPENDS_ON_DRV: D01_08
 #####
 
 #!/usr/bin/env Rscript
@@ -528,7 +528,8 @@ for (platform_id in platforms) {
     profile_rows = NA_integer_,
     app_profile_rows = NA_integer_,
     app_dna_rows = NA_integer_,
-    app_segments_rows = NA_integer_
+    app_segments_rows = NA_integer_,
+    app_rsv_rows = NA_integer_
   )
 
   # D01_00 input table (transformed_data)
@@ -729,6 +730,30 @@ for (platform_id in platforms) {
     check_missing_customer_id(con_app, app_segments_table, "app_data", platform_id)
   }
 
+  # D01_08 output (app_data) - RSV classification
+  app_rsv_table <- "df_rsv_classified"
+  if (check_table_exists(con_app, app_rsv_table, "app_data", platform_id)) {
+    check_required_columns(
+      con_app,
+      app_rsv_table,
+      "app_data",
+      platform_id,
+      c("customer_id", "platform_id", "product_line_id_filter", "customer_type")
+    )
+    counts$app_rsv_rows <- check_row_count(
+      con_app,
+      app_rsv_table,
+      "app_data",
+      platform_id,
+      where_clause = "platform_id = ?",
+      params = list(platform_id),
+      min_rows = 1
+    )
+    check_missing_platform_id(con_app, app_rsv_table, "app_data", platform_id)
+    check_missing_customer_id(con_app, app_rsv_table, "app_data", platform_id)
+    check_duplicate_customers(con_app, app_rsv_table, "app_data", platform_id)
+  }
+
   # Views (app_data)
   view_names <- c("v_customer_dna_analytics", "v_customer_segments", "v_segment_statistics")
   for (view_name in view_names) {
@@ -847,7 +872,7 @@ message("Row count snapshot by platform:")
 for (platform_id in names(platform_summaries)) {
   summary <- platform_summaries[[platform_id]]
   message(sprintf(
-    "  %s | sales=%s by_date=%s by_customer=%s rfm=%s dna=%s profile=%s app_profile=%s app_dna=%s app_segments=%s",
+    "  %s | sales=%s by_date=%s by_customer=%s rfm=%s dna=%s profile=%s app_profile=%s app_dna=%s app_segments=%s app_rsv=%s",
     platform_id,
     format_value(summary$sales_rows),
     format_value(summary$by_date_rows),
@@ -857,7 +882,8 @@ for (platform_id in names(platform_summaries)) {
     format_value(summary$profile_rows),
     format_value(summary$app_profile_rows),
     format_value(summary$app_dna_rows),
-    format_value(summary$app_segments_rows)
+    format_value(summary$app_segments_rows),
+    format_value(summary$app_rsv_rows)
   ))
 }
 
