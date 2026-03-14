@@ -181,9 +181,12 @@ tryCatch({
         vals <- df_keys$product_line_id[needs_mapping]
         mapped_en <- name_to_id_en[vals]
         mapped_zh <- name_to_id_zh[vals]
-        # Use mapped value if found; preserve original value as fallback (#340)
+        # Use mapped value if found; assign "UNKNOWN" for unmapped values (#340)
+        # "UNKNOWN" keeps product_line_id semantically consistent (always an ID,
+        # never a raw name) so downstream joins/filters fail loudly instead of
+        # silently producing wrong aggregations.
         resolved <- ifelse(!is.na(mapped_en), mapped_en,
-                           ifelse(!is.na(mapped_zh), mapped_zh, vals))
+                           ifelse(!is.na(mapped_zh), mapped_zh, "UNKNOWN"))
         df_keys$product_line_id[needs_mapping] <- resolved
         n_mapped <- sum(!is.na(mapped_en) | !is.na(mapped_zh))
         n_unmapped <- sum(needs_mapping) - n_mapped
@@ -192,7 +195,7 @@ tryCatch({
         if (n_unmapped > 0) {
           unmapped_vals <- unique(vals[is.na(mapped_en) & is.na(mapped_zh)])
           warning(sprintf(
-            "MAIN: %d product_line_id values could not be mapped (kept as-is): %s. Add them to df_product_line.csv.",
+            "MAIN: %d product_line_id values assigned 'UNKNOWN' (original: %s). Add them to df_product_line.csv.",
             n_unmapped, paste(unmapped_vals, collapse = ", ")))
         }
       }
