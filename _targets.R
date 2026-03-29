@@ -13,15 +13,18 @@ library(yaml)
 #       └── _targets.R                     <- This file
 # =============================================================================
 
-pipeline_dir <- "."
-
 # Resolve project root: prefer MAMBA_PROJECT_ROOT env var (set by Makefile)
 # to avoid symlink + '..' path resolution issues. Fall back to relative path
 # for backward compatibility when invoked outside Makefile.
 project_root_env <- Sys.getenv("MAMBA_PROJECT_ROOT", "")
 if (nzchar(project_root_env) && dir.exists(project_root_env)) {
   project_root <- project_root_env
+  pipeline_dir <- normalizePath(
+    file.path(project_root, "scripts", "update_scripts"),
+    mustWork = FALSE
+  )
 } else {
+  pipeline_dir <- "."
   project_root <- normalizePath(file.path(pipeline_dir, "..", ".."), mustWork = FALSE)
 }
 config_path <- file.path(project_root, "_targets_config.yaml")
