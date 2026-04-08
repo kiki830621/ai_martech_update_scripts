@@ -65,7 +65,7 @@ if (gpt_key == "") {
 # Configuration parameters
 chunk_size <- 20   # Number of records to process in each batch
 workers <- 8       # Number of parallel workers (adjust based on your system)
-model <- "o4-mini" # OpenAI model to use
+model <- "gpt-5.4-mini" # OpenAI model to use
 
 # Log beginning of process
 message("Starting D03_02 (Rate Reviews) for Amazon product lines")

@@ -125,7 +125,10 @@ tryCatch({
   }
 
   tab_names <- googlesheets4::sheet_properties(gs_id)$name
-  comment_tabs <- tab_names[grepl("水準表", tab_names)]
+  # New sheet: tabs are named by product line (e.g., "安全眼鏡_hunting_safety_glasses")
+
+  # No "水準表" prefix — use all non-hidden tabs that match product line anchors
+  comment_tabs <- tab_names[!grepl("^_|^Sheet", tab_names)]
 
   active_product_lines <- df_product_line %>%
     dplyr::filter(included == TRUE, product_line_id != "all")
@@ -147,38 +150,32 @@ tryCatch({
     }
 
     tab_df <- janitor::clean_names(tab_df, ascii = FALSE)
-    content_cols <- names(tab_df)[grepl("^屬性水準_內容[0-9]+$", names(tab_df))]
-    if (length(content_cols) > 0) {
-      ord <- order(as.integer(sub("^屬性水準_內容", "", content_cols)))
-      content_cols <- content_cols[ord]
-    }
 
-    content_or_na <- function(idx) {
-      if (length(content_cols) < idx) return(rep(NA_character_, nrow(tab_df)))
-      as.character(tab_df[[content_cols[idx]]])
-    }
-
+    # New sheet format: 主題, 主題英文, 定義, 評論數, 比例, 例子1, 中文, 例子2, 中文, 例子3, 中文, 類型, 尺度, 來源
+    # Also support legacy column names for backward compatibility
     parsed_df <- data.frame(
       product_line_id = product_line_id,
-      property_id = suppressWarnings(as.integer(pick_col(tab_df, c("number", "property_id", "編號")))),
-      property_name = pick_col(tab_df, c("屬性", "property_name")),
-      property_name_english = pick_col(tab_df, c("attribute", "property_name_english")),
-      frequency = suppressWarnings(as.integer(pick_col(tab_df, c("frequency", "頻率")))),
-      proportion = suppressWarnings(as.numeric(pick_col(tab_df, c("proportion", "比例")))),
+      property_id = seq_len(nrow(tab_df)),
+      property_name = pick_col(tab_df, c("主題", "屬性", "property_name")),
+      property_name_english = pick_col(tab_df, c("主題英文", "attribute", "property_name_english")),
+      frequency = suppressWarnings(as.numeric(pick_col(tab_df, c("評論數", "frequency", "頻率")))),
+      proportion = suppressWarnings(as.numeric(pick_col(tab_df, c("比例", "proportion")))),
       definition = pick_col(tab_df, c("定義", "definition")),
-      review_1 = content_or_na(1),
-      translation_1 = content_or_na(2),
-      review_2 = content_or_na(3),
-      translation_2 = content_or_na(4),
-      review_3 = content_or_na(5),
-      translation_3 = content_or_na(6),
-      type = pick_col(tab_df, c("type", "水準", "類型")),
-      note = pick_col(tab_df, c("note", "備註")),
+      review_1 = pick_col(tab_df, c("例子1", "例子")),
+      translation_1 = NA_character_,
+      review_2 = pick_col(tab_df, c("例子2")),
+      translation_2 = NA_character_,
+      review_3 = pick_col(tab_df, c("例子3")),
+      translation_3 = NA_character_,
+      type = pick_col(tab_df, c("類型", "type", "水準")),
+      scale = pick_col(tab_df, c("尺度", "scale")),
+      source = pick_col(tab_df, c("來源", "source")),
+      note = pick_col(tab_df, c("準則", "note", "備註")),
       stringsAsFactors = FALSE
     )
 
     parsed_df <- parsed_df %>%
-      dplyr::filter(!is.na(property_id), !is.na(property_name), trimws(property_name) != "") %>%
+      dplyr::filter(!is.na(property_name), trimws(property_name) != "") %>%
       dplyr::mutate(
         property_name_english = dplyr::if_else(
           is.na(property_name_english) | trimws(property_name_english) == "",

@@ -283,6 +283,7 @@ for (product_line_id_i in vec_product_line_id_noall) {
           property_name_english,
           type,
           definition,
+          any_of("scale"),
           product_line_id
         )
     )
