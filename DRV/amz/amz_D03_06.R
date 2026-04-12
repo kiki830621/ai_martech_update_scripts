@@ -56,7 +56,45 @@ autoinit()
 comment_property_rating <- dbConnectDuckdb(db_path_list$comment_property_rating, read_only = TRUE)
 comment_property_rating_results <- dbConnectDuckdb(db_path_list$comment_property_rating_results, read_only = FALSE)
 
-# Get OpenAI API key from environment variable
+# Idempotency check: determine which product lines still need processing.
+# A product line is "already done" when its append_long table has ≥ sampled_long row count.
+# This allows pipeline re-runs without requiring OPENAI_API_KEY when nothing new to process.
+lines_needing_work <- character(0)
+for (pl in vec_product_line_id_noall) {
+  sampled_tbl <- paste0("df_comment_property_rating_", pl, "___sampled_long")
+  append_tbl <- paste0("df_comment_property_rating_", pl, "___append_long")
+
+  if (!DBI::dbExistsTable(comment_property_rating, sampled_tbl)) {
+    next  # No source data, nothing to do
+  }
+  sampled_n <- DBI::dbGetQuery(comment_property_rating,
+    paste0('SELECT COUNT(*) AS n FROM "', sampled_tbl, '"'))$n
+
+  if (sampled_n == 0) next
+
+  append_n <- if (DBI::dbExistsTable(comment_property_rating_results, append_tbl)) {
+    DBI::dbGetQuery(comment_property_rating_results,
+      paste0('SELECT COUNT(*) AS n FROM "', append_tbl, '"'))$n
+  } else {
+    0L
+  }
+
+  if (append_n < sampled_n) {
+    lines_needing_work <- c(lines_needing_work, pl)
+    message("D03_06 queued ", pl, ": ", append_n, "/", sampled_n, " records done")
+  } else {
+    message("D03_06 skip ", pl, ": ", append_n, "/", sampled_n, " already complete")
+  }
+}
+
+if (length(lines_needing_work) == 0) {
+  message("D03_06: all product lines already rated — skipping AI processing")
+  DBI::dbDisconnect(comment_property_rating)
+  DBI::dbDisconnect(comment_property_rating_results)
+  autodeinit()
+} else {
+
+# Get OpenAI API key from environment variable (only required when work remains)
 gpt_key <- Sys.getenv("OPENAI_API_KEY")
 if (gpt_key == "") {
   stop("OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.")
@@ -69,7 +107,10 @@ model <- "gpt-5.4-mini" # OpenAI model to use
 
 # Log beginning of process
 message("Starting D03_02 (Rate Reviews) for Amazon product lines")
-message("Processing product lines: ", paste(vec_product_line_id_noall, collapse = ", "))
+message("Processing product lines: ", paste(lines_needing_work, collapse = ", "))
+
+# Narrow the work set to only lines that still need processing
+vec_product_line_id_noall <- lines_needing_work
 
 # Process property ratings for all product lines with connection error handling
 # Note: Using standardized field names from ETL reviews (amz_ETL_reviews)
@@ -145,9 +186,9 @@ for (product_line_id in vec_product_line_id_noall) {
   # Check if table exists
   if (DBI::dbExistsTable(comment_property_rating_results, append_table_name)) {
     # Get table info
-    table_info <- sql_read(
+    table_info <- DBI::dbGetQuery(
       comment_property_rating_results,
-      glue::glue("PRAGMA table_info('{append_table_name}');")
+      glue::glue("PRAGMA table_info('{append_table_name}')")
     )
     
     # Log table structure
@@ -155,16 +196,18 @@ for (product_line_id in vec_product_line_id_noall) {
     print(table_info[, c("name", "type")])
     
     # Get record count
-    record_count <- sql_read(
+    record_count <- DBI::dbGetQuery(
       comment_property_rating_results,
-      glue::glue("SELECT COUNT(*) FROM {append_table_name}")
-    )[1,1]
+      glue::glue("SELECT COUNT(*) as n FROM {append_table_name}")
+    )$n
     
     message("Total records in ", append_table_name, ": ", record_count)
   } else {
     message("Table not found: ", append_table_name)
   }
 }
+
+}  # end of if (length(lines_needing_work) > 0)
 
 # Clean up and disconnect
 autodeinit()
