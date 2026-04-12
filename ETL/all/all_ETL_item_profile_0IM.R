@@ -101,24 +101,10 @@ tryCatch({
   # ==========================================================================
   message("\n--- Loading Product Lines ---")
 
-  # Check if df_product_line exists
-  if (DBI::dbExistsTable(app_con, "df_product_line")) {
-    df_product_line <- sql_read(app_con, "
-      SELECT product_line_id, product_line_name_chinese
-      FROM df_product_line
-      WHERE included = TRUE AND product_line_id != 'all'
-    ")
-    message("Found ", nrow(df_product_line), " active product lines")
-  } else {
-    # Fallback: use hardcoded product lines (MAMBA specific)
-    # Updated 2025-12-26: Correct Google Sheets names discovered
-    message("df_product_line not found, using hardcoded list")
-    df_product_line <- data.frame(
-      product_line_id = c("tur", "pre", "irn", "alu", "kit", "pip"),
-      product_line_name_chinese = c("渦輪", "洩壓閥", "鐵葉(渦輪葉輪)", "鋁葉(壓縮葉輪)", "修理包", "油水管包"),
-      stringsAsFactors = FALSE
-    )
-  }
+  # Get active product lines using config-driven helper (#363)
+  active_pl <- get_active_product_lines()
+  df_product_line <- active_pl[, c("product_line_id", "product_line_name_chinese"), drop = FALSE]
+  message("Found ", nrow(df_product_line), " active product lines")
 
   print(df_product_line)
 

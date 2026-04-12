@@ -93,10 +93,10 @@ tryCatch({
       
     )
   
-  transformed_reviews <- transformed_reviews %>% 
-    left_join(df_product_line,by = join_by(product_line_id)) %>% 
-    filter(included==TRUE) %>%
-    dplyr::select(-included)
+  active_pl_ids <- get_active_product_lines()$product_line_id
+  transformed_reviews <- transformed_reviews %>%
+    left_join(df_product_line, by = join_by(product_line_id)) %>%
+    filter(product_line_id %in% active_pl_ids)
   
   message("MAIN: Platform and product line IDs added")
   

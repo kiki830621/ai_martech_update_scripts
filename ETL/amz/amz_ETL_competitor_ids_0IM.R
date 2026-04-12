@@ -132,8 +132,7 @@ tryCatch({
   raw_headers <- names(competitor_raw)
   product_headers <- raw_headers[!grepl("^(\\.\\.\\.|產品編碼|銷售數據|評論數據|品牌)", raw_headers)]
 
-  active_product_lines <- df_product_line %>%
-    dplyr::filter(included == TRUE, product_line_id != "all")
+  active_product_lines <- get_active_product_lines()
 
   result_list <- list()
   for (i in seq_len(nrow(active_product_lines))) {

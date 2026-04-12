@@ -126,8 +126,7 @@ tryCatch({
       !grepl("_原$", tab_names)
   ]
 
-  active_product_lines <- df_product_line %>%
-    dplyr::filter(included == TRUE, product_line_id != "all")
+  active_product_lines <- get_active_product_lines()
 
   import_result <- list()
   for (i in seq_len(nrow(active_product_lines))) {
@@ -247,8 +246,7 @@ if (script_success) {
 
     # Check if individual product profile tables exist and have data
     # Get active product lines (excluding 'all')
-    active_product_lines <- df_product_line %>%
-      filter(included == TRUE, product_line_id != "all") %>%
+    active_product_lines <- get_active_product_lines() %>%
       pull(product_line_id)
     
     total_product_count <- 0

@@ -147,44 +147,12 @@ tryCatch({
     stop(sprintf("Input sales table not found: %s", INPUT_SALES_TABLE))
   }
 
-  message("[Step 2/6] Loading product line dictionary (app_data priority)...")
-  if (dbExistsTable(con_app, "df_product_line")) {
-    product_line_lookup <- sql_read(con_app, "
-      SELECT product_line_id, product_line_name_chinese,
-             product_line_name_english, included
-      FROM df_product_line
-    ")
-    message("  OK Using app_data.df_product_line")
-  } else {
-    product_line_lookup <- read_csv(PRODUCT_LINE_PATH, show_col_types = FALSE)
-    message(sprintf("  OK Using CSV: %s", PRODUCT_LINE_PATH))
-  }
-  required_fields <- c("product_line_id", "product_line_name_chinese",
-                       "product_line_name_english", "included")
-  missing_fields <- setdiff(required_fields, names(product_line_lookup))
-  if (length(missing_fields) > 0) {
-    if (dbExistsTable(con_app, "df_product_line")) {
-      message("  WARN app_data.df_product_line missing fields; falling back to CSV")
-      product_line_lookup <- read_csv(PRODUCT_LINE_PATH, show_col_types = FALSE)
-      message(sprintf("  OK Using CSV: %s", PRODUCT_LINE_PATH))
-      missing_fields <- setdiff(required_fields, names(product_line_lookup))
-    }
-  }
-  if (length(missing_fields) > 0) {
-    stop(sprintf("Product line data missing fields: %s",
-                 paste(missing_fields, collapse = ", ")))
-  }
-
-  product_line_lookup <- product_line_lookup %>%
-    mutate(
-      product_line_id = as.character(product_line_id),
-      included = as.logical(included)
-    ) %>%
-    filter(included == TRUE, product_line_id != "all")
+  message("[Step 2/6] Loading product line dictionary...")
+  product_line_lookup <- get_active_product_lines()
 
   product_lines <- product_line_lookup$product_line_id
   if (length(product_lines) == 0) {
-    stop("No active product lines found in product line CSV")
+    stop("No active product lines found")
   }
 
   message(sprintf("  OK Active product lines: %s", paste(product_lines, collapse = ", ")))

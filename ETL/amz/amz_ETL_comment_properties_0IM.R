@@ -73,8 +73,7 @@ tryCatch({
     as.character(df[[existing[1]]])
   }
 
-  active_product_lines <- df_product_line %>%
-    dplyr::filter(included == TRUE, product_line_id != "all")
+  active_product_lines <- get_active_product_lines()
 
   # Fail-fast: validate that comment_property_sheet_tab column exists
   if (!"comment_property_sheet_tab" %in% names(active_product_lines)) {

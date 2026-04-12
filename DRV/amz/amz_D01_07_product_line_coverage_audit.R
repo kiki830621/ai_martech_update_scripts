@@ -61,10 +61,7 @@ if (!file.exists(product_line_path)) {
   stop(sprintf("Missing product-line definition file: %s", product_line_path))
 }
 
-coerce_included <- function(x) {
-  x_chr <- tolower(trimws(as.character(x)))
-  x_chr %in% c("true", "1", "yes", "y")
-}
+# coerce_included removed — replaced by get_active_product_lines() (#363)
 
 safe_quote <- function(x) {
   gsub("'", "''", x, fixed = TRUE)
@@ -194,21 +191,11 @@ message("MAIN: Building deterministic product-line coverage report...")
 main_start_time <- Sys.time()
 
 tryCatch({
-  product_lines <- fread(product_line_path, encoding = "UTF-8")
-  setnames(product_lines, old = names(product_lines), new = tolower(names(product_lines)))
-
-  required_cols <- c("product_line_id", "included")
-  missing_cols <- setdiff(required_cols, names(product_lines))
-  if (length(missing_cols) > 0) {
-    stop(sprintf("Missing required columns in product_line file: %s", paste(missing_cols, collapse = ", ")))
-  }
-
+  product_lines <- as.data.table(get_active_product_lines())
   product_lines[, product_line_id := tolower(trimws(as.character(product_line_id)))]
-  product_lines[, included_flag := coerce_included(included)]
-  product_lines <- product_lines[included_flag == TRUE & product_line_id != "all"]
 
   if (nrow(product_lines) == 0) {
-    stop("No active product lines found after filtering included == TRUE and product_line_id != 'all'")
+    stop("No active product lines found")
   }
 
   competitor_source <- detect_competitor_source()
