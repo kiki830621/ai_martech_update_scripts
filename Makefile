@@ -27,12 +27,12 @@ LAYER ?= both
 R := Rscript
 
 # Directories (Per SO_P016: Config at project root, scripts in subrepo)
-# NOTE: Use $(shell cd ... && pwd) to resolve absolute paths without '..'
-# components. This is critical when update_scripts is a symlink, because
-# file-system operations resolve symlinks before applying '..', which
-# would navigate to the wrong parent directory.
+# NOTE: PIPELINE_DIR uses $(CURDIR) (physical path, resolves symlinks) for
+# local file operations. PROJECT_ROOT uses $$PWD (logical path, preserves
+# symlinks) so that ../../ navigates to the company project directory, not
+# the superproject. See #364 for details.
 PIPELINE_DIR ?= $(CURDIR)
-PROJECT_ROOT ?= $(if $(MAMBA_PROJECT_ROOT),$(MAMBA_PROJECT_ROOT),$(shell cd "$(PIPELINE_DIR)/../.." && pwd))
+PROJECT_ROOT ?= $(if $(MAMBA_PROJECT_ROOT),$(MAMBA_PROJECT_ROOT),$(shell cd "$$PWD/../.." && pwd))
 GLOBAL_SCRIPTS ?= $(shell cd "$(PIPELINE_DIR)/../global_scripts" && pwd)
 CONFIG_PATH ?= $(PROJECT_ROOT)/_targets_config.yaml
 BASE_TEMPLATE ?= $(GLOBAL_SCRIPTS)/21_rshinyapp_templates/config/_targets_config.base.yaml
