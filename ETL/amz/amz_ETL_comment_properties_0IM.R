@@ -62,60 +62,9 @@ tryCatch({
   src_cfg <- platform_cfg$etl_sources$comment_properties
   gs_id <- googlesheets4::as_sheets_id(src_cfg$sheet_id)
 
-  # Product line tab matching rules for AMZ coding sheet.
-  product_line_zh_anchor <- c(
-    hsg = "安全眼鏡", sfg = "安全眼鏡", sfo = "安全眼鏡", sss = "安全眼鏡",
-    bys = "太陽眼鏡", cas = "太陽眼鏡", sgf = "太陽眼鏡", sgo = "太陽眼鏡",
-    psg = "摩托車護目鏡", blb = "抗藍光眼鏡", its = "嬰幼兒童眼鏡",
-    rpl = "備片", wwp = "濕紙巾", htl = "手工具", gcl = "眼鏡盒"
-  )
-  product_line_keywords <- list(
-    hsg = c("hunting", "safety", "glasses"),
-    sfg = c("safety", "glasses"),
-    sfo = c("safety", "glasses", "fit", "over"),
-    sss = c("safety", "glasses", "side", "shields"),
-    bys = c("baseball", "youth"),
-    cas = c("cycling", "adult"),
-    sgf = c("sunglasses", "fishing"),
-    sgo = c("sunglasses", "fit", "over"),
-    psg = c("powersports", "goggles"),
-    blb = c("blue", "light", "blocking", "glasses"),
-    its = c("infant", "toddler", "sunglasses"),
-    rpl = c("replacement", "lens"),
-    wwp = character(0),
-    htl = character(0),
-    gcl = character(0)
-  )
-
-  resolve_best_tab <- function(product_line_id, candidates) {
-    anchor <- product_line_zh_anchor[[product_line_id]] %||% ""
-    candidate_pool <- candidates
-    if (nzchar(anchor)) {
-      candidate_pool <- candidate_pool[grepl(anchor, candidate_pool, fixed = TRUE)]
-    }
-    if (length(candidate_pool) == 0) {
-      return(NA_character_)
-    }
-
-    keys <- product_line_keywords[[product_line_id]]
-    if (is.null(keys)) keys <- character(0)
-    if (length(keys) == 0) {
-      return(candidate_pool[which.min(nchar(candidate_pool))])
-    }
-
-    score_df <- do.call(
-      rbind,
-      lapply(candidate_pool, function(tab_name) {
-        tab_lower <- tolower(tab_name)
-        matched <- sum(vapply(keys, function(k) grepl(k, tab_lower, fixed = TRUE), logical(1)))
-        extra <- max(0, length(strsplit(gsub("[^a-z0-9]+", " ", tab_lower), "\\s+")[[1]]) - matched)
-        data.frame(tab_name = tab_name, matched = matched, extra = extra, nchar = nchar(tab_name))
-      })
-    )
-    score_df <- score_df[order(-score_df$matched, score_df$extra, score_df$nchar), ]
-    score_df$tab_name[1]
-  }
-
+  # Config-driven tab matching (#361): read tab name from df_product_line csv.
+  # Naming standard: {product_line_id}_{english-name-kebab}
+  # No more hardcoded anchors/keywords/fuzzy matching.
   pick_col <- function(df, candidates) {
     existing <- candidates[candidates %in% names(df)]
     if (length(existing) == 0) {
@@ -124,23 +73,40 @@ tryCatch({
     as.character(df[[existing[1]]])
   }
 
-  tab_names <- googlesheets4::sheet_properties(gs_id)$name
-  # New sheet: tabs are named by product line (e.g., "安全眼鏡_hunting_safety_glasses")
-
-  # No "水準表" prefix — use all non-hidden tabs that match product line anchors
-  comment_tabs <- tab_names[!grepl("^_|^Sheet", tab_names)]
-
   active_product_lines <- df_product_line %>%
     dplyr::filter(included == TRUE, product_line_id != "all")
+
+  # Fail-fast: validate that comment_property_sheet_tab column exists
+  if (!"comment_property_sheet_tab" %in% names(active_product_lines)) {
+    stop("VALIDATE FAILED: df_product_line.csv missing 'comment_property_sheet_tab' column. ",
+         "Add this column with the standardized Google Sheet tab name for each product line. ",
+         "Format: {product_line_id}_{english-name-kebab} (e.g., 'blb_blue-light-blocking-glasses')")
+  }
+
+  # Fail-fast: validate that all active product lines have a tab name
+  missing_tab <- active_product_lines %>%
+    dplyr::filter(is.na(comment_property_sheet_tab) | trimws(comment_property_sheet_tab) == "")
+  if (nrow(missing_tab) > 0) {
+    stop("VALIDATE FAILED: The following active product_line_id(s) have no comment_property_sheet_tab in df_product_line.csv: ",
+         paste(missing_tab$product_line_id, collapse = ", "),
+         ". Fill in the standardized tab name for each.")
+  }
+
+  # Verify tabs exist in the actual Google Sheet
+  tab_names <- googlesheets4::sheet_properties(gs_id)$name
+  configured_tabs <- active_product_lines$comment_property_sheet_tab
+  missing_in_sheet <- configured_tabs[!configured_tabs %in% tab_names]
+  if (length(missing_in_sheet) > 0) {
+    stop("VALIDATE FAILED: The following tab(s) from df_product_line.csv do not exist in the Google Sheet: ",
+         paste(missing_in_sheet, collapse = ", "),
+         ". Either rename the Google Sheet tabs to match, or update df_product_line.csv. ",
+         "Available tabs in sheet: ", paste(tab_names, collapse = ", "))
+  }
 
   result_list <- list()
   for (i in seq_len(nrow(active_product_lines))) {
     product_line_id <- active_product_lines$product_line_id[i]
-    resolved_tab <- resolve_best_tab(product_line_id, comment_tabs)
-    if (is.na(resolved_tab)) {
-      message("MAIN: No comment-properties tab found for ", product_line_id, " - skipping")
-      next
-    }
+    resolved_tab <- active_product_lines$comment_property_sheet_tab[i]
 
     message("MAIN: Reading comment properties for ", product_line_id, " from tab '", resolved_tab, "'")
     tab_df <- googlesheets4::read_sheet(gs_id, sheet = resolved_tab, .name_repair = "minimal")
