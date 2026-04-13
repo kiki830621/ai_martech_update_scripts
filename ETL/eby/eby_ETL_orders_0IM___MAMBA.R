@@ -111,7 +111,8 @@ tryCatch({
   message("MAIN: Connecting to MAMBA SQL Server...")
   
   # Source the auto-tunnel function
-  source("scripts/global_scripts/02_db_utils/fn_ensure_mamba_tunnel.R")
+  # Moved to 29_company_examples/mamba/ cookbook (Spectra change add-company-examples-cookbook, 2026-04-13)
+  source("scripts/global_scripts/29_company_examples/mamba/02_db_utils/fn_ensure_tunnel.R")
   
   # Connect with automatic tunnel establishment
   sql_conn <- fn_connect_mamba_sql(auto_tunnel = TRUE)
