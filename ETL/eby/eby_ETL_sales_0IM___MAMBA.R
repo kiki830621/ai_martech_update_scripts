@@ -294,7 +294,8 @@ import_mamba_eby_sales <- function(conn) {
   
   message("MAIN:  Phase 1: Importing safe numeric/date fields...")
   df_safe <- tryCatch({
-    sql_read(conn, query_phase1)
+    # MSSQL external source — use DBI directly (see #371 comment above)
+    DBI::dbGetQuery(conn, query_phase1)
   }, error = function(e) {
     message("MAIN:  Phase 1 failed: ", e$message)
     stop("Phase 1 import failed: ", e$message)
@@ -313,8 +314,12 @@ import_mamba_eby_sales <- function(conn) {
       # Ignore if command not supported
     })
     
-    # Execute query with proper encoding handling
-    result <- sql_read(conn, query_phase2)
+    # Execute query directly via DBI (not sql_read) — MSSQL external source.
+    # sql_read wraps queries via dbplyr, which fails schema detection on
+    # MSSQL-specific SQL (COLLATE, ISNULL, CAST NVARCHAR). DM_R023 v1.2's
+    # tbl2-only mandate applies to app_data cross-driver reads, not to
+    # external ODBC/MSSQL sources during ETL ingestion. (#371)
+    result <- DBI::dbGetQuery(conn, query_phase2)
     
     # MP100 Post-processing: Clean any remaining encoding issues
     text_cols <- c("ORD010", "ORD011", "ORD012", "ORD013", "ORD014", "ORD015",
@@ -383,7 +388,8 @@ import_mamba_eby_sales <- function(conn) {
     -- without TOP/OFFSET-FETCH. Staging (1ST) handles sorting.
     "
     
-    result <- sql_read(conn, query_fallback)
+    # MSSQL external source — DBI, not sql_read (see #371)
+    result <- DBI::dbGetQuery(conn, query_fallback)
     
     # MP100 Post-processing: Apply encoding conversion in R
     text_cols <- c("ORD010", "ORD011", "ORD012", "ORD013", "ORD014", "ORD015",
