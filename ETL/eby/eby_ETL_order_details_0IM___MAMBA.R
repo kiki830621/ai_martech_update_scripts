@@ -160,33 +160,34 @@ tryCatch({
   # Query ONLY BAYORE table - no JOIN with BAYORD
   # Note: We'll handle the JOIN key relationship in derivation layer
   # MP100: UTF-8 encoding issues - select only essential columns first
+  # NOTE (#371): No ORDER BY — would cause MSSQL subquery error if wrapped
+  # by dbplyr. Using DBI::dbGetQuery directly (external ODBC source —
+  # DM_R023 v1.2 Section 6.1 exception) for direct query without subquery wrap.
   query <- "
-    SELECT 
+    SELECT
       ORE001, ORE002, ORE003, ORE004, ORE005,
       ORE006, ORE007, ORE008, ORE009, ORE010,
       ORE011, ORE012, ORE013, ORE014
     FROM BAYORE
     WHERE ORE004 >= '2024-01-01'
-    ORDER BY ORE004, ORE001, ORE002
   "
-  
+
   message("MAIN: Executing BAYORE query...")
-  
-  # Execute query with encoding handling
+
+  # Execute query with encoding handling — DBI direct, not sql_read (#371)
   tryCatch({
-    bayore_data <- sql_read(sql_conn, query)
+    bayore_data <- DBI::dbGetQuery(sql_conn, query)
   }, error = function(e) {
     message("MAIN: UTF-8 encoding issue detected, trying with basic columns only...")
     # Fallback to minimal columns if encoding issues
     query_basic <- "
-      SELECT 
+      SELECT
         ORE001, ORE002, ORE003, ORE004,
         ORE006, ORE013
       FROM BAYORE
       WHERE ORE004 >= '2024-01-01'
-      ORDER BY ORE004, ORE001, ORE002
     "
-    bayore_data <- sql_read(sql_conn, query_basic)
+    bayore_data <- DBI::dbGetQuery(sql_conn, query_basic)
   })
   
   # Clean any potential encoding issues
