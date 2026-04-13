@@ -1,27 +1,29 @@
 #!/usr/bin/env Rscript
 #####
-# DERIVATION: D03_01 Geographic Sales Aggregation
+# DERIVATION: D05_01 Macro Monthly Summary (cross-platform loop)
 # VERSION: 1.0
 # PLATFORM: all
-# GROUP: D03
+# GROUP: D05
 # SEQUENCE: 01
-# PURPOSE: Aggregate sales by country for world market map visualization
-# CORE_FUNCTION: global_scripts/16_derivations/fn_D03_01_core.R
+# PURPOSE: Loop over active non-aggregate platforms and call run_D05_01()
+#          to populate df_macro_monthly_summary in app_data
+# CORE_FUNCTION: global_scripts/16_derivations/fn_D05_01_core.R
 # CONSUMES: transformed_data.df_{platform}_sales___standardized
-# PRODUCES: app_data.df_geo_sales_by_country, app_data.df_customer_country_map, app_data.df_geo_sales_by_state
+# PRODUCES: app_data.df_macro_monthly_summary
 # DEPENDS_ON_ETL: {platform}_ETL_sales_2TS
-# PRINCIPLE: MP064, MP029, MP140, DM_R044
+# PRINCIPLE: MP064, MP140, MP142, DM_R044
 #####
-#all_D03_01
+#all_D05_01
 
-#' @title Geographic Sales Aggregation
-#' @description Aggregates sales data by country and product line for world map visualization
+#' @title D05_01 Macro Monthly Summary (cross-platform loop)
+#' @description Cross-platform loop for D05_01 monthly aggregation. Each
+#'   active platform is processed sequentially. The core function uses
+#'   write_platform_table_d05() to preserve other platforms' rows when
+#'   writing df_macro_monthly_summary.
 #' @input_tables df_{platform}_sales___standardized (transformed_data)
-#' @output_tables df_geo_sales_by_country, df_customer_country_map, df_geo_sales_by_state (app_data)
-#' @business_rules Shipped orders only, group by country + product_line, plus 'all' roll-up
+#' @output_tables df_macro_monthly_summary (app_data)
 #' @platform all
-#' @author MAMBA Development Team
-#' @date 2026-03-05
+#' @date 2026-04-13
 
 # ---- PART 1: INITIALIZE ----
 if (!exists("autoinit", mode = "function")) {
@@ -45,7 +47,7 @@ platforms <- if (exists("get_platform_config", mode = "function")) {
         (is.null(e$status) || tolower(e$status) == "active") &&
         (is.null(e$enabled) || isTRUE(e$enabled))
     }, logical(1))]
-    # Exclude aggregate pseudo-platforms (e.g. "all") — D03_01 processes
+    # Exclude aggregate pseudo-platforms (e.g. "all") — D05_01 processes
     # individual platform data sources, not roll-up entries
     setdiff(active, "all")
   }, error = function(e) "amz")
@@ -54,7 +56,7 @@ platforms <- if (exists("get_platform_config", mode = "function")) {
 }
 if (length(platforms) == 0) platforms <- "amz"
 
-core_path <- file.path(GLOBAL_DIR, "16_derivations", "fn_D03_01_core.R")
+core_path <- file.path(GLOBAL_DIR, "16_derivations", "fn_D05_01_core.R")
 if (!file.exists(core_path)) {
   stop(sprintf("Missing CORE_FUNCTION: %s", core_path))
 }
@@ -63,15 +65,15 @@ source(core_path)
 # ---- PART 2: MAIN ----
 result <- NULL
 tryCatch({
-  # NOTE (#374): Multi-platform now safe — fn_D03_01_core.R uses
-  # write_platform_table_d03() which preserves rows for other platforms when
-  # called sequentially. Previous abort guard removed (#371 blocker 9 → #374).
+  # Loop over platforms — fn_D05_01_core uses write_platform_table_d05()
+  # to preserve other platforms' rows on each write (#374)
   for (platform_id in platforms) {
-    message(sprintf("[%s] Running D03_01 geographic aggregation...", platform_id))
-    result      <- run_D03_01(platform_id = platform_id)
+    message(sprintf("[%s] Running D05_01 macro monthly aggregation...", platform_id))
+    result      <- run_D05_01(platform_id = platform_id)
     test_passed <- isTRUE(result$success)
     if (!test_passed) {
-      message(sprintf("[%s] D03_01 failed", platform_id))
+      fail_msg <- if (!is.null(result$message)) result$message else "no message returned"
+      message(sprintf("[%s] D05_01 failed — %s", platform_id, fail_msg))
       break
     }
   }
