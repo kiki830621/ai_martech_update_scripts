@@ -254,8 +254,8 @@ tryCatch({
     mutate(
       display_order = case_when(
         time_hierarchy == "year" ~ 1000,
-        time_hierarchy == "quarter" ~ 2000 + coalesce(analysis_quarter, 0),
-        time_hierarchy == "month" ~ 3000 + coalesce(analysis_month, 0),
+        time_hierarchy == "quarter" ~ 2000 + dplyr::coalesce(analysis_quarter, 0L),
+        time_hierarchy == "month" ~ 3000 + dplyr::coalesce(analysis_month, 0L),
         time_hierarchy == "weekday" ~ 4000 + case_when(
           predictor == "monday" ~ 1,
           predictor == "tuesday" ~ 2,
@@ -303,8 +303,8 @@ tryCatch({
     group_by(time_hierarchy) %>%
     summarise(
       count = n(),
-      with_labels = sum(!is.na(coalesce(year_label, month_label,
-                                        day_label, week_label))),
+      with_labels = sum(!is.na(dplyr::coalesce(year_label, month_label,
+                                                day_label, week_label))),
       avg_irr = mean(incidence_rate_ratio, na.rm = TRUE),
       .groups = "drop"
     )
