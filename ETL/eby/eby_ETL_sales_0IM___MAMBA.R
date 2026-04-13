@@ -213,7 +213,7 @@ import_mamba_eby_sales <- function(conn) {
   
   # MAMBA uses specific table structure:
   # BAYORD - Order header table (ORD001-ORD048 columns)
-  # BAYORE - Order detail table (ORE001-ORE015 columns)
+  # BAYORE - Order detail table (ORE001-ORE014 + ORE901-ORE907 columns)
   # They are joined on ORE001=ORD001 AND ORE013=ORD009
   
   # MP100 Compliance: Handle UTF-8 encoding issues in legacy SQL Server
@@ -279,8 +279,9 @@ import_mamba_eby_sales <- function(conn) {
       ISNULL(CAST(ORD020 AS NVARCHAR(200)) COLLATE Chinese_PRC_CI_AS, '') AS ORD020,
       ISNULL(CAST(ORE004 AS NVARCHAR(500)) COLLATE Chinese_PRC_CI_AS, '') AS ORE004,
       ISNULL(CAST(ORE006 AS NVARCHAR(500)) COLLATE Chinese_PRC_CI_AS, '') AS ORE006,
-      ISNULL(CAST(ORE014 AS NVARCHAR(200)) COLLATE Chinese_PRC_CI_AS, '') AS ORE014,
-      ISNULL(CAST(ORE015 AS NVARCHAR(100)) COLLATE Chinese_PRC_CI_AS, '') AS ORE015
+      ISNULL(CAST(ORE014 AS NVARCHAR(200)) COLLATE Chinese_PRC_CI_AS, '') AS ORE014
+      -- ORE015 removed: verified via INFORMATION_SCHEMA query that BAYORE
+      --   has only ORE001-ORE014 + ORE901-ORE907; ORE015 never existed (#371)
       
     FROM BAYORE
     INNER JOIN BAYORD
@@ -323,7 +324,7 @@ import_mamba_eby_sales <- function(conn) {
     
     # MP100 Post-processing: Clean any remaining encoding issues
     text_cols <- c("ORD010", "ORD011", "ORD012", "ORD013", "ORD014", "ORD015",
-                   "ORD016", "ORD020", "ORE004", "ORE006", "ORE014", "ORE015")
+                   "ORD016", "ORD020", "ORE004", "ORE006", "ORE014")
     
     for (col in text_cols) {
       if (col %in% names(result)) {
@@ -375,8 +376,8 @@ import_mamba_eby_sales <- function(conn) {
         CONVERT(VARCHAR(200), ORD020) AS ORD020,
         CONVERT(VARCHAR(500), ORE004) AS ORE004,
         CONVERT(VARCHAR(500), ORE006) AS ORE006,
-        CONVERT(VARCHAR(200), ORE014) AS ORE014,
-        CONVERT(VARCHAR(100), ORE015) AS ORE015
+        CONVERT(VARCHAR(200), ORE014) AS ORE014
+        -- ORE015 removed (#371): BAYORE schema has only ORE001-ORE014
         
       FROM BAYORE
       INNER JOIN BAYORD
@@ -393,7 +394,7 @@ import_mamba_eby_sales <- function(conn) {
     
     # MP100 Post-processing: Apply encoding conversion in R
     text_cols <- c("ORD010", "ORD011", "ORD012", "ORD013", "ORD014", "ORD015",
-                   "ORD016", "ORD020", "ORE004", "ORE006", "ORE014", "ORE015")
+                   "ORD016", "ORD020", "ORE004", "ORE006", "ORE014")
     
     for (col in text_cols) {
       if (col %in% names(result)) {
@@ -428,7 +429,7 @@ import_mamba_eby_sales <- function(conn) {
   # Following MP064: Use original column names in 0IM phase
   text_columns <- c("ORD010", "ORD011", "ORD012", "ORD013", 
                    "ORD014", "ORD015", "ORD016", "ORD020", 
-                   "ORE004", "ORE006", "ORE014", "ORE015")
+                   "ORE004", "ORE006", "ORE014")
   
   for (col in text_columns) {
     if (col %in% names(df_sales)) {
