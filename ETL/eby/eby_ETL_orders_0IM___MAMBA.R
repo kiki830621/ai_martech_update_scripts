@@ -126,16 +126,18 @@ tryCatch({
   
   # Query ONLY BAYORD table - limited columns to avoid encoding issues
   # Following MP100: UTF-8 Encoding Standard
+  # NOTE: No ORDER BY — sql_read() uses dbplyr which wraps the query
+  # as a subquery for schema detection. MSSQL forbids ORDER BY inside
+  # subqueries without TOP/OFFSET-FETCH. Sort in staging phase instead.
   query <- "
-    SELECT 
+    SELECT
       ORD001, ORD002, ORD003, ORD004, ORD005,
       ORD006, ORD007, ORD008, ORD009, ORD010,
       ORD011, ORD012, ORD013, ORD014, ORD015,
-      ORD016, ORD020, ORD021, ORD046, ORD047, 
+      ORD016, ORD020, ORD021, ORD046, ORD047,
       ORD048
     FROM BAYORD
     WHERE ORD003 >= '2024-01-01'
-    ORDER BY ORD003, ORD001
   "
   
   message("MAIN: Executing BAYORD query (limited columns for UTF-8 safety)...")
@@ -154,13 +156,12 @@ tryCatch({
   }, error = function(e) {
     message("MAIN: UTF-8 error encountered, trying minimal column set...")
     
-    # Fallback to minimal columns
+    # Fallback to minimal columns (also no ORDER BY, see note above)
     query_minimal <- "
-      SELECT 
+      SELECT
         ORD001, ORD003, ORD005, ORD009, ORD016
       FROM BAYORD
       WHERE ORD003 >= '2024-01-01'
-      ORDER BY ORD003, ORD001
     "
     bayord_data <- sql_read(sql_conn, query_minimal)
     message("MAIN: Using minimal column set due to encoding issues")

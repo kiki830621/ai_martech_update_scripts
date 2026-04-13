@@ -255,7 +255,9 @@ import_mamba_eby_sales <- function(conn) {
       ON BAYORE.ORE001 = BAYORD.ORD001
       AND CAST(BAYORE.ORE013 AS VARBINARY(50)) = CAST(BAYORD.ORD009 AS VARBINARY(50))
     WHERE CAST(ORD003 AS VARCHAR(15)) >= FORMAT(DATEADD(month, -3, GETDATE()), 'yyyyMMdd')
-    ORDER BY CAST(ORD003 AS VARCHAR(15)) DESC
+    -- ORDER BY removed: sql_read wraps queries as dbplyr subqueries
+    -- for schema detection; MSSQL forbids ORDER BY inside subqueries
+    -- without TOP/OFFSET-FETCH. Staging (1ST) handles sorting.
   "
   
   # Phase 2: Import problematic text fields with ORIGINAL column names (MP064 compliance)
@@ -285,7 +287,9 @@ import_mamba_eby_sales <- function(conn) {
       ON BAYORE.ORE001 = BAYORD.ORD001
       AND CAST(BAYORE.ORE013 AS VARBINARY(50)) = CAST(BAYORD.ORD009 AS VARBINARY(50))
     WHERE CAST(ORD003 AS VARCHAR(15)) >= FORMAT(DATEADD(month, -3, GETDATE()), 'yyyyMMdd')
-    ORDER BY CAST(ORD003 AS VARCHAR(15)) DESC
+    -- ORDER BY removed: sql_read wraps queries as dbplyr subqueries
+    -- for schema detection; MSSQL forbids ORDER BY inside subqueries
+    -- without TOP/OFFSET-FETCH. Staging (1ST) handles sorting.
   "
   
   message("MAIN:  Phase 1: Importing safe numeric/date fields...")
@@ -374,7 +378,9 @@ import_mamba_eby_sales <- function(conn) {
         ON BAYORE.ORE001 = BAYORD.ORD001
         AND CAST(BAYORE.ORE013 AS VARBINARY(50)) = CAST(BAYORD.ORD009 AS VARBINARY(50))
       WHERE CAST(ORD003 AS VARCHAR(15)) >= FORMAT(DATEADD(month, -3, GETDATE()), 'yyyyMMdd')
-      ORDER BY CAST(ORD003 AS VARCHAR(15)) DESC
+      -- ORDER BY removed: sql_read wraps queries as dbplyr subqueries
+    -- for schema detection; MSSQL forbids ORDER BY inside subqueries
+    -- without TOP/OFFSET-FETCH. Staging (1ST) handles sorting.
     "
     
     result <- sql_read(conn, query_fallback)
