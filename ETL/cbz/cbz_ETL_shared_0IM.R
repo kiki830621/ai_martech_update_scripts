@@ -68,6 +68,27 @@ message(sprintf("INITIALIZE: ✅ Initialization completed successfully (%.2fs)",
 # ==============================================================================
 
 main_start_time <- Sys.time()
+
+# #378 Phase 4: This "shared coordinator" 0IM is intentionally a no-op now.
+# Background: it formerly ran AFTER cbz_ETL_orders_0IM / sales / customers /
+# products and re-imported all data with its own MAX_PAGES_PER_ENDPOINT = 20
+# pagination cap, then dbWriteTable(overwrite = TRUE) the four raw tables —
+# clobbering the iterate-until-done full captures from the individual 0IMs
+# (drop from ~9k rows to ~60 rows). Since the four individual 0IMs already
+# perform full historical pagination + smoke assertions (#378 Phase 2), the
+# coordinator's "efficiency" no longer adds value and only causes silent
+# data loss. We keep the script as a target stub so existing pipelines that
+# reference it via tar_make() still complete; future cleanup may remove it
+# entirely.
+message("MAIN: ⏭️ cbz_ETL_shared_0IM is a deprecated coordinator (#378). Skipping —")
+message("MAIN: ⏭️ individual 0IMs already populate raw_data with full pagination.")
+script_success <- TRUE
+main_error <- NULL
+test_passed <- TRUE
+main_elapsed <- as.numeric(Sys.time() - main_start_time, units = "secs")
+message(sprintf("MAIN: ✅ Shared coordinator no-op completed (%.2fs)", main_elapsed))
+
+if (FALSE) {  # disabled — keeps original implementation as reference
 tryCatch({
   message("MAIN: 🚀 Starting Shared API Import Coordinator...")
   message("MAIN: 📊 Phase progress: Step 1/6 - API credential validation...")
@@ -76,7 +97,7 @@ tryCatch({
   api_token <- Sys.getenv("CBZ_API_TOKEN")
   api_base_url <- "https://app-store-api.cyberbiz.io/v1"
   api_available <- nchar(api_token) > 0
-  
+
   message(sprintf("MAIN: 🔐 API credentials: %s", if(api_available) "✅ Available" else "❌ Not found"))
 
   if (api_available) {
@@ -375,6 +396,7 @@ tryCatch({
   script_success <<- FALSE
   message(sprintf("MAIN: ❌ ERROR after %.2fs: %s", main_elapsed, e$message))
 })
+}  # close if (FALSE) — #378 deprecated coordinator wrapper
 
 # ==============================================================================
 # 3. TEST
