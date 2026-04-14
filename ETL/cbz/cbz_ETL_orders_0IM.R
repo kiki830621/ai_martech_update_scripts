@@ -83,61 +83,71 @@ tryCatch({
     
     # Implement API rate limiting
     rate_limit_delay <- 0.2  # 200ms between requests = 5 req/sec
-    
-    # Safe mode configuration
-    MAX_PAGES_PER_ENDPOINT <- 20
-    message(sprintf("MAIN: ⚠️ SAFE MODE - Limiting to %d pages per endpoint", MAX_PAGES_PER_ENDPOINT))
-    message(sprintf("MAIN: ⏱️ Rate limiting: %.2fs delay between requests (%.1f req/sec)", 
+
+    # #378: Source shared rate-limit retry helper (Phase 1)
+    api_retry_path_candidates <- c(
+      file.path("scripts", "global_scripts", "26_platform_apis", "fn_api_retry_backoff.R"),
+      file.path("..", "global_scripts", "26_platform_apis", "fn_api_retry_backoff.R"),
+      file.path("..", "..", "global_scripts", "26_platform_apis", "fn_api_retry_backoff.R")
+    )
+    api_retry_path <- api_retry_path_candidates[file.exists(api_retry_path_candidates)][1]
+    if (is.na(api_retry_path)) stop("fn_api_retry_backoff.R not found in expected paths")
+    source(api_retry_path)
+
+    # #378: Pagination iterate-until-done — no hardcap on pages, loop
+    # terminates naturally when API returns < per_page rows. Safety ceiling
+    # 10000 guards against runaway infinite loop only.
+    MAX_PAGES_PER_ENDPOINT <- 10000
+    message(sprintf("MAIN: Pagination iterate-until-done (safety ceiling = %d pages per endpoint)", MAX_PAGES_PER_ENDPOINT))
+    message(sprintf("MAIN: ⏱️ Rate limiting: %.2fs delay between requests (%.1f req/sec)",
                     rate_limit_delay, 1/rate_limit_delay))
 
-    # Helper function for API calls
+    # Helper function for API calls with automatic exponential-backoff retry
+    # on transient errors (429/5xx) via fn_api_retry_backoff.
     cbz_api_call <- function(endpoint, params = list()) {
-      call_start <- Sys.time()
       url <- paste0(api_base_url, endpoint)
-      
-      # Rate limiting
-      if (rate_limit_delay > 0.1) {
-        message(sprintf("    ⏳ Rate limiting: waiting %.2fs before API call...", rate_limit_delay))
-        Sys.sleep(rate_limit_delay)
-      } else {
-        Sys.sleep(rate_limit_delay)
-      }
-      
-      # Make API request with Bearer token
-      response <- httr::GET(
-        url,
-        httr::add_headers(
-          "Authorization" = paste("Bearer", api_token),
-          "Content-Type" = "application/json",
-          "Accept" = "application/json"
-        ),
-        query = params,
-        httr::timeout(30)
+
+      # Rate limiting (small fixed delay between all calls)
+      Sys.sleep(rate_limit_delay)
+
+      call_start <- Sys.time()
+      result <- api_call_with_retry(
+        fn = function() {
+          response <- httr::GET(
+            url,
+            httr::add_headers(
+              "Authorization" = paste("Bearer", api_token),
+              "Content-Type" = "application/json",
+              "Accept" = "application/json"
+            ),
+            query = params,
+            httr::timeout(30)
+          )
+          if (httr::http_error(response)) {
+            status_code <- httr::status_code(response)
+            error_content <- httr::content(response, "text", encoding = "UTF-8")
+            # Raise error with status code so retry helper can extract and
+            # decide whether to backoff-retry or abort.
+            err <- structure(
+              list(
+                message  = sprintf("API call failed - Status: %d, URL: %s - Error: %s",
+                                   status_code, url, error_content),
+                response = response
+              ),
+              class = c("simpleError", "error", "condition")
+            )
+            stop(err)
+          }
+          content <- httr::content(response, "text", encoding = "UTF-8")
+          jsonlite::fromJSON(content, flatten = TRUE)
+        },
+        max_retries = 5,
+        base_delay = 1,
+        backoff_factor = 2,
+        retry_statuses = c(429, 500, 502, 503, 504)
       )
-      
+
       call_elapsed <- as.numeric(Sys.time() - call_start, units = "secs")
-      
-      # Check for API errors
-      if (httr::http_error(response)) {
-        status_code <- httr::status_code(response)
-        error_content <- httr::content(response, "text", encoding = "UTF-8")
-        
-        error_msg <- sprintf("API call failed after %.2fs - Status: %d, URL: %s", 
-                           call_elapsed, status_code, url)
-        
-        if (status_code == 401) {
-          stop(sprintf("%s - Authentication failed. Please check your CBZ_API_TOKEN", error_msg))
-        } else if (status_code == 429) {
-          stop(sprintf("%s - Rate limit exceeded. Please wait before retrying", error_msg))
-        } else {
-          stop(sprintf("%s - Error: %s", error_msg, error_content))
-        }
-      }
-      
-      # Parse JSON response
-      content <- httr::content(response, "text", encoding = "UTF-8")
-      result <- jsonlite::fromJSON(content, flatten = TRUE)
-      
       message(sprintf("    ✅ API call completed (%.2fs)", call_elapsed))
       return(result)
     }
@@ -281,15 +291,26 @@ tryCatch({
       # Enhanced database write with verification
       message("MAIN: 📊 Phase progress: Step 4/5 - Database storage...")
       db_write_start <- Sys.time()
-      
+
       dbWriteTable(raw_data, "df_cbz_orders___raw", df_cbz_orders_raw, overwrite = TRUE)
       db_write_elapsed <- as.numeric(Sys.time() - db_write_start, units = "secs")
-      
+
       # Verify write
       actual_count <- sql_read(raw_data, "SELECT COUNT(*) as count FROM df_cbz_orders___raw")$count
-      
-      message(sprintf("MAIN: ✅ Order data: %d records written and verified (total: %.2fs, db_write: %.2fs)", 
+
+      message(sprintf("MAIN: ✅ Order data: %d records written and verified (total: %.2fs, db_write: %.2fs)",
                       actual_count, order_elapsed, db_write_elapsed))
+
+      # #378 smoke assertion: catch silent under-capture bugs
+      customer_col <- intersect(c("customer_id", "buyer_id"), names(df_cbz_orders_raw))
+      if (length(customer_col) > 0) {
+        n_unique_customers <- length(unique(df_cbz_orders_raw[[customer_col[1]]]))
+        message(sprintf("MAIN: Unique customers captured: %d", n_unique_customers))
+        stopifnot(
+          "[#378 smoke] cbz_ETL_orders_0IM captured fewer than 100 unique customers — likely under-capture bug; check pagination iterate-until-done logic" =
+            n_unique_customers > 100
+        )
+      }
     } else {
       message(sprintf("MAIN: 📭 No order data retrieved (%.2fs elapsed)", order_elapsed))
     }
@@ -416,12 +437,23 @@ tryCatch({
           db_write_start <- Sys.time()
           
           dbWriteTable(raw_data, "df_cbz_orders___raw", df_cbz_orders, overwrite = TRUE)
-          
+
           final_count <- sql_read(raw_data, "SELECT COUNT(*) as count FROM df_cbz_orders___raw")$count
           db_write_elapsed <- as.numeric(Sys.time() - db_write_start, units = "secs")
-          
+
           message(sprintf("MAIN: ✅ Order file import completed: %d records (import: %.2fs, db_write: %.2fs)",
                           final_count, import_elapsed, db_write_elapsed))
+
+          # #378 smoke assertion for CSV import path
+          customer_col <- intersect(c("customer_id", "buyer_id"), names(df_cbz_orders))
+          if (length(customer_col) > 0) {
+            n_unique_customers <- length(unique(df_cbz_orders[[customer_col[1]]]))
+            message(sprintf("MAIN: Unique customers captured (CSV): %d", n_unique_customers))
+            stopifnot(
+              "[#378 smoke] cbz_ETL_orders_0IM CSV path captured fewer than 100 unique customers — likely file truncated or missing" =
+                n_unique_customers > 100
+            )
+          }
         }
       } else {
         message("MAIN: 📭 No order files found in directory")

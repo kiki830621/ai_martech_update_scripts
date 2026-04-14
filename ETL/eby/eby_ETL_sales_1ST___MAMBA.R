@@ -106,10 +106,12 @@ stage_mamba_eby_sales <- function(raw_conn) {
   # Following MP106: Console Transparency - detailed record analysis
   message(sprintf("MAIN: Loaded %d raw records", nrow(df_raw)))
   message(sprintf("MAIN: Raw data columns: %d", ncol(df_raw)))
+  message(sprintf("[1ST trace step 0: raw load] rows=%d", nrow(df_raw)))
   message("MAIN: Starting 1ST phase transformations...")
-  
+
   # Convert to data.table for efficient processing
   dt_staging <- as.data.table(df_raw)
+  message(sprintf("[1ST trace step 1: as.data.table] rows=%d", nrow(dt_staging)))
   
   # ======================================
   # Phase 1: Column Renaming (moved from 0IM for MP064 compliance)
@@ -262,11 +264,16 @@ stage_mamba_eby_sales <- function(raw_conn) {
     warning("Missing required fields: ", paste(missing_fields, collapse = ", "))
   }
   
+  message(sprintf("[1ST trace step 2: before dedup] rows=%d distinct_orders=%d",
+                  nrow(dt_staging), length(unique(dt_staging$order_number))))
+
   # Remove duplicate orders (using renamed column)
   dt_staging <- unique(dt_staging, by = "order_number")
-  
+  message(sprintf("[1ST trace step 3: after unique(by=order_number)] rows=%d", nrow(dt_staging)))
+
   # Remove test orders (MAMBA-specific pattern)
   dt_staging <- dt_staging[!grepl("TEST|DEMO", order_number, ignore.case = TRUE)]
+  message(sprintf("[1ST trace step 4: after TEST/DEMO filter] rows=%d", nrow(dt_staging)))
   
   # 8. Add staging metadata
   dt_staging[, staging_timestamp := Sys.time()]

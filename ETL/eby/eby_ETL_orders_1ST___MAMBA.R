@@ -100,6 +100,7 @@ tryCatch(
 
     raw_orders <- dbReadTable(raw_data, "df_eby_orders___raw___MAMBA")
     n_raw <- nrow(raw_orders)
+    message(sprintf("[1ST trace step 0: raw load] rows=%d", n_raw))
     message(sprintf("MAIN: Loaded %d raw orders", n_raw))
 
     # ------------------------------------------------------------------------------
@@ -141,10 +142,14 @@ tryCatch(
         shipping_fee = ORD021 # 運費 (Shipping Fee)
       )
 
+    message(sprintf("[1ST trace step 1: after rename] rows=%d", nrow(staged_orders)))
+
     # Add placeholders for columns skipped in 0IM for safety
     if (!"address_source" %in% names(staged_orders)) staged_orders$address_source <- NA_integer_
     if (!"batch_key" %in% names(staged_orders)) staged_orders$batch_key <- NA_character_
     if (!"order_status" %in% names(staged_orders)) staged_orders$order_status <- "UNKNOWN"
+    message(sprintf("[1ST trace step 2: after placeholder columns] rows=%d batch_key_nulls=%d",
+                    nrow(staged_orders), sum(is.na(staged_orders$batch_key))))
 
     # ------------------------------------------------------------------------------
     # 2.3: Data Type Conversions and Cleaning
@@ -188,6 +193,8 @@ tryCatch(
         staging_version = script_version
       )
 
+    message(sprintf("[1ST trace step 3: after mutate type conversions] rows=%d", nrow(staged_orders)))
+
     # ------------------------------------------------------------------------------
     # 2.4: Data Quality Checks
     # ------------------------------------------------------------------------------
@@ -199,6 +206,9 @@ tryCatch(
       filter(n() > 1) %>%
       nrow()
 
+    message(sprintf("[1ST trace step 4: duplicate count] n_duplicates=%d (via group_by(order_id, batch_key))",
+                    n_duplicates))
+
     if (n_duplicates > 0) {
       warning(sprintf("MAIN: Found %d duplicate orders", n_duplicates))
       # Remove duplicates, keeping the latest
@@ -207,6 +217,9 @@ tryCatch(
         arrange(desc(order_date)) %>%
         slice(1) %>%
         ungroup()
+      message(sprintf("[1ST trace step 5: after dedup slice(1)] rows=%d", nrow(staged_orders)))
+    } else {
+      message("[1ST trace step 5: no dedup needed]")
     }
 
     # Check for missing critical fields
