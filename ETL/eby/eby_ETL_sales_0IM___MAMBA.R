@@ -254,7 +254,7 @@ import_mamba_eby_sales <- function(conn) {
     INNER JOIN BAYORD
       ON BAYORE.ORE001 = BAYORD.ORD001
       AND CAST(BAYORE.ORE013 AS VARBINARY(50)) = CAST(BAYORD.ORD009 AS VARBINARY(50))
-    WHERE CAST(ORD003 AS VARCHAR(15)) >= FORMAT(DATEADD(month, -3, GETDATE()), 'yyyyMMdd')
+    WHERE ORD003 >= '2024-01-01' -- #378 Phase 3: was 3-month window, now full history to match orders 0IM
     -- ORDER BY removed: sql_read wraps queries as dbplyr subqueries
     -- for schema detection; MSSQL forbids ORDER BY inside subqueries
     -- without TOP/OFFSET-FETCH. Staging (1ST) handles sorting.
@@ -287,7 +287,7 @@ import_mamba_eby_sales <- function(conn) {
     INNER JOIN BAYORD
       ON BAYORE.ORE001 = BAYORD.ORD001
       AND CAST(BAYORE.ORE013 AS VARBINARY(50)) = CAST(BAYORD.ORD009 AS VARBINARY(50))
-    WHERE CAST(ORD003 AS VARCHAR(15)) >= FORMAT(DATEADD(month, -3, GETDATE()), 'yyyyMMdd')
+    WHERE ORD003 >= '2024-01-01' -- #378 Phase 3: was 3-month window, now full history to match orders 0IM
     -- ORDER BY removed: sql_read wraps queries as dbplyr subqueries
     -- for schema detection; MSSQL forbids ORDER BY inside subqueries
     -- without TOP/OFFSET-FETCH. Staging (1ST) handles sorting.
@@ -383,7 +383,7 @@ import_mamba_eby_sales <- function(conn) {
       INNER JOIN BAYORD
         ON BAYORE.ORE001 = BAYORD.ORD001
         AND CAST(BAYORE.ORE013 AS VARBINARY(50)) = CAST(BAYORD.ORD009 AS VARBINARY(50))
-      WHERE CAST(ORD003 AS VARCHAR(15)) >= FORMAT(DATEADD(month, -3, GETDATE()), 'yyyyMMdd')
+      WHERE ORD003 >= '2024-01-01' -- #378 Phase 3: was 3-month window, now full history to match orders 0IM
       -- ORDER BY removed: sql_read wraps queries as dbplyr subqueries
     -- for schema detection; MSSQL forbids ORDER BY inside subqueries
     -- without TOP/OFFSET-FETCH. Staging (1ST) handles sorting.
