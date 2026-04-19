@@ -100,7 +100,7 @@ help:
 run:
 	@echo "═══════════════════════════════════════════════════════════════════"
 	@echo "MAMBA Pipeline Execution"
-	@echo "Platform: $(PLATFORM) | Layer: $(LAYER) | Target: $(TARGET)"
+	@echo "Platform: $(PLATFORM) | Layer: $(LAYER) | Target: $(TARGET) | FORCE: $(FORCE)"
 	@echo "Started: $$(date)"
 	@echo "═══════════════════════════════════════════════════════════════════"
 	@mkdir -p $(LOGS_DIR)
@@ -108,7 +108,10 @@ run:
 	MAMBA_PLATFORM=$(PLATFORM) \
 	MAMBA_LAYER=$(LAYER) \
 	MAMBA_TARGET=$(TARGET) \
-	$(R) -e "targets::tar_make(script = '$(TARGET_SCRIPT)', store = '$(STORE_DIR)')" 2>&1 | tee $(LOGS_DIR)/run_$(TIMESTAMP).log
+	FORCE=$(FORCE) \
+	$(R) $(PIPELINE_DIR)/orchestration/fn_output_presence.R \
+		"$(PROJECT_ROOT)" "$(STORE_DIR)" "$(TARGET_SCRIPT)" 2>&1 \
+		| tee $(LOGS_DIR)/run_$(TIMESTAMP).log
 	@echo ""
 	@echo "═══════════════════════════════════════════════════════════════════"
 	@echo "Completed: $$(date)"
