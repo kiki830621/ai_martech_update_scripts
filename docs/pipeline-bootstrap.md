@@ -45,9 +45,19 @@ cd <company>/scripts/update_scripts
 # 1. Generate config
 make config-full     # config-merge + scan + validate
 
-# 2. Run full pipeline (will build all 6-layer DBs from rawdata)
+# 2. Produce canonical meta_data.duckdb first (DM_R054 v2)
+#    This is the "7th layer" — non-rebuildable metadata, must exist
+#    before autoinit fail-fast permits full pipeline runs.
+cd ../..
+MAMBA_PROJECT_ROOT="$(pwd)" Rscript \
+  scripts/update_scripts/ETL/all/all_ETL_meta_init_0IM.R
+
+# 3. Run full pipeline (will build all 6-layer DBs from rawdata)
+cd scripts/update_scripts
 make run PLATFORM=<platform>
 ```
+
+**Why step 2 first**: `meta_data.duckdb` has no producer in the 6-layer ETL chain — it's the "7th layer" produced by its own bootstrap ETL (`all_ETL_meta_init_0IM.R`). Without it, autoinit's fail-fast precheck will stop full pipeline runs. The bootstrap ETL uses pre-autoinit mode (no autoinit call) so it can run when meta_data.duckdb does not yet exist.
 
 第一次跑時可能要 10-60 分鐘,視 rawdata 體量。smart cache detection 會偵測所有 DB 都不存在 → 自動 nuclear rebuild。
 
