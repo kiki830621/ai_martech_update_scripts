@@ -26,7 +26,8 @@
 #   app_config.yaml directly, resolve paths, write to meta_data.duckdb.
 #
 # Idempotency: Running twice with same inputs produces identical meta_data.duckdb
-# Preservation: __COMPANY-suffix tables (e.g. df_eby_..._MAMBA) are NOT touched
+# Preservation: ___COMPANY-suffix diagnostic tables (e.g. df_eby_review___transformed___MAMBA,
+#               triple underscore per DM_R037 v3.0) are NOT touched
 # Motivation: #422 + spectra change `metadata-to-meta-data-duckdb`
 #####
 
@@ -225,7 +226,7 @@ tryCatch({
 
   # -----------------------------------------------------------------------
   # 2.4 Write to meta_data.duckdb (idempotent: overwrite owned tables,
-  #     preserve __COMPANY-suffix diagnostic tables)
+  #     preserve ___COMPANY-suffix diagnostic tables — triple underscore per DM_R037 v3.0)
   # -----------------------------------------------------------------------
   if (!requireNamespace("DBI", quietly = TRUE) ||
       !requireNamespace("duckdb", quietly = TRUE)) {
