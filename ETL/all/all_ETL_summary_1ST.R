@@ -19,15 +19,11 @@
 
 autoinit()
 
-app_data <- dbConnectDuckdb(db_path_list$app_data)
-
-df_platform___selected<- 
-  df_platform %>% 
-  filter(platform_id %in% c("all",app_configs$platform))
-
-df_platform___selected
-
-dbWriteTable(app_data, "df_platform", df_platform___selected, overwrite = TRUE)
+# ARCHIVED 2026-04-19 — df_platform writer block removed per DM_R054 v2.1
+# (issue #424). `df_platform` is metadata and lives EXCLUSIVELY in
+# meta_data.duckdb, produced by all_ETL_meta_init_0IM.R. See
+#   ./archive_DM_R054_v2_20260419/archived_df_platform_writer.R
+# for the historical block preserved verbatim. DO NOT re-add a writer here.
 
 ########product_property_dictionary_KM
 googlesheet_con <-as_sheets_id("1aKyyOMpIJtDtpqe7Iz0AfSU0W9aAdpSdPDD1zgnqO30")

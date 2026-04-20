@@ -167,10 +167,14 @@ tryCatch({
   }
 
   # ---- Map product line names to IDs if needed ----
+  #
+  # DM_R054 v2.1: df_product_line is sourced from meta_data.duckdb (canonical).
+  # In UPDATE_MODE it is already populated as a global by
+  # sc_initialization_update_mode.R via fn_load_product_lines(). No CSV fallback.
   if ("product_line_id" %in% names(df_keys)) {
-    pl_csv_path <- file.path(APP_DIR, "data", "app_data", "parameters", "scd_type1", "df_product_line.csv")
-    if (file.exists(pl_csv_path)) {
-      df_pl <- fread(pl_csv_path)
+    if (exists("df_product_line", inherits = TRUE) &&
+        is.data.frame(df_product_line)) {
+      df_pl <- df_product_line
       known_ids <- df_pl$product_line_id
       # Build name → id mappings (English + Chinese)
       name_to_id_en <- setNames(df_pl$product_line_id, df_pl$product_line_name_english)
@@ -181,7 +185,7 @@ tryCatch({
         vals <- df_keys$product_line_id[needs_mapping]
         mapped_en <- name_to_id_en[vals]
         mapped_zh <- name_to_id_zh[vals]
-        # Use mapped value if found; assign "UNKNOWN" for unmapped values (#340)
+        # Use mapped value if found; assign "UNKNOWN" for unmapped values (#340).
         # "UNKNOWN" keeps product_line_id semantically consistent (always an ID,
         # never a raw name) so downstream joins/filters fail loudly instead of
         # silently producing wrong aggregations.
@@ -195,12 +199,16 @@ tryCatch({
         if (n_unmapped > 0) {
           unmapped_vals <- unique(vals[is.na(mapped_en) & is.na(mapped_zh)])
           warning(sprintf(
-            "MAIN: %d product_line_id values assigned 'UNKNOWN' (original: %s). Add them to df_product_line.csv.",
+            paste0("MAIN: %d product_line_id values assigned 'UNKNOWN' (original: %s). ",
+                   "Add them to df_product_line.csv seed, then run ",
+                   "all_ETL_meta_init_0IM.R to refresh meta_data.df_product_line."),
             n_unmapped, paste(unmapped_vals, collapse = ", ")))
         }
       }
     } else {
-      message("MAIN WARNING: df_product_line.csv not found, skipping name-to-ID mapping")
+      message("MAIN WARNING: df_product_line not loaded in memory; ",
+              "skipping name-to-ID mapping. Expected UPDATE_MODE init to ",
+              "populate it from meta_data.duckdb (DM_R054 v2.1).")
     }
   }
 

@@ -56,10 +56,11 @@ fail_on_gap <- tolower(Sys.getenv("COVERAGE_FAIL_ON_GAP", "false")) %in% c("1", 
 output_dir <- file.path(APP_DIR, "output", "etl_validation", "amz", "product_line_coverage")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-product_line_path <- file.path(APP_DIR, "data", "app_data", "parameters", "scd_type1", "df_product_line.csv")
-if (!file.exists(product_line_path)) {
-  stop(sprintf("Missing product-line definition file: %s", product_line_path))
-}
+# DM_R054 v2.1: df_product_line is loaded from meta_data.duckdb by UPDATE_MODE
+# init via fn_load_product_lines(). The old `product_line_path` file.exists
+# check on df_product_line.csv was stale (value was never read); removed to
+# stay compliant with §6 (runtime MAY NOT read CSV seeds). The bootstrap
+# check is the autoinit fail-fast precheck on meta_data.duckdb itself.
 
 # coerce_included removed — replaced by get_active_product_lines() (#363)
 

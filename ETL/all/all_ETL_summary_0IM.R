@@ -30,7 +30,12 @@ error_occurred <- FALSE
 
 # 2. MAIN
 
-load_product_lines(raw_data)
+# DM_R054 v2.1: read df_product_line from canonical meta_data.duckdb.
+# UPDATE_MODE populates db_path_list$meta_data, so forward the path explicitly.
+load_product_lines(
+  conn           = raw_data,
+  meta_data_path = db_path_list$meta_data
+)
 
 # 3. TEST
 

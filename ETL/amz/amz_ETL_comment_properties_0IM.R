@@ -75,10 +75,18 @@ tryCatch({
 
   active_product_lines <- get_active_product_lines()
 
+  # DM_R054 v2.1: df_product_line is sourced from meta_data.duckdb (loaded
+  # into memory by UPDATE_MODE init via fn_load_product_lines). The CSV seed
+  # at data/app_data/parameters/scd_type1/df_product_line.csv feeds only
+  # all_ETL_meta_init_0IM.R, which writes meta_data.df_product_line.
+  # Remediation path for any validation failure below: edit the CSV seed →
+  # re-run meta_init ETL → meta_data.duckdb refreshed → re-run this ETL.
+
   # Fail-fast: validate that comment_property_sheet_tab column exists
   if (!"comment_property_sheet_tab" %in% names(active_product_lines)) {
-    stop("VALIDATE FAILED: df_product_line.csv missing 'comment_property_sheet_tab' column. ",
-         "Add this column with the standardized Google Sheet tab name for each product line. ",
+    stop("VALIDATE FAILED: meta_data.df_product_line missing 'comment_property_sheet_tab' column. ",
+         "Add this column to the CSV seed (df_product_line.csv) with the standardized ",
+         "Google Sheet tab name for each product line, then re-run all_ETL_meta_init_0IM.R. ",
          "Format: {product_line_id}_{english-name-kebab} (e.g., 'blb_blue-light-blocking-glasses')")
   }
 
@@ -86,9 +94,9 @@ tryCatch({
   missing_tab <- active_product_lines %>%
     dplyr::filter(is.na(comment_property_sheet_tab) | trimws(comment_property_sheet_tab) == "")
   if (nrow(missing_tab) > 0) {
-    stop("VALIDATE FAILED: The following active product_line_id(s) have no comment_property_sheet_tab in df_product_line.csv: ",
+    stop("VALIDATE FAILED: The following active product_line_id(s) have no comment_property_sheet_tab in meta_data.df_product_line: ",
          paste(missing_tab$product_line_id, collapse = ", "),
-         ". Fill in the standardized tab name for each.")
+         ". Fill in the standardized tab name in the CSV seed, then re-run all_ETL_meta_init_0IM.R.")
   }
 
   # Verify tabs exist in the actual Google Sheet
@@ -96,10 +104,11 @@ tryCatch({
   configured_tabs <- active_product_lines$comment_property_sheet_tab
   missing_in_sheet <- configured_tabs[!configured_tabs %in% tab_names]
   if (length(missing_in_sheet) > 0) {
-    stop("VALIDATE FAILED: The following tab(s) from df_product_line.csv do not exist in the Google Sheet: ",
+    stop("VALIDATE FAILED: The following tab(s) from meta_data.df_product_line do not exist in the Google Sheet: ",
          paste(missing_in_sheet, collapse = ", "),
-         ". Either rename the Google Sheet tabs to match, or update df_product_line.csv. ",
-         "Available tabs in sheet: ", paste(tab_names, collapse = ", "))
+         ". Either rename the Google Sheet tabs to match, or update the CSV seed (df_product_line.csv) ",
+         "and re-run all_ETL_meta_init_0IM.R. Available tabs in sheet: ",
+         paste(tab_names, collapse = ", "))
   }
 
   result_list <- list()
