@@ -180,6 +180,22 @@ tryCatch({
   df_product_line <- utils::read.csv(
     product_line_csv, stringsAsFactors = FALSE, check.names = FALSE
   )
+  # #427 F22: with check.names=FALSE, column names can carry trailing/leading
+  # whitespace (e.g., " product_line_id" or "product_line_id " from CSV edited
+  # in Excel). trim them so required_cols match-up is robust.
+  orig_cols <- names(df_product_line)
+  trimmed_cols <- trimws(orig_cols)
+  whitespace_mismatches <- orig_cols[orig_cols != trimmed_cols]
+  if (length(whitespace_mismatches) > 0) {
+    warning(sprintf(
+      "[meta_init] df_product_line.csv column names had leading/trailing whitespace (normalized): %s",
+      paste(sprintf("'%s' -> '%s'",
+                    whitespace_mismatches,
+                    trimmed_cols[orig_cols != trimmed_cols]),
+            collapse = "; ")
+    ), call. = FALSE)
+    names(df_product_line) <- trimmed_cols
+  }
   required_cols <- c("product_line_id",
                      "product_line_name_english",
                      "product_line_name_chinese")
@@ -191,6 +207,16 @@ tryCatch({
       "Found columns: ", paste(names(df_product_line), collapse = ", "),
       call. = FALSE
     )
+  }
+  # Non-blocking info for unexpected extra columns — surfaces silent schema
+  # drift (e.g., a new expected column added but not in required_cols yet).
+  known_cols <- c(required_cols, "comment_property_sheet_tab")
+  extra_cols <- setdiff(names(df_product_line), known_cols)
+  if (length(extra_cols) > 0) {
+    message(sprintf(
+      "[meta_init] df_product_line.csv has extra columns (passed through): %s",
+      paste(extra_cols, collapse = ", ")
+    ))
   }
   message(sprintf(
     "[meta_init] df_product_line loaded from CSV seed: %d row(s)",
