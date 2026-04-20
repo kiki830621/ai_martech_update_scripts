@@ -57,7 +57,9 @@ cd scripts/update_scripts
 make run PLATFORM=<platform>
 ```
 
-**Why step 2 first**: `meta_data.duckdb` has no producer in the 6-layer ETL chain — it's the "7th layer" produced by its own bootstrap ETL (`all_ETL_meta_init_0IM.R`). Without it, autoinit's fail-fast precheck will stop full pipeline runs. The bootstrap ETL uses pre-autoinit mode (no autoinit call) so it can run when meta_data.duckdb does not yet exist.
+**Why step 2 first**: `meta_data.duckdb` has no producer in the 6-layer ETL chain — it's the "7th layer" produced by its own bootstrap ETL (`all_ETL_meta_init_0IM.R`). Without it, autoinit's fail-fast precheck will stop full pipeline runs (UPDATE_MODE only — APP_MODE skips the precheck per DM_R054 v2.1.1). The bootstrap ETL uses pre-autoinit mode (no autoinit call) so it can run when meta_data.duckdb does not yet exist.
+
+**DM_R054 v2.1.1 (2026-04-20) — Posit Connect deploy note**: for companies that run production on Posit Connect with `app_config.yaml > database.mode: "supabase"` (e.g., MAMBA), the CSV seed step above produces local `meta_data.duckdb` for UPDATE_MODE only. The deployed Shiny app reads `df_product_line` / `df_platform` from live Supabase via `dbConnectAppData()` — `meta_data.duckdb` is NOT shipped in the Posit Connect bundle, and Supabase is populated by a separate upload ETL (outside this bootstrap). Runtime MUST NOT read CSV seeds (§6); that holds for both DuckDB and Supabase canonical sources.
 
 第一次跑時可能要 10-60 分鐘,視 rawdata 體量。smart cache detection 會偵測所有 DB 都不存在 → 自動 nuclear rebuild。
 
