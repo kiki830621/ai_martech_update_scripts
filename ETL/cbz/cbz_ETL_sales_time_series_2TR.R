@@ -7,7 +7,7 @@
 # PHASE: 2TR (derived ETL)
 # CONSUMES: transformed_data.df_cbz_sales___transformed,
 #           raw_data.df_all_item_profile_{product_line},
-#           data/app_data/parameters/scd_type1/df_product_line.csv
+#           meta_data.df_product_line (via global df_product_line, DM_R054 v2.1)
 # PRODUCES: app_data.df_cbz_sales_complete_time_series_{product_line},
 #           app_data.df_cbz_sales_complete_time_series
 # PRINCIPLE: MP064, MP109, R117, DM_R053, MP029
@@ -70,9 +70,11 @@ SCRIPT_VERSION <- "v1.0_ETL_TS"
 TIME_UNIT <- "day"
 FILL_METHOD <- "zero"
 
-PRODUCT_LINE_PATH <- file.path(
-  APP_DIR, "data", "app_data", "parameters", "scd_type1", "df_product_line.csv"
-)
+# DM_R054 v2.1: df_product_line is sourced from meta_data.duckdb, loaded into
+# the global env by UPDATE_MODE init via fn_load_product_lines(). get_active_product_lines()
+# (Step 2/6 below) consumes the in-memory global — no CSV read happens here.
+# The old PRODUCT_LINE_PATH constant + file.exists() gate were stale dead code;
+# removed to comply with §6 (no CSV seed at runtime).
 
 empty_time_series_schema <- tibble(
   eby_item_id = character(),
@@ -131,9 +133,6 @@ tryCatch({
   }
   if (!file.exists(DB_TRANSFORMED)) {
     stop(sprintf("Transformed database not found: %s", DB_TRANSFORMED))
-  }
-  if (!file.exists(PRODUCT_LINE_PATH)) {
-    stop(sprintf("Product line CSV not found: %s", PRODUCT_LINE_PATH))
   }
 
   message("[Step 1/6] Connecting to databases...")
