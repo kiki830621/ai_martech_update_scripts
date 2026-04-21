@@ -60,6 +60,9 @@ library(duckdb)
 library(readxl)
 
 message("INITIALIZE: Loading import function...")
+# #445: fix_excel_serial_dates() must be sourced BEFORE import_amazon_sales
+# because the import function calls it via defensive exists() check.
+source(file.path(GLOBAL_DIR, "05_etl_utils", "common", "fn_fix_excel_serial_dates.R"))
 source(file.path(GLOBAL_DIR, "05_etl_utils", "amz", "import_amazon_sales.R"))
 source(file.path(GLOBAL_DIR, "02_db_utils", "duckdb", "fn_dbConnectDuckdb.R"))
 
