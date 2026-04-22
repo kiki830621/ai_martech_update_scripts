@@ -9,8 +9,9 @@
 # CORE_FUNCTION: global_scripts/16_derivations/fn_D03_01_core.R
 # CONSUMES: transformed_data.df_{platform}_sales___standardized
 # PRODUCES: app_data.df_geo_sales_by_country, app_data.df_customer_country_map, app_data.df_geo_sales_by_state
+#           (country + state tables include platform_id='all' cross-platform rollup rows, #417 MP055)
 # DEPENDS_ON_ETL: {platform}_ETL_sales_2TS
-# PRINCIPLE: MP064, MP029, MP140, DM_R044
+# PRINCIPLE: MP064, MP029, MP140, MP055, DM_R044
 #####
 #all_D03_01
 
@@ -73,6 +74,28 @@ tryCatch({
     if (!test_passed) {
       message(sprintf("[%s] D03_01 failed", platform_id))
       break
+    }
+  }
+
+  # #417: after per-platform rows are in place, produce the cross-platform
+  # platform_id='all' rollup so UI components that default to platform=all
+  # (e.g. VitalSigns > 全球戰情室 worldMap) find data instead of rendering
+  # blank. Per MP055 Special Treatment of 'ALL' Category.
+  if (test_passed) {
+    db_util_path <- file.path(GLOBAL_DIR, "02_db_utils", "duckdb", "fn_dbConnectDuckdb.R")
+    if (file.exists(db_util_path)) source(db_util_path)
+    agg_opened_here <- FALSE
+    if (!exists("app_data") || !inherits(app_data, "DBIConnection") || !DBI::dbIsValid(app_data)) {
+      app_data <- dbConnectDuckdb(db_path_list$app_data, read_only = FALSE)
+      agg_opened_here <- TRUE
+    }
+    message("[all_D03_01] Aggregating platform_id='all' rollup rows (#417)...")
+    agg_ok <- aggregate_D03_01_all_platforms(app_data)
+    if (!isTRUE(agg_ok)) {
+      message("[all_D03_01] WARNING: platform='all' rollup returned FALSE; continuing")
+    }
+    if (agg_opened_here && DBI::dbIsValid(app_data)) {
+      DBI::dbDisconnect(app_data, shutdown = FALSE)
     }
   }
 }, error = function(e) {
