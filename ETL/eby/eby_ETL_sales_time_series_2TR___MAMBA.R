@@ -227,7 +227,7 @@ tryCatch({
   sales_raw <- sales_raw %>%
     mutate(
       order_date = as.Date(order_date),
-      product_sku = coalesce(
+      product_sku = dplyr::coalesce(
         as.character(product_sku),
         as.character(erp_product_no),
         as.character(ebay_item_code)

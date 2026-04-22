@@ -206,7 +206,7 @@ tryCatch({
       distinct(product_sku, .keep_all = TRUE) %>%
       left_join(product_line_lookup,
                 by = "product_line_id") %>%
-      mutate(product_line_name = coalesce(product_line_name_chinese,
+      mutate(product_line_name = dplyr::coalesce(product_line_name_chinese,
                                           product_line_name_english)) %>%
       select(product_sku, eby_item_id, product_line_id, product_line_name)
   }
