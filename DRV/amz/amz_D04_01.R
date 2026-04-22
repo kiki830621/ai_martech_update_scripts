@@ -36,7 +36,7 @@ if (is.na(tbl2_path)) {
   stop("fn_tbl2.R not found in expected paths")
 }
 source(tbl2_path)
-message("=== cbz_DER_poisson_time_labels.R ===")
+message("=== amz_D04_01.R ===")
 message("Starting Poisson time label enrichment")
 
 # Initialize environment
@@ -417,7 +417,7 @@ DBI::dbDisconnect(con_raw)
 message("Database connections closed")
 
 status_label <- ifelse(test_passed && !error_occurred, "SUCCESS ✅", "FAILED ❌")
-message("\n=== cbz_DER_poisson_time_labels.R completed ===")
+message("\n=== amz_D04_01.R completed ===")
 message(sprintf("Status: %s", status_label))
 
 # Clean up environment (must be last)
