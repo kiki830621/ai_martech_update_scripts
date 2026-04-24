@@ -219,10 +219,67 @@ tryCatch({
 
   message("MAIN: Imported ", length(import_result), " product profile tables")
 
+  # ============================================================================
+  # qef-product-master-redesign tasks 3.1 + 3.2:
+  # Single catalogue master — union per-line tables into df_amz_product_master
+  # with (amz_asin, marketplace) PK. Per-line tables preserved for backward compat.
+  # ============================================================================
+  tryCatch({
+    # Determine marketplace default
+    company_master_cfg <- platform_cfg$etl_sources$company_product_master
+    marketplace_default <- if (!is.null(company_master_cfg) &&
+                               nzchar(as.character(company_master_cfg$marketplace_default %||% ""))) {
+      as.character(company_master_cfg$marketplace_default)
+    } else {
+      "amz_us"
+    }
+
+    master_rows_list <- list()
+    for (pl_id in names(import_result)) {
+      tbl_name <- import_result[[pl_id]]$table
+      if (!dbExistsTable(raw_data, tbl_name)) next
+      df <- DBI::dbReadTable(raw_data, tbl_name)
+
+      # Column-name access (DM_R064). Prefer canonical names if present.
+      asin_col <- which(tolower(names(df)) == "asin")[1]
+      brand_col <- which(names(df) == "品牌" | tolower(names(df)) == "brand")[1]
+      name_col  <- which(names(df) == "商品名稱" | tolower(names(df)) == "product_name")[1]
+
+      if (is.na(asin_col)) next
+
+      out <- data.frame(
+        amz_asin = trimws(as.character(df[[asin_col]])),
+        marketplace = marketplace_default,
+        product_line_id = pl_id,
+        brand = if (!is.na(brand_col)) trimws(as.character(df[[brand_col]])) else NA_character_,
+        product_name = if (!is.na(name_col)) trimws(as.character(df[[name_col]])) else NA_character_,
+        stringsAsFactors = FALSE
+      )
+      # Drop rows with empty / invalid ASIN
+      out <- out[!is.na(out$amz_asin) & nzchar(out$amz_asin), , drop = FALSE]
+      if (nrow(out) > 0) master_rows_list[[pl_id]] <- out
+    }
+
+    if (length(master_rows_list) > 0) {
+      df_master <- do.call(rbind, master_rows_list)
+      # Dedup on (amz_asin, marketplace) — same ASIN must not appear twice.
+      df_master <- df_master[!duplicated(df_master[, c("amz_asin", "marketplace")]), , drop = FALSE]
+      DBI::dbWriteTable(raw_data, "df_amz_product_master", df_master, overwrite = TRUE)
+      message(sprintf(
+        "MAIN: Wrote df_amz_product_master: %d ASINs across %d product lines (marketplace_default=%s)",
+        nrow(df_master), length(unique(df_master$product_line_id)), marketplace_default
+      ))
+    } else {
+      message("MAIN: df_amz_product_master: no rows produced (all profiles empty or missing ASIN)")
+    }
+  }, error = function(e) {
+    warning(sprintf("Failed to build df_amz_product_master union: %s", e$message), call. = FALSE)
+  })
+
   # List all tables in raw_data database
   all_tables <- dbListTables(raw_data)
   message("MAIN: All tables in raw_data: ", paste(all_tables, collapse = ", "))
-  
+
   # Check specific product profile tables
   product_profile_tables <- all_tables[grepl("^df_product_profile_", all_tables)]
   message("MAIN: product profile tables found: ", paste(product_profile_tables, collapse = ", "))
