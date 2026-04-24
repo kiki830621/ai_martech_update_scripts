@@ -68,8 +68,16 @@ tryCatch({
   message(sprintf("VALIDATE: Found declared rawdata_path '%s'", rawdata_rel_path))
 
   # Read the SKU mapping Excel file
-  message("MAIN: Reading SKU mapping from: ", basename(sku_mapping_file))
-  df_sku <- readxl::read_excel(sku_mapping_file)
+  # qef-product-master-redesign task 4.2 / #462 fix:
+  # The standard `SKUtoASIN number.xlsx` template has:
+  #   row 1: title text ("SKU Details" merged across cells)
+  #   row 2: blank
+  #   row 3: real header (Name, SKU, Product Line, AMZ ASIN, 成本, 利潤)
+  # Without skip=2, read_excel treated row 1 as header → columns became
+  # `sku_details, 2, 3, 4, 5, 6` and downstream lookups silently broke.
+  # skip=2 makes row 3 the header row.
+  message("MAIN: Reading SKU mapping from: ", basename(sku_mapping_file), " (skip=2)")
+  df_sku <- readxl::read_excel(sku_mapping_file, skip = 2)
 
   # Standardize column names to snake_case
   names(df_sku) <- tolower(gsub("[^a-zA-Z0-9]", "_", names(df_sku)))

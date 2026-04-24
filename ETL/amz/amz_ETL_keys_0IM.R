@@ -232,6 +232,33 @@ tryCatch({
     sprintf("SELECT COUNT(*) as n FROM %s", output_table))$n
   message(sprintf("MAIN: Stored %d records in %s", actual_count, output_table))
 
+  # qef-product-master-redesign task 4.3: detect template residue
+  # The new-company skill ships a stub KEYS.xlsx with one Electric Can Opener
+  # row. If a real customer never replaced this stub, downstream lookups will
+  # silently fail. Warn loudly but do NOT fail (resolver tolerates empty/stale
+  # xlsx via Gsheet priority — see qef-product-master-redesign change).
+  if (actual_count <= 1) {
+    template_check <- tryCatch(
+      sql_read(raw_data, sprintf(
+        "SELECT COUNT(*) AS n FROM %s WHERE product_name LIKE '%%Electric Can Opener%%'",
+        output_table
+      ))$n,
+      error = function(e) 0
+    )
+    if (template_check > 0 || actual_count == 0) {
+      message(strrep("!", 80))
+      message(sprintf(
+        "WARNING: %s appears to contain new-company template residue (%d row, '%s' product).",
+        basename(keys_path), actual_count,
+        if (template_check > 0) "Electric Can Opener" else "<empty>"
+      ))
+      message("WARNING: Real company SKU mapping is missing.")
+      message("WARNING: ETL will continue (resolver uses Gsheet as primary source);")
+      message("WARNING: see qef-product-master-redesign for canonical Gsheet master tab.")
+      message(strrep("!", 80))
+    }
+  }
+
   # Display the data
   message("MAIN: Product key mapping:")
   print(as.data.frame(df_keys))
