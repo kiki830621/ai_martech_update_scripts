@@ -132,6 +132,51 @@ tryCatch({
   raw_headers <- names(competitor_raw)
   product_headers <- raw_headers[!grepl("^(\\.\\.\\.|產品編碼|銷售數據|評論數據|品牌)", raw_headers)]
 
+  # Block boundary resolver (DM_R064: column-name access over positional access)
+  #
+  # Sheet layout: each product line occupies a contiguous block:
+  #   [品牌][ASIN header][產品編碼][銷售數據][評論數據] | [next 品牌][next ASIN] ...
+  #
+  # Block size and column order may vary per company / over time. Instead of
+  # hardcoding offsets (col_idx + N), we:
+  #   1. Use 品牌 columns as block delimiters (each block starts at a 品牌 col)
+  #   2. For each ASIN column, take the nearest 品牌 to its left as brand col
+  #   3. Within the span from ASIN+1 to (next 品牌 - 1), match 產品編碼 /
+  #      銷售數據 / 評論數據 headers by name (not by position)
+  # The positional arithmetic is confined to one-time parse-time resolution;
+  # downstream access uses column names. See #403 #457 for root cause.
+  brand_positions <- which(grepl("^品牌", raw_headers))
+
+  resolve_block_columns <- function(asin_idx) {
+    brand_candidates <- brand_positions[brand_positions < asin_idx]
+    if (length(brand_candidates) == 0) return(NULL)
+    brand_idx <- max(brand_candidates)
+
+    next_brand <- brand_positions[brand_positions > asin_idx]
+    block_end <- if (length(next_brand) > 0) next_brand[1] - 1L else length(raw_headers)
+    if (block_end <= asin_idx) return(NULL)
+    block_range <- (asin_idx + 1L):block_end
+
+    find_col <- function(pattern) {
+      hit <- which(grepl(pattern, raw_headers[block_range]))
+      if (length(hit) == 0) NA_integer_ else block_range[hit[1]]
+    }
+
+    list(
+      brand        = brand_idx,
+      asin         = asin_idx,
+      product_code = find_col("^產品編碼"),
+      sales        = find_col("^銷售數據"),
+      review       = find_col("^評論數據")
+    )
+  }
+
+  pick_column <- function(idx) {
+    if (is.na(idx)) return(rep(NA_character_, nrow(competitor_raw)))
+    # Access by header name (DM_R064) — raw_headers[idx] is the unique column name
+    as.character(competitor_raw[[raw_headers[idx]]])
+  }
+
   active_product_lines <- get_active_product_lines()
 
   result_list <- list()
@@ -145,23 +190,20 @@ tryCatch({
 
     col_idx <- match(resolved_header, raw_headers)
     if (is.na(col_idx)) next
-    asin_idx <- col_idx
-    sales_idx <- col_idx + 1
-    review_idx <- col_idx + 2
-    brand_idx <- col_idx + 4
-
-    asin_vec <- if (asin_idx <= ncol(competitor_raw)) as.character(competitor_raw[[asin_idx]]) else rep(NA_character_, nrow(competitor_raw))
-    sales_vec <- if (sales_idx <= ncol(competitor_raw)) as.character(competitor_raw[[sales_idx]]) else rep(NA_character_, nrow(competitor_raw))
-    review_vec <- if (review_idx <= ncol(competitor_raw)) as.character(competitor_raw[[review_idx]]) else rep(NA_character_, nrow(competitor_raw))
-    brand_vec <- if (brand_idx <= ncol(competitor_raw)) as.character(competitor_raw[[brand_idx]]) else rep(NA_character_, nrow(competitor_raw))
+    block_cols <- resolve_block_columns(col_idx)
+    if (is.null(block_cols)) {
+      message("MAIN WARNING: Could not locate block delimiters for ",
+              product_line_id, " (header '", resolved_header, "') - skipping")
+      next
+    }
 
     block_df <- data.frame(
       product_line_id = product_line_id,
-      asin = asin_vec,
-      sales_data = sales_vec,
-      review_data = review_vec,
-      brand = brand_vec,
-      source_header = resolved_header,
+      asin            = pick_column(block_cols$asin),
+      sales_data      = pick_column(block_cols$sales),
+      review_data     = pick_column(block_cols$review),
+      brand           = pick_column(block_cols$brand),
+      source_header   = resolved_header,
       stringsAsFactors = FALSE
     ) %>%
       dplyr::mutate(
@@ -176,7 +218,10 @@ tryCatch({
       next
     }
     result_list[[product_line_id]] <- block_df
-    message("MAIN: Parsed ", nrow(block_df), " competitor rows for ", product_line_id)
+    brand_label <- raw_headers[block_cols$brand]
+    sales_label <- if (is.na(block_cols$sales)) "N/A" else raw_headers[block_cols$sales]
+    message("MAIN: Parsed ", nrow(block_df), " competitor rows for ", product_line_id,
+            " (brand col: '", brand_label, "', sales col: '", sales_label, "')")
   }
 
   if (length(result_list) == 0) {
