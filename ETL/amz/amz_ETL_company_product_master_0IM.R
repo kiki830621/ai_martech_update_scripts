@@ -52,6 +52,9 @@ autoinit()
 source(file.path(GLOBAL_DIR, "04_utils", "fn_get_platform_config.R"))
 source(file.path(GLOBAL_DIR, "05_etl_utils", "amz", "fn_arbitrate_product_master_conflicts.R"))
 source(file.path(GLOBAL_DIR, "05_etl_utils", "amz", "fn_resolve_company_product_master.R"))
+# MP155 Status Surface (qef-gsheet-three-surface-redesign):
+source(file.path(GLOBAL_DIR, "05_etl_utils", "amz", "fn_detect_anomalies.R"))
+source(file.path(GLOBAL_DIR, "05_etl_utils", "amz", "fn_write_status_gsheet.R"))
 
 library(DBI)
 library(duckdb)
@@ -102,6 +105,23 @@ tryCatch({
   }
   dbWriteTable(raw_data, output_table, as.data.frame(df_master), overwrite = TRUE)
   message(sprintf("MAIN: Wrote %d rows to %s", n_rows, output_table))
+
+  # ----- MP155 Status Surface writeback -----
+  # When app_config.yaml has platforms.amz.etl_sources.status_gsheet section,
+  # publish anomalies / missing_master / drift to the Status Gsheet.
+  # Silently skipped when the section is absent or sheet_id="TBD". Any API
+  # failure surfaces as warning() and does NOT abort the ETL.
+  status_cfg <- app_config$platforms$amz$etl_sources$status_gsheet
+  if (!is.null(status_cfg)) {
+    message("MAIN: Publishing MP155 Status Surface ...")
+    anom_out <- detect_anomalies(df_master)
+    write_status_gsheet(
+      status_gsheet_config = status_cfg,
+      anomalies = anom_out$anomalies,
+      missing_master = anom_out$missing_master,
+      drift = anom_out$drift
+    )
+  }
 
   script_success <- TRUE
   message(sprintf("MAIN: completed (%.2fs)",
