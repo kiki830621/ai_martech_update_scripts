@@ -173,14 +173,17 @@ tryCatch({
   # the SKU is immutable for active listings with sales history, we accept
   # the fallback and merely fill the empty `asin` column. Non-destructive
   # (MP154-compliant): never overwrites a non-empty asin, never modifies sku.
-  if (exists("backfill_asin_from_sku", mode = "function")) {
-    bf_start <- Sys.time()
-    dt <- as.data.frame(dt)
-    dt <- backfill_asin_from_sku(dt, verbose = TRUE)
-    dt <- as.data.table(dt)
-    message(sprintf("MAIN: ASIN backfill done (%.2fs)",
-                    as.numeric(Sys.time() - bf_start, units = "secs")))
-  }
+  #
+  # Verify finding (Logic P2): the previous `if (exists(...))` guard hid
+  # source() failures silently. Helper is sourced unconditionally at top of
+  # script (Step 1: INITIALIZE); fail loudly via stopifnot if it isn't.
+  stopifnot(exists("backfill_asin_from_sku", mode = "function"))
+  bf_start <- Sys.time()
+  dt <- as.data.frame(dt)
+  dt <- backfill_asin_from_sku(dt, verbose = TRUE)
+  dt <- as.data.table(dt)
+  message(sprintf("MAIN: ASIN backfill done (%.2fs)",
+                  as.numeric(Sys.time() - bf_start, units = "secs")))
 
   # Step 3: Standardize numeric columns
   message("MAIN: Step 3/4 - Standardizing numeric columns...")
