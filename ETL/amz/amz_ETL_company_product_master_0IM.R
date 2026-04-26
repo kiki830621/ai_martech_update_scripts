@@ -58,6 +58,7 @@ source(file.path(GLOBAL_DIR, "05_etl_utils", "amz", "fn_write_status_gsheet.R"))
 
 library(DBI)
 library(duckdb)
+library(dplyr)  # %>%, select, distinct, collect for tbl2() pipelines (DM_R023 v1.2)
 
 raw_data <- dbConnectDuckdb(db_path_list$raw_data, read_only = FALSE)
 message(sprintf("INITIALIZE: Using: %s", db_path_list$raw_data))
@@ -108,18 +109,62 @@ tryCatch({
 
   # ----- MP155 Status Surface writeback -----
   # When app_config.yaml has platforms.amz.etl_sources.status_gsheet section,
-  # publish anomalies / missing_master / drift to the Status Gsheet.
+  # publish anomalies / missing_master / drift / mapping_gaps to the Status Gsheet.
   # Silently skipped when the section is absent or sheet_id="TBD". Any API
   # failure surfaces as warning() and does NOT abort the ETL.
   status_cfg <- app_config$platforms$amz$etl_sources$status_gsheet
   if (!is.null(status_cfg)) {
     message("MAIN: Publishing MP155 Status Surface ...")
-    anom_out <- detect_anomalies(df_master)
+
+    # Pull distinct (sku, amz_asin, marketplace) tuples from the transformed
+    # sales table for mapping-gap detection (Issue #471 / amz-mapping-gap-detection).
+    # Per DM_R023 v1.2: tbl2() + dplyr verbs only, no raw SELECT.
+    # Silently fall through to NULL if transformed_data DB or sales table is
+    # absent (early bootstrap before any sales ETL has run).
+    sales_pairs <- tryCatch({
+      if (!is.null(db_path_list$transformed_data) &&
+          file.exists(db_path_list$transformed_data)) {
+        td_con <- dbConnectDuckdb(db_path_list$transformed_data, read_only = TRUE)
+        on.exit(try(DBI::dbDisconnect(td_con, shutdown = TRUE), silent = TRUE),
+                add = TRUE)
+        if (DBI::dbExistsTable(td_con, "df_amz_sales___transformed")) {
+          # Schema reality (verified 2026-04-26):
+          # - df_amz_sales___transformed has columns `sku` and `asin`
+          #   (NOT `amz_asin`); no `marketplace` column (single-market amz today).
+          # Rename `asin -> amz_asin` for resolver compatibility, and inject
+          # the canonical marketplace literal until per-row marketplace lands.
+          available_fields <- DBI::dbListFields(td_con, "df_amz_sales___transformed")
+          if (!all(c("sku", "asin") %in% available_fields)) {
+            message("MAIN: df_amz_sales___transformed missing sku or asin column; mapping_gaps skipped.")
+            NULL
+          } else {
+            tbl2(td_con, "df_amz_sales___transformed") %>%
+              dplyr::select(sku, amz_asin = asin) %>%
+              dplyr::distinct() %>%
+              dplyr::collect() %>%
+              dplyr::mutate(marketplace = "amz_us")
+          }
+        } else {
+          message("MAIN: df_amz_sales___transformed not found; mapping_gaps skipped.")
+          NULL
+        }
+      } else {
+        message("MAIN: transformed_data DB unavailable; mapping_gaps skipped.")
+        NULL
+      }
+    }, error = function(e) {
+      warning(sprintf("MAIN: failed to read sales pairs (%s); mapping_gaps skipped.",
+                      conditionMessage(e)), call. = FALSE)
+      NULL
+    })
+
+    anom_out <- detect_anomalies(df_master, sales_sku_asin_pairs = sales_pairs)
     write_status_gsheet(
       status_gsheet_config = status_cfg,
       anomalies = anom_out$anomalies,
       missing_master = anom_out$missing_master,
-      drift = anom_out$drift
+      drift = anom_out$drift,
+      mapping_gaps = anom_out$mapping_gaps
     )
   }
 
