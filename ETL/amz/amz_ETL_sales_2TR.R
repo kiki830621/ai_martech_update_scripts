@@ -51,6 +51,8 @@ library(duckdb)
 library(data.table)
 
 source(file.path(GLOBAL_DIR, "02_db_utils", "duckdb", "fn_dbConnectDuckdb.R"))
+# #472: backfill helper for Amazon platform auto-fallback (sku=ASIN, asin=NA)
+source(file.path(GLOBAL_DIR, "05_etl_utils", "amz", "fn_backfill_asin_from_sku.R"))
 
 parse_mixed_datetime <- function(values, tz = "UTC") {
   raw_chr <- trimws(as.character(values))
@@ -164,6 +166,21 @@ tryCatch({
 
   message(sprintf("MAIN: Date standardization done (%.2fs)",
                   as.numeric(Sys.time() - date_start, units = "secs")))
+
+  # Step 2.5: Backfill asin from ASIN-shaped sku (#472)
+  # Amazon Seller Central auto-fallback: when seller has no merchant SKU
+  # for an active listing, the platform fills `sku` with the ASIN. Because
+  # the SKU is immutable for active listings with sales history, we accept
+  # the fallback and merely fill the empty `asin` column. Non-destructive
+  # (MP154-compliant): never overwrites a non-empty asin, never modifies sku.
+  if (exists("backfill_asin_from_sku", mode = "function")) {
+    bf_start <- Sys.time()
+    dt <- as.data.frame(dt)
+    dt <- backfill_asin_from_sku(dt, verbose = TRUE)
+    dt <- as.data.table(dt)
+    message(sprintf("MAIN: ASIN backfill done (%.2fs)",
+                    as.numeric(Sys.time() - bf_start, units = "secs")))
+  }
 
   # Step 3: Standardize numeric columns
   message("MAIN: Step 3/4 - Standardizing numeric columns...")
