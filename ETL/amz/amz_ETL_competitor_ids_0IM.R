@@ -75,11 +75,16 @@ tryCatch({
   src_cfg <- platform_cfg$etl_sources$competitor_ids
   gs_id <- googlesheets4::as_sheets_id(src_cfg$sheet_id)
 
+  # Per #495 scope correction (2026-04-28): the 12 entries here match
+  # QEF_DESIGN/data/app_data/parameters/scd_type1/df_product_line.csv 1:1.
+  # Three former ghost entries (wwp / htl / gcl) were removed in sync with
+  # amz_ETL_product_profiles_0IM.R since both ETLs share the same registry.
+  # See that file's R map for the full reactivation procedure.
   product_line_zh_anchor <- c(
     hsg = "安全眼鏡", sfg = "安全眼鏡", sfo = "安全眼鏡", sss = "安全眼鏡",
     bys = "太陽眼鏡", cas = "太陽眼鏡", sgf = "太陽眼鏡", sgo = "太陽眼鏡",
     psg = "摩托車護目鏡", blb = "抗藍光眼鏡", its = "嬰幼兒童眼鏡",
-    rpl = "備片", wwp = "濕紙巾", htl = "手工具", gcl = "眼鏡盒"
+    rpl = "備片"
   )
   product_line_keywords <- list(
     hsg = c("hunting", "safety", "glasses"),
@@ -93,10 +98,7 @@ tryCatch({
     psg = c("powersports", "goggles"),
     blb = c("blue", "light", "blocking", "glasses"),
     its = c("infant", "toddler", "sunglasses"),
-    rpl = c("replacement", "lens"),
-    wwp = character(0),
-    htl = character(0),
-    gcl = character(0)
+    rpl = c("replacement", "lens")
   )
 
   resolve_best_header <- function(product_line_id, candidates) {
