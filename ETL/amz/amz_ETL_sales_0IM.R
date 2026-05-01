@@ -63,6 +63,10 @@ message("INITIALIZE: Loading import function...")
 # #445: fix_excel_serial_dates() must be sourced BEFORE import_amazon_sales
 # because the import function calls it via defensive exists() check.
 source(file.path(GLOBAL_DIR, "05_etl_utils", "common", "fn_fix_excel_serial_dates.R"))
+# #475: validate_amz_sales_row_integrity() — same defensive exists() pattern
+# (drops column-shifted rows + writes df_amazon_sales_coverage_audit per
+# SO_R038 v1.1 rule 5 / MP163).
+source(file.path(GLOBAL_DIR, "05_etl_utils", "amz", "fn_validate_amz_sales_row_integrity.R"))
 source(file.path(GLOBAL_DIR, "05_etl_utils", "amz", "import_amazon_sales.R"))
 source(file.path(GLOBAL_DIR, "02_db_utils", "duckdb", "fn_dbConnectDuckdb.R"))
 
