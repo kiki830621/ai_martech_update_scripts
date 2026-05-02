@@ -62,6 +62,14 @@ if (!file.exists(core_path)) {
 }
 source(core_path)
 
+# Issue #416: category aggregate + excess_growth finalize (post-loop step)
+finalize_path <- file.path(GLOBAL_DIR, "16_derivations",
+                           "fn_D05_01_finalize_category.R")
+if (!file.exists(finalize_path)) {
+  stop(sprintf("Missing FINALIZE_FUNCTION: %s", finalize_path))
+}
+source(finalize_path)
+
 # ---- PART 2: MAIN ----
 result <- NULL
 tryCatch({
@@ -75,6 +83,23 @@ tryCatch({
       fail_msg <- if (!is.null(result$message)) result$message else "no message returned"
       message(sprintf("[%s] D05_01 failed — %s", platform_id, fail_msg))
       break
+    }
+  }
+
+  # Issue #416: after all per-platform brand rows are written, compute
+  # category aggregate (cross-platform SUM per product_line) + excess_growth.
+  if (test_passed) {
+    message("[finalize] Computing category aggregate + excess_growth (#416)...")
+    app_con <- dbConnectDuckdb(db_path_list$app_data, read_only = FALSE)
+    on.exit(if (DBI::dbIsValid(app_con)) DBI::dbDisconnect(app_con, shutdown = FALSE),
+            add = TRUE)
+    fin_result <- finalize_D05_01_category(brand_df = NULL, app_data = app_con)
+    test_passed <- isTRUE(fin_result$success)
+    if (test_passed) {
+      message(sprintf("[finalize] Wrote %d rows with category + excess columns",
+                      fin_result$rows_written))
+    } else {
+      message("[finalize] FAILED — category + excess_growth columns missing")
     }
   }
 }, error = function(e) {
