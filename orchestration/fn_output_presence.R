@@ -13,14 +13,65 @@
 
 # ---------- Pure function: check DB layer presence ----------
 
+#' Resolve a single db_paths.yaml entry to (path, required).
+#'
+#' #455: handles BOTH legacy scalar string entries AND #435-era structured
+#' `{path:, required:}` map entries. Mirrors the resolver semantics of
+#' `shared/global_scripts/04_utils/fn_load_db_paths.R::resolve_db_path_entry()`
+#' (which is currently nested-local in `load_db_paths()` and not exported).
+#'
+#' @param entry yaml-loaded value: either character(1) or list with `path` +
+#'   optional `required`.
+#' @param name  entry key (for error message context).
+#' @param section "databases" or "domain" (for error message context).
+#' @return list(path = character(1), required = logical(1)). `required`
+#'   defaults to TRUE for legacy scalar entries (back-compat).
+.resolve_db_entry <- function(entry, name, section) {
+  if (is.character(entry) && length(entry) == 1L &&
+      !is.na(entry) && nzchar(trimws(entry))) {
+    return(list(path = entry, required = TRUE))
+  }
+  if (is.list(entry) &&
+      !is.null(entry$path) &&
+      is.character(entry$path) &&
+      length(entry$path) == 1L &&
+      !is.na(entry$path) &&
+      nzchar(trimws(entry$path))) {
+    required <- entry$required
+    if (is.null(required)) {
+      required <- TRUE  # default per #435 contract
+    } else if (!is.logical(required) || length(required) != 1L || is.na(required)) {
+      stop(sprintf(
+        paste0("Invalid 'required' in db_paths.yaml %s.%s: ",
+               "must be logical TRUE or FALSE (or absent). Got: %s (class=%s)"),
+        section, name,
+        paste(deparse(required), collapse = " "),
+        paste(class(required), collapse = "/")
+      ), call. = FALSE)
+    }
+    return(list(path = entry$path, required = required))
+  }
+  stop(sprintf(
+    paste0("Invalid db_paths.yaml entry for %s.%s. ",
+           "Use either '<name>: relative/path.duckdb' or ",
+           "'<name>: {path: relative/path.duckdb, required: false}'."),
+    section, name
+  ), call. = FALSE)
+}
+
 #' Check which DB layers are present on disk for a given project.
 #'
 #' @param project_root  Absolute path to the company project root (contains
 #'                      `scripts/global_scripts/30_global_data/parameters/scd_type1/db_paths.yaml`).
 #' @param yaml_path     Optional override path to `db_paths.yaml`.
 #' @return list(
-#'   missing = named character vector of layer -> absolute path for missing files,
-#'   present = named character vector of layer -> absolute path for present files
+#'   missing          = named character vector of layer -> absolute path
+#'                      for REQUIRED missing files (blocks pipeline),
+#'   present          = named character vector of layer -> absolute path
+#'                      for files that exist on disk,
+#'   optional_missing = named character vector of layer -> absolute path
+#'                      for `required: false` entries that are missing
+#'                      (does NOT trigger nuclear rebuild; #455 fix)
 #' )
 #' @export
 check_db_layers_presence <- function(project_root, yaml_path = NULL) {
@@ -30,8 +81,11 @@ check_db_layers_presence <- function(project_root, yaml_path = NULL) {
       "parameters", "scd_type1", "db_paths.yaml"
     )
   }
-  if (!file.exists(yaml_path)) {
-    stop("db_paths.yaml not found: ", yaml_path, call. = FALSE)
+  # #455: harden line vs vector yaml_path (parallel to the bug we're fixing
+  # below — same defensive pattern)
+  if (length(yaml_path) != 1L || !file.exists(yaml_path)) {
+    stop("db_paths.yaml not found: ", paste(yaml_path, collapse = ", "),
+         call. = FALSE)
   }
 
   if (!requireNamespace("yaml", quietly = TRUE)) {
@@ -41,28 +95,31 @@ check_db_layers_presence <- function(project_root, yaml_path = NULL) {
 
   config <- yaml::read_yaml(yaml_path)
 
-  # Check both `databases` (6-layer ETL) and `domain` (SCD-typed domain DBs)
-  # since autoinit() loads both in UPDATE_MODE/GLOBAL_MODE.
-  all_paths <- c(
-    config$databases %||% list(),
-    config$domain    %||% list()
-  )
-  if (length(all_paths) == 0) {
-    return(list(missing = character(), present = character()))
-  }
+  missing_v          <- character()
+  present_v          <- character()
+  optional_missing_v <- character()
 
-  missing_v <- character()
-  present_v <- character()
-  for (name in names(all_paths)) {
-    rel <- all_paths[[name]]
-    abs <- file.path(project_root, rel)
-    if (file.exists(abs)) {
-      present_v[[name]] <- abs
-    } else {
-      missing_v[[name]] <- abs
+  # #455: walk databases + domain sections, resolve each entry through the
+  # shape-aware helper. Sections are kept separate for error-message context.
+  walk_section <- function(section_list, section_name) {
+    if (is.null(section_list)) return(invisible(NULL))
+    for (name in names(section_list)) {
+      resolved <- .resolve_db_entry(section_list[[name]], name, section_name)
+      abs <- file.path(project_root, resolved$path)
+      if (file.exists(abs)) {
+        present_v[[name]] <<- abs
+      } else if (isTRUE(resolved$required)) {
+        missing_v[[name]] <<- abs
+      } else {
+        optional_missing_v[[name]] <<- abs
+      }
     }
   }
-  list(missing = missing_v, present = present_v)
+  walk_section(config$databases, "databases")
+  walk_section(config$domain,    "domain")
+
+  list(missing = missing_v, present = present_v,
+       optional_missing = optional_missing_v)
 }
 
 `%||%` <- function(a, b) if (is.null(a)) b else a
