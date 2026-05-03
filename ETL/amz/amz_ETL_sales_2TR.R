@@ -180,10 +180,19 @@ tryCatch({
   stopifnot(exists("backfill_asin_from_sku", mode = "function"))
   bf_start <- Sys.time()
   dt <- as.data.frame(dt)
-  dt <- backfill_asin_from_sku(dt, verbose = TRUE)
-  dt <- as.data.table(dt)
-  message(sprintf("MAIN: ASIN backfill done (%.2fs)",
-                  as.numeric(Sys.time() - bf_start, units = "secs")))
+  # #473: capture audit rows for MP163-aligned coverage audit integration.
+  # A' backfill silently absorbs ASIN-as-sku rows in production (resolver
+  # writes them to master, so build_mapping_gaps no_master_row never
+  # triggers). The educational note in build_mapping_gaps line 140-151
+  # exists for detect_anomalies standalone invocation but never fires in
+  # main pipeline. Coverage audit table is the proper surfacing channel
+  # for business operators per MP163 §3 surface-to-attention requirement.
+  bf_result <- backfill_asin_from_sku(dt, verbose = TRUE, return_audit = TRUE)
+  dt <- as.data.table(bf_result$dt)
+  asin_fallback_audit_rows <- bf_result$audit_rows
+  message(sprintf("MAIN: ASIN backfill done (%.2fs); %d audit row(s) captured",
+                  as.numeric(Sys.time() - bf_start, units = "secs"),
+                  nrow(asin_fallback_audit_rows)))
 
   # Step 3: Standardize numeric columns
   message("MAIN: Step 3/4 - Standardizing numeric columns...")
@@ -243,6 +252,34 @@ tryCatch({
   message(sprintf("MAIN: Stored %d records in %s (%.2fs)",
                   actual_count, output_table,
                   as.numeric(Sys.time() - write_start, units = "secs")))
+
+  # #473: append asin-as-sku-fallback rows to coverage audit (MP163 §3
+  # surface-to-attention). Same schema as raw_data.duckdb table from
+  # #475 (column-shifted rows) so a unified consumer (derived Gsheet /
+  # dashboard) can union both layers. Append, not overwrite — accumulate
+  # across runs. Empty audit_rows = no-op (companies without asin-as-sku
+  # cases pass through silently).
+  if (exists("asin_fallback_audit_rows") &&
+      is.data.frame(asin_fallback_audit_rows) &&
+      nrow(asin_fallback_audit_rows) > 0L) {
+    audit_table <- "df_amazon_sales_coverage_audit"
+    tryCatch({
+      if (dbExistsTable(transformed_data, audit_table)) {
+        dbWriteTable(transformed_data, audit_table,
+                     asin_fallback_audit_rows,
+                     append = TRUE, row.names = FALSE)
+      } else {
+        dbWriteTable(transformed_data, audit_table,
+                     asin_fallback_audit_rows,
+                     overwrite = TRUE, row.names = FALSE)
+      }
+      message(sprintf("MAIN: Appended %d row(s) to %s (reason=asin_as_sku_fallback)",
+                      nrow(asin_fallback_audit_rows), audit_table))
+    }, error = function(e) {
+      warning(sprintf("Failed to write coverage audit (#473): %s", e$message),
+              call. = FALSE)
+    })
+  }
 
   script_success <- TRUE
   main_elapsed <- as.numeric(Sys.time() - main_start_time, units = "secs")
