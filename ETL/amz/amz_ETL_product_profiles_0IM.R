@@ -255,6 +255,10 @@ tryCatch({
       asin_col <- which(tolower(names(df)) == "asin")[1]
       brand_col <- which(names(df) == "品牌" | tolower(names(df)) == "brand")[1]
       name_col  <- which(names(df) == "商品名稱" | tolower(names(df)) == "product_name")[1]
+      # #469: preserve SKU during union — was dropped pre-fix; downstream
+      # try_read_catalogue (fn_resolve_company_product_master.R) and
+      # fn_detect_anomalies depend on this column.
+      sku_col   <- which(names(df) == "SKU" | tolower(names(df)) == "sku")[1]
 
       if (is.na(asin_col)) next
 
@@ -264,6 +268,7 @@ tryCatch({
         product_line_id = pl_id,
         brand = if (!is.na(brand_col)) trimws(as.character(df[[brand_col]])) else NA_character_,
         product_name = if (!is.na(name_col)) trimws(as.character(df[[name_col]])) else NA_character_,
+        sku = if (!is.na(sku_col)) trimws(as.character(df[[sku_col]])) else NA_character_,
         stringsAsFactors = FALSE
       )
       # Drop rows with empty / invalid ASIN
