@@ -72,28 +72,29 @@ for (product_line_id_i in vec_product_line_id_noall) {
   table_name <- paste0("df_comment_property_ratingonly_", product_line_id_i)
 
   if (DBI::dbExistsTable(processed_data, table_name)) {
-    # Count rows
-    row_count <- sql_read(
-      processed_data,
-      paste0("SELECT COUNT(*) FROM ", table_name)
-    )[1, 1]
+    # Count rows (DM_R023 v1.2: tbl2 + dplyr for data reads)
+    row_count <- tbl2(processed_data, table_name) %>%
+      dplyr::tally() %>%
+      dplyr::collect() %>%
+      dplyr::pull(n)
 
-    # Count columns
-    col_info <- sql_read(
-      processed_data,
-      paste0("PRAGMA table_info(", table_name, ")")
-    )
+    # Column introspection (DM_R023 v1.2 Section 6 exception:
+    # driver-specific introspection uses DBI directly, not tbl2/dbplyr.
+    # Previous PRAGMA-via-sql_read failed because dbplyr wraps with
+    # `SELECT * FROM (...) WHERE (0=1)` which DuckDB can't parse around
+    # PRAGMA. See #577.)
+    col_names <- DBI::dbListFields(processed_data, table_name)
 
     message("Table ", table_name, ": ", row_count, " rows, ",
-            nrow(col_info), " columns")
+            length(col_names), " columns")
 
-    # List property columns
-    property_cols <- col_info %>%
-      dplyr::filter(!name %in% c("product_id", "reviewer_id", "review_date",
-                                 "review_title", "review_body", "property_name",
-                                 "ai_rating_result", "ai_rating_gpt_model",
-                                 "ai_rating_timestamp", "product_line_id")) %>%
-      dplyr::pull(name)
+    # List property columns (set difference instead of dplyr::filter on
+    # a column-info data.frame; we only have names now)
+    non_property_cols <- c("product_id", "reviewer_id", "review_date",
+                           "review_title", "review_body", "property_name",
+                           "ai_rating_result", "ai_rating_gpt_model",
+                           "ai_rating_timestamp", "product_line_id")
+    property_cols <- setdiff(col_names, non_property_cols)
 
     if (length(property_cols) > 0) {
       message("  Properties: ", paste(property_cols, collapse = ", "))
