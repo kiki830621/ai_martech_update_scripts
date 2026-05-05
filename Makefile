@@ -192,11 +192,13 @@ config-scan:
 	@$(R) -e "\
 	source('$(GLOBAL_SCRIPTS)/04_utils/fn_merge_pipeline_config.R'); \
 	config <- yaml::read_yaml('$(CONFIG_PATH)'); \
+	app_config <- yaml::read_yaml('$(APP_CONFIG)'); \
 	config <- scan_and_update_scripts( \
 	  config, \
 	  etl_dir = '$(PIPELINE_DIR)/ETL', \
 	  drv_dir = '$(PIPELINE_DIR)/DRV', \
-	  verbose = TRUE \
+	  verbose = TRUE, \
+	  current_company = app_config\$$brand_name \
 	); \
 	yaml::write_yaml(config, '$(CONFIG_PATH)'); \
 	cat('✓ Script lists updated\n')"
