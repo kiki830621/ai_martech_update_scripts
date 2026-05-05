@@ -116,6 +116,19 @@ tryCatch({
     stop("Keys data source is empty")
   }
 
+  # Schema validation: nrow lower bound (per #542)
+  # Per-company min_rows in app_config.yaml > platforms.amz.etl_sources.keys.min_rows.
+  # Default 2 catches the new-company sample-data residue case (Electric Can
+  # Opener stub) without false-positives for legitimately small product catalogs.
+  min_rows <- as.integer(etl_profile$min_rows %||% 2L)
+  if (n_rows < min_rows) {
+    stop(sprintf(
+      "VALIDATE FAILED: keys source has %d rows but min_rows=%d (configured in app_config.yaml > platforms.amz.etl_sources.keys.min_rows). %s",
+      n_rows, min_rows,
+      "Likely causes: (1) sample-data residue from new-company template (Electric Can Opener stub), (2) keys.xlsx not yet populated by business team, (3) Google Sheet share link broken. Fix the source before re-running ETL."
+    ))
+  }
+
   # ---- Step 2: Standardize column names to snake_case ----
   message("MAIN: Step 2/3 - Standardizing columns...")
 
@@ -185,10 +198,33 @@ tryCatch({
         vals <- df_keys$product_line_id[needs_mapping]
         mapped_en <- name_to_id_en[vals]
         mapped_zh <- name_to_id_zh[vals]
-        # Use mapped value if found; assign "UNKNOWN" for unmapped values (#340).
-        # "UNKNOWN" keeps product_line_id semantically consistent (always an ID,
-        # never a raw name) so downstream joins/filters fail loudly instead of
-        # silently producing wrong aggregations.
+        # Schema validation: typo detection (per #542)
+        # Per MP163 reframe (#505): empty/NA inputs are intentional missing data
+        # and use sentinel "UNKNOWN" (handled by !is.na() filter on needs_mapping
+        # above). But non-empty values that don't match known_ids AND can't be
+        # mapped by name (en/zh) are TYPOS — business intent was to fill a real
+        # PL but failed. Don't silently map typos to UNKNOWN; surface them with
+        # row numbers so business team can fix keys.xlsx.
+        is_typo <- is.na(mapped_en) & is.na(mapped_zh) & nzchar(trimws(as.character(vals)))
+        if (any(is_typo)) {
+          typo_rows <- which(needs_mapping)[is_typo]
+          typo_vals <- vals[is_typo]
+          typo_lookup <- paste0("  Row ", typo_rows, ": '", typo_vals, "'", collapse = "\n")
+          stop(sprintf(
+            paste0("VALIDATE FAILED: %d product_line_id value(s) in keys source are not in df_product_line ",
+                   "and cannot be mapped by name (typo or stale PL code).\n",
+                   "Valid product_line_id values: %s\n",
+                   "Invalid values found:\n%s\n",
+                   "Action: fix keys.xlsx (or Google Sheet) — correct typos or add missing PL ",
+                   "to df_product_line.csv seed + re-run all_ETL_meta_init_0IM.R."),
+            sum(is_typo),
+            paste(known_ids, collapse = ", "),
+            typo_lookup
+          ))
+        }
+        # Remaining unmapped (post-typo-check) are name → ID mappings or
+        # legitimate missing values. Use mapped value if found; assign "UNKNOWN"
+        # for unmapped (per #340 + MP163 sentinel pattern).
         resolved <- ifelse(!is.na(mapped_en), mapped_en,
                            ifelse(!is.na(mapped_zh), mapped_zh, "UNKNOWN"))
         df_keys$product_line_id[needs_mapping] <- resolved
