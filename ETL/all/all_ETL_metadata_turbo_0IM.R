@@ -82,7 +82,12 @@ app_config <- yaml::read_yaml(app_config_path)
 turbo_company <- app_config$metadata_sources$turbo
 
 if (is.null(turbo_company) || !isTRUE(turbo_company$enabled)) {
-  stop("metadata_sources.turbo not enabled in app_config.yaml")
+  # MP163 Gate 1: graceful-skip on absent business config, not hard fail.
+  # df_metadata_turbo is MAMBA-specific (per docstring); other companies
+  # (QEF_DESIGN/D_RACING/WISER/kitchenMAMA) skip without blocking pipeline.
+  # Per #574 fix. Use q() because return() is no-op in sourced script.
+  message("all_ETL_metadata_turbo_0IM: metadata_sources.turbo not enabled — skipping (MAMBA-only ETL).")
+  q("no", status = 0, runLast = FALSE)
 }
 
 # Merge schema + company settings
