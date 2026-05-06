@@ -4,7 +4,7 @@ This directory contains DRV execution scripts for the precision marketing
 domain. Historical week reports and long-form docs live in the principle
 archive at:
 
-scripts/global_scripts/99_archive/drv_week_docs_20251113/
+scripts/global_scripts/99_archived/drv_week_docs_20251113/
 
 Key scripts:
 - all_D01_06.R: customer DNA analysis (D01_00–D01_05 master)

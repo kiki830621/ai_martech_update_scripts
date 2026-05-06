@@ -56,7 +56,7 @@ The renumbering was completed successfully as outlined in the renumbering plan. 
 The implementation followed these steps:
 
 1. **Backup Creation**: 
-   - Created a full backup of all principle files in 99_archive/00_principles_renumbering_backup_2025_04_02
+   - Created a full backup of all principle files in 99_archived/00_principles_renumbering_backup_2025_04_02
    - Added a README_ARCHIVE.md to document the backup purpose and contents
 
 2. **File Creation and Updates**:
@@ -116,7 +116,7 @@ The following steps were taken to complete the renumbering process:
    - Confirmed all files in README.md exist and are properly referenced
 
 4. **Backup Preservation**:
-   - Maintained a complete backup in 99_archive/00_principles_renumbering_backup_2025_04_02
+   - Maintained a complete backup in 99_archived/00_principles_renumbering_backup_2025_04_02
    - Added README_ARCHIVE.md to document the backup contents
    - Ensured the original state is preserved for reference
 

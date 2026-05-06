@@ -74,7 +74,7 @@ This document outlines a comprehensive plan for renumbering the Meta-Principles 
 The renumbering will be implemented in several phases to ensure consistency and minimize disruption:
 
 ### Phase 1: Preparation
-1. Create backups of all principle files in 99_archive/00_principles_renumbering_backup_2025_04_02
+1. Create backups of all principle files in 99_archived/00_principles_renumbering_backup_2025_04_02
 2. Document all relationships between principles before renumbering
 3. Create a temporary lookup table mapping old numbers to new numbers
 
@@ -124,7 +124,7 @@ After renumbering is complete, validate the changes by:
 ## Rollback Plan
 
 If significant issues are encountered:
-1. Restore all files from the backup in 99_archive/00_principles_renumbering_backup_2025_04_02
+1. Restore all files from the backup in 99_archived/00_principles_renumbering_backup_2025_04_02
 2. Document the issues encountered in a new record
 
 ## Conclusion

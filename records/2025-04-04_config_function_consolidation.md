@@ -40,7 +40,7 @@ The updated approach provides several benefits:
 
 ## Archive and Backward Compatibility
 
-1. Archived the original fn_read_yaml_config.R to 99_archive/11_rshinyapp_utils_archive for reference
+1. Archived the original fn_read_yaml_config.R to 99_archived/11_rshinyapp_utils_archive for reference
 2. Created a shim wrapper in the original location that:
    - Issues a deprecation warning
    - Calls load_app_config under the hood
