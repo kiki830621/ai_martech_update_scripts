@@ -287,7 +287,13 @@ tryCatch({
     sum(!is.na(dt_sales$customer_email) & nzchar(dt_sales$customer_email)) > 0
   address_candidates <- c("ship_address_1", "shipping_address_1", "ship_address", "ship_city")
   address_col <- address_candidates[address_candidates %in% names(dt_sales)][1]
-  has_address <- "ship_postal_code" %in% names(dt_sales) && !is.na(address_col)
+  # has_address accepts EITHER full postal+address OR geo-only (state/country/city)
+  # Post-glue canonical Amazon schema lacks ship_postal_code; use geo fallback so
+  # repeat buyers at same address get same customer_id (avoids per-order isolation).
+  has_full_address <- "ship_postal_code" %in% names(dt_sales) && !is.na(address_col)
+  has_geo_fallback <- all(c("ship_state", "ship_country") %in% names(dt_sales)) &&
+    "ship_city" %in% names(dt_sales)
+  has_address <- has_full_address || has_geo_fallback
 
   if (has_email) {
     message("MAIN: Assigning unified customer IDs from email lookup (Strategy A)...")
@@ -297,21 +303,44 @@ tryCatch({
     unique_ids <- unique_ids[!is.na(unique_ids) & nzchar(trimws(as.character(unique_ids)))]
 
   } else if (has_address) {
-    message(sprintf("MAIN: Assigning unified customer IDs from zipcode+address (Strategy B, address_col=%s)...",
-                    address_col))
+    message(sprintf("MAIN: Assigning unified customer IDs from address (Strategy B, full=%s, geo_fallback=%s)...",
+                    has_full_address, has_geo_fallback))
     lookup_start <- Sys.time()
-    # Build composite key: "zipcode::address" (lowercase, trimmed)
-    dt_sales[, customer_identity_key := paste0(
-      tolower(trimws(as.character(ship_postal_code))), "::",
-      tolower(trimws(as.character(get(address_col))))
-    )]
-    # Remove keys with empty components
-    dt_sales[ship_postal_code == "" | is.na(ship_postal_code) |
-             get(address_col) == "" | is.na(get(address_col)),
-             customer_identity_key := NA_character_]
+    if (has_full_address) {
+      # Build composite key: "zipcode::address" (lowercase, trimmed)
+      dt_sales[, customer_identity_key := paste0(
+        tolower(trimws(as.character(ship_postal_code))), "::",
+        tolower(trimws(as.character(get(address_col))))
+      )]
+      # Remove keys with empty components
+      dt_sales[ship_postal_code == "" | is.na(ship_postal_code) |
+               get(address_col) == "" | is.na(get(address_col)),
+               customer_identity_key := NA_character_]
+    } else {
+      # Geo-only fallback (post-glue Amazon canonical): start with empty key,
+      # let B1 (state+country) + B2 (buyer_id) + B3 (order_id) below populate it.
+      dt_sales[, customer_identity_key := NA_character_]
+    }
 
-    # Fallback B1: state + country when zipcode/city-like fields are unavailable
-    if (all(c("ship_state", "ship_country") %in% names(dt_sales))) {
+    # Fallback B1: city + state + country (finer than state alone — avoids
+    # collapsing all US buyers into 1 customer when canonical lacks postal_code).
+    if (all(c("ship_state", "ship_country", "ship_city") %in% names(dt_sales))) {
+      dt_sales[
+        (is.na(customer_identity_key) | !nzchar(customer_identity_key)) &
+          !is.na(ship_state) & nzchar(trimws(as.character(ship_state))) &
+          !is.na(ship_country) & nzchar(trimws(as.character(ship_country))) &
+          !is.na(ship_city) & nzchar(trimws(as.character(ship_city))),
+        customer_identity_key := paste0(
+          "geo::",
+          tolower(trimws(as.character(ship_city))),
+          "::",
+          tolower(trimws(as.character(ship_state))),
+          "::",
+          tolower(trimws(as.character(ship_country)))
+        )
+      ]
+    } else if (all(c("ship_state", "ship_country") %in% names(dt_sales))) {
+      # B1-lite: state+country only (legacy compatibility)
       dt_sales[
         (is.na(customer_identity_key) | !nzchar(customer_identity_key)) &
           !is.na(ship_state) & nzchar(trimws(as.character(ship_state))) &
@@ -362,8 +391,12 @@ tryCatch({
                     length(unique_ids)))
 
   } else if ("customer_id" %in% names(dt_sales)) {
-    message("    No customer_email or address available, keeping existing customer_id (Strategy C)")
-    unique_ids <- NULL
+    message("MAIN: Assigning unified customer IDs from existing customer_id (Strategy C)...")
+    lookup_start <- Sys.time()
+    identifier_col <- "customer_id"
+    unique_ids <- unique(as.character(dt_sales$customer_id))
+    unique_ids <- unique_ids[!is.na(unique_ids) & nzchar(trimws(unique_ids))]
+    message(sprintf("    Built %d unique customer_id values for lookup", length(unique_ids)))
   } else {
     stop("No customer_email, address, or customer_id column found - cannot proceed")
   }
