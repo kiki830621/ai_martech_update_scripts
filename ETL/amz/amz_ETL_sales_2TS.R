@@ -137,15 +137,20 @@ tryCatch({
     stop("No date column found (order_date, order_created_at, or purchase_date)")
   }
 
-  # Map line_total → lineproduct_price
+  # Map price → lineproduct_price (canonical post-glue → legacy fallback chain)
   if ("line_total" %in% names(dt_sales)) {
     dt_sales[, lineproduct_price := line_total]
     message("    ✅ Mapped: line_total → lineproduct_price")
+  } else if ("total_amount" %in% names(dt_sales)) {
+    # Post-glue canonical: bridge yaml derives total_amount = unit_price * quantity
+    dt_sales[, lineproduct_price := total_amount]
+    message("    ✅ Mapped: total_amount → lineproduct_price (canonical)")
   } else if ("item_price" %in% names(dt_sales)) {
+    # Pre-glue legacy fallback (preserved for cross-platform compatibility)
     dt_sales[, lineproduct_price := item_price]
     message("    ✅ Mapped: item_price → lineproduct_price")
   } else {
-    stop("No price column found (line_total or item_price)")
+    stop("No price column found (line_total, total_amount, or item_price)")
   }
 
   # Ensure platform_id exists
@@ -195,26 +200,34 @@ tryCatch({
     keys_dt <- keys_dt[!is.na(product_line_id) & nzchar(product_line_id)]
 
     if (nrow(keys_dt) > 0) {
+      # Post-glue: dt_sales has canonical 'product_id' (mapped from asin by bridge).
+      # Rename keys_dt 'asin' to 'product_id' for canonical join compatibility.
       mapped_total <- mapped_total + map_missing_product_line(keys_dt, "sku")
-      mapped_total <- mapped_total + map_missing_product_line(keys_dt, "asin")
+      if ("asin" %in% names(keys_dt)) {
+        keys_dt_renamed <- copy(keys_dt)
+        setnames(keys_dt_renamed, "asin", "product_id")
+        mapped_total <- mapped_total + map_missing_product_line(keys_dt_renamed, "product_id")
+      }
     }
   } else {
     message("MAIN: ⚠️ df_amz_product_keys not found; product_line_id will remain NA")
   }
 
   # Fallback 1: competitor-product mapping in transformed_data
+  # Post-glue: dt_sales uses canonical 'product_id'; rename competitor map column.
   if (dbExistsTable(transformed_data, "df_amz_competitor_product_id___transformed") &&
-      "asin" %in% names(dt_sales)) {
+      "product_id" %in% names(dt_sales)) {
     message("MAIN: 🧭 Fallback mapping from df_amz_competitor_product_id___transformed...")
     competitor_map <- sql_read(
       transformed_data,
-      "SELECT product_id AS asin, product_line_id FROM df_amz_competitor_product_id___transformed"
+      "SELECT product_id, product_line_id FROM df_amz_competitor_product_id___transformed"
     )
-    mapped_total <- mapped_total + map_missing_product_line(competitor_map, "asin")
+    mapped_total <- mapped_total + map_missing_product_line(competitor_map, "product_id")
   }
 
   # Fallback 2: product profile tables (df_product_profile_*___transformed)
-  if ("asin" %in% names(dt_sales)) {
+  # Post-glue: dt_sales uses canonical 'product_id'.
+  if ("product_id" %in% names(dt_sales)) {
     profile_tables <- DBI::dbListTables(transformed_data)
     profile_tables <- profile_tables[grepl("^df_product_profile_.*___transformed$", profile_tables)]
 
@@ -233,13 +246,13 @@ tryCatch({
 
         if ("product_line_id" %in% cols) {
           map_sql <- sprintf(
-            "SELECT DISTINCT %s AS asin, product_line_id FROM %s",
+            "SELECT DISTINCT %s AS product_id, product_line_id FROM %s",
             id_expr, table_id
           )
           map_df <- sql_read(transformed_data, map_sql)
         } else {
           map_sql <- sprintf(
-            "SELECT DISTINCT %s AS asin FROM %s",
+            "SELECT DISTINCT %s AS product_id FROM %s",
             id_expr, table_id
           )
           map_df <- sql_read(transformed_data, map_sql)
@@ -251,7 +264,8 @@ tryCatch({
 
       if (length(profile_maps) > 0) {
         profile_map <- data.table::rbindlist(profile_maps, fill = TRUE, use.names = TRUE)
-        mapped_total <- mapped_total + map_missing_product_line(profile_map, "asin")
+        # Post-glue: dt_sales has canonical 'product_id'.
+        mapped_total <- mapped_total + map_missing_product_line(profile_map, "product_id")
       }
     }
   }
@@ -325,14 +339,18 @@ tryCatch({
     }
 
     # Fallback B3: order-level key (last resort to avoid NULL customer_id)
-    if ("amazon_order_id" %in% names(dt_sales)) {
+    # Post-glue: canonical amz_amazon_order_id (was legacy amazon_order_id)
+    order_id_col <- if ("amz_amazon_order_id" %in% names(dt_sales)) "amz_amazon_order_id"
+                    else if ("amazon_order_id" %in% names(dt_sales)) "amazon_order_id"
+                    else NA_character_
+    if (!is.na(order_id_col)) {
       dt_sales[
         (is.na(customer_identity_key) | !nzchar(customer_identity_key)) &
-          !is.na(amazon_order_id) &
-          nzchar(trimws(as.character(amazon_order_id))),
+          !is.na(get(order_id_col)) &
+          nzchar(trimws(as.character(get(order_id_col)))),
         customer_identity_key := paste0(
           "order::",
-          tolower(trimws(as.character(amazon_order_id)))
+          tolower(trimws(as.character(get(order_id_col))))
         )
       ]
     }

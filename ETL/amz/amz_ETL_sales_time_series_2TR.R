@@ -154,27 +154,29 @@ tryCatch({
   message(sprintf("  OK Mapped ASINs: %d", nrow(asin_mapping)))
 
   message("[Step 4/6] Loading and mapping sales data...")
+  # Post-glue era: canonical schema in df_amz_sales___transformed
+  # (was legacy purchase_date/asin/item_price; now order_date/product_id/total_amount).
   sales_raw <- tbl2(con_transformed, INPUT_SALES_TABLE) %>%
-    select(any_of(c("purchase_date", "asin", "quantity",
-                    "item_price", "customer_id"))) %>%
+    select(any_of(c("order_date", "product_id", "quantity",
+                    "total_amount", "customer_id"))) %>%
     collect()
 
-  if (!all(c("purchase_date", "asin", "quantity", "item_price") %in% names(sales_raw))) {
-    stop("Missing required columns in transformed sales")
+  if (!all(c("order_date", "product_id", "quantity", "total_amount") %in% names(sales_raw))) {
+    stop("Missing required canonical columns in transformed sales (order_date, product_id, quantity, total_amount)")
   }
 
   sales_raw <- sales_raw %>%
     mutate(
-      order_date = as.Date(purchase_date),
-      amz_asin = as.character(asin),
+      order_date = as.Date(order_date),  # canonical order_date is POSIXct from 2TR; as.Date truncates time
+      amz_asin = as.character(product_id),  # canonical product_id is the asin-mapped column
       quantity = as.numeric(quantity),
-      line_total = as.numeric(item_price) * as.numeric(quantity),
+      line_total = as.numeric(total_amount),  # bridge yaml already derived total_amount = unit_price * quantity
       lineproduct_price = line_total
     ) %>%
     filter(!is.na(order_date), !is.na(amz_asin))
 
   sales_mapped <- sales_raw %>%
-    left_join(asin_mapping, by = c("amz_asin" = "asin"))
+    left_join(asin_mapping, by = c("amz_asin" = "asin"))  # asin_mapping table still uses 'asin' column (reference table, not canonical sales)
 
   mapped_rows <- sum(!is.na(sales_mapped$product_line_id))
   unmapped_rows <- sum(is.na(sales_mapped$product_line_id))
