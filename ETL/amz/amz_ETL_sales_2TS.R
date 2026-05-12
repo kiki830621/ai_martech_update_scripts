@@ -204,7 +204,7 @@ tryCatch({
       # Rename keys_dt 'asin' to 'product_id' for canonical join compatibility.
       mapped_total <- mapped_total + map_missing_product_line(keys_dt, "sku")
       if ("asin" %in% names(keys_dt)) {
-        keys_dt_renamed <- copy(keys_dt)
+        keys_dt_renamed <- data.table::copy(keys_dt)
         setnames(keys_dt_renamed, "asin", "product_id")
         mapped_total <- mapped_total + map_missing_product_line(keys_dt_renamed, "product_id")
       }
