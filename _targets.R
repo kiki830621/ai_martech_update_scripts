@@ -96,6 +96,66 @@ run_drv_script <- function(script_path, platform) {
   list(success = TRUE, script = script_path, platform = platform, layer = "drv")
 }
 
+# MP165 v1.3 (#668): DRV-Layer Step 2 propagation
+# Invokes drv_output_shape_gate.R as library to verify per-company
+# <company>_drv.yaml contracts against app_data.duckdb at three levels
+# (L1 table-exists / L2 row-count-min / L3 predictor-type-distribution).
+# Mode defaults to "auto" — calendar sunset 2026-06-13 controls
+# warn-mode vs strict-mode (or per-company strict_mode: true opt-in).
+run_drv_output_shape_gate_target <- function() {
+  message(sprintf("[DRV-GATE] verify_drv_output_shape for %s", basename(project_root)))
+
+  # Locate gate script via shared/ symlink under project_root.
+  gate_script <- normalizePath(
+    file.path(project_root, "scripts", "global_scripts", "23_deployment",
+              "drv_output_shape_gate.R"),
+    mustWork = FALSE
+  )
+  if (!file.exists(gate_script)) {
+    stop(sprintf("MP165 v1.3 gate script not found: %s", gate_script))
+  }
+
+  # Source as library (suppress CLI main() entry).
+  options(drv_gate.library_mode = TRUE)
+  gate_env <- new.env(parent = globalenv())
+  source(gate_script, local = gate_env)
+
+  # Derive company code from project_root basename.
+  company <- basename(project_root)
+
+  # Default db_path = canonical app_data.duckdb under project_root.
+  db_path <- normalizePath(
+    file.path(project_root, "data", "app_data", "app_data.duckdb"),
+    mustWork = FALSE
+  )
+  if (!file.exists(db_path)) {
+    stop(sprintf("MP165 v1.3 gate: app_data.duckdb not at canonical path: %s\n",
+                 db_path),
+         "Ensure DRV pipeline completed and DM_R062 canonical paths apply.")
+  }
+
+  result <- gate_env$run_drv_output_shape_gate(
+    company = company,
+    contracts_path = NULL,  # auto-derive from company via locate_contracts_path
+    mode = "auto",
+    db_path = db_path
+  )
+
+  # Print structured report so make run log captures it
+  message(paste(result$messages, collapse = "\n"))
+  message(sprintf(
+    "[DRV-GATE] %s | Mode: %s | Critical: %d | Warnings: %d",
+    company, result$mode, result$critical_failures, result$warnings
+  ))
+
+  if (!isTRUE(result$ok)) {
+    stop(sprintf("MP165 v1.3 gate FAILED for %s (mode=%s, critical=%d)",
+                 company, result$mode, result$critical_failures))
+  }
+
+  result
+}
+
 create_command <- function(deps, call_str) {
   if (length(deps) == 0) {
     parse(text = call_str)[[1]]
@@ -245,6 +305,19 @@ build_targets <- function() {
     command <- create_command(deps, run_call)
     target <- tar_target_raw(name = def$name, command = command)
     targets <- c(targets, list(target))
+  }
+
+  # MP165 v1.3 (#668): append `verify_drv_output_shape` final target that
+  # depends on ALL DRV-type targets. Runs after all derivations complete.
+  # Skipped when run_layer == "etl" (no DRV targets in this run).
+  drv_target_names <- names(defs)[vapply(defs, function(x) x$type == "drv", logical(1))]
+  if (length(drv_target_names) > 0L) {
+    verify_command <- create_command(drv_target_names, "run_drv_output_shape_gate_target()")
+    verify_target <- tar_target_raw(
+      name = "verify_drv_output_shape",
+      command = verify_command
+    )
+    targets <- c(targets, list(verify_target))
   }
 
   targets

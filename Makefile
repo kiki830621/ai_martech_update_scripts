@@ -148,6 +148,21 @@ run-etl:
 run-drv:
 	$(MAKE) run LAYER=drv
 
+# MP165 v1.3 (#668) DRV-Layer Step 2 propagation gate.
+# Runs `drv_output_shape_gate.R` against the per-company contract yaml
+# WITHOUT running upstream derivations — fast re-verify after manual fix.
+# Calendar default: warn-mode pre-2026-06-13, strict-mode after.
+# Override via `make verify-drv DRV_GATE_MODE=strict` (or warn).
+verify-drv:
+	@COMPANY=$$(basename $(PROJECT_ROOT)); \
+	YAML_NAME=$$(echo $$COMPANY | tr '[:upper:]' '[:lower:]'); \
+	GATE=$(PIPELINE_DIR)/../global_scripts/23_deployment/drv_output_shape_gate.R; \
+	YAML=$(PIPELINE_DIR)/../global_scripts/98_test/e2e/contracts/$${YAML_NAME}_drv.yaml; \
+	DB=$(PROJECT_ROOT)/data/app_data/app_data.duckdb; \
+	MODE_FLAG=$${DRV_GATE_MODE:+--$${DRV_GATE_MODE}-mode}; \
+	echo "═══ MP165 v1.3 DRV Output Shape Gate ($$COMPANY) ═══"; \
+	Rscript $$GATE --company $$COMPANY --contracts-path $$YAML --db-path $$DB $$MODE_FLAG
+
 # =============================================================================
 # STATUS COMMANDS
 # =============================================================================
