@@ -69,11 +69,29 @@ build_r_command <- function(full_path) {
 }
 
 resolve_script_path <- function(layer_dir, platform, script_path) {
+  # Explicit path (already contains /) — honor as-is
   if (grepl("[/\\\\]", script_path)) {
-    file.path(layer_dir, script_path)
-  } else {
-    file.path(layer_dir, platform, script_path)
+    return(file.path(layer_dir, script_path))
   }
+
+  # DM_R066: for DRV layer, try group-based path first (refactored scripts).
+  # Pattern: "cbz_D04_02.R" → strip platform_ prefix → "D04_02.R" → extract
+  # group token "D04" → check `DRV/D04/D04_02.R` exists. Falls back to legacy
+  # per-platform path when group-based not present, preserving backward compat
+  # for non-refactored DRV groups (D01, D03, D05, etc.) and ETL layer.
+  if (basename(layer_dir) == "DRV") {
+    stripped <- sub(paste0("^", platform, "_"), "", script_path)
+    group_match <- regmatches(stripped, regexpr("^[DS][0-9]+", stripped))
+    if (length(group_match) == 1 && nzchar(group_match)) {
+      group_path <- file.path(layer_dir, group_match, stripped)
+      if (file.exists(group_path)) {
+        return(group_path)
+      }
+    }
+  }
+
+  # Legacy per-platform path (backward compat for ETL + non-refactored DRV)
+  file.path(layer_dir, platform, script_path)
 }
 
 run_etl_script <- function(script_path, platform) {
