@@ -6,11 +6,16 @@
 # PLATFORM: amz
 # PHASE: 2TR (derived ETL)
 # CONSUMES: transformed_data.df_amz_sales___transformed,
+#           transformed_data.df_product_profile_{product_line}___transformed (per active PL),
+#           transformed_data.df_amz_review___transformed,
 #           raw_data.df_amz_competitor_product_id,
 #           meta_data.df_product_line (via global df_product_line, DM_R054 v2.1)
 # PRODUCES: app_data.df_amz_sales_complete_time_series_{product_line},
 #           app_data.df_amz_sales_complete_time_series
 # PRINCIPLE: MP064, MP109, R117, DM_R053, MP029
+# REFS: #674 (extends #661) — product_profile + review enrichment so D04_02 Poisson
+#       can detect comment_attribute / product_attribute predictor_types, not only
+#       time_feature.
 # ==============================================================================
 #
 # Notes on amz vs cbz differences (#360):
@@ -248,6 +253,99 @@ tryCatch({
 
     completed_all <- completed_all %>%
       select(-month, -weekday)
+
+    # ==========================================================================
+    # Step 5b/6: Enrich with product_profile + review aggregates (#674)
+    #
+    # Loads df_product_profile_{pl}___transformed (per active PL, UNION) and
+    # aggregates df_amz_review___transformed per asin, then LEFT JOIN both onto
+    # completed_all. This unlocks `comment_attribute` and `product_attribute`
+    # predictor_types in D04_02 Poisson analysis (was 100% time_feature only).
+    #
+    # Missing source tables are skipped with a WARN so this ETL stays runnable
+    # in environments where reviews / profiles are not yet ingested (MP163
+    # progressive completeness — pipeline always runs, gaps surface visibly).
+    # ==========================================================================
+    message("[Step 5b/6] Enriching with product_profile + review aggregates...")
+
+    rows_before_enrich <- nrow(completed_all)
+
+    # ---- Load product profile per active product line and UNION ----
+    product_profile_all <- NULL
+    for (pl in product_lines) {
+      profile_tbl <- sprintf("df_product_profile_%s___transformed", pl)
+      if (dbExistsTable(con_transformed, profile_tbl)) {
+        pl_profile <- tbl2(con_transformed, profile_tbl) %>%
+          collect()
+        if (nrow(pl_profile) > 0) {
+          pl_profile$source_product_line_id <- pl
+          if (is.null(product_profile_all)) {
+            product_profile_all <- pl_profile
+          } else {
+            product_profile_all <- dplyr::bind_rows(product_profile_all, pl_profile)
+          }
+        }
+      } else {
+        message(sprintf("  WARN: product_profile table missing: %s", profile_tbl))
+      }
+    }
+
+    if (!is.null(product_profile_all) && nrow(product_profile_all) > 0) {
+      product_profile_all <- product_profile_all %>%
+        mutate(product_id = as.character(product_id)) %>%
+        filter(!is.na(product_id), product_id != "") %>%
+        distinct(product_id, .keep_all = TRUE)  # one row per asin
+
+      # Drop columns that would collide with completed_all (product_line_id is
+      # already present as .x/.y; we keep source_product_line_id for trace)
+      product_profile_join <- product_profile_all %>%
+        select(-any_of(c("product_line_id")))
+
+      completed_all <- completed_all %>%
+        left_join(product_profile_join, by = c("amz_asin" = "product_id"))
+
+      message(sprintf("  OK product_profile enrichment: %d distinct asins, %d columns added",
+                      nrow(product_profile_all),
+                      ncol(product_profile_join) - 1))  # -1 for the JOIN key
+    } else {
+      message("  WARN: No product_profile rows available; skipping profile enrichment")
+    }
+
+    # ---- Aggregate df_amz_review___transformed per asin ----
+    if (dbExistsTable(con_transformed, "df_amz_review___transformed")) {
+      review_agg <- tbl2(con_transformed, "df_amz_review___transformed") %>%
+        select(any_of(c("product_id", "helpful"))) %>%
+        collect() %>%
+        mutate(
+          product_id = as.character(product_id),
+          helpful = suppressWarnings(as.numeric(helpful))
+        ) %>%
+        filter(!is.na(product_id), product_id != "") %>%
+        group_by(product_id) %>%
+        summarise(
+          review_count = dplyr::n(),
+          helpful_avg = mean(helpful, na.rm = TRUE),
+          .groups = "drop"
+        ) %>%
+        mutate(helpful_avg = ifelse(is.nan(helpful_avg), NA_real_, helpful_avg))
+
+      completed_all <- completed_all %>%
+        left_join(review_agg, by = c("amz_asin" = "product_id"))
+
+      message(sprintf("  OK review enrichment: %d asins with review aggregates", nrow(review_agg)))
+    } else {
+      message("  WARN: df_amz_review___transformed missing; skipping review enrichment")
+    }
+
+    # ---- LEFT JOIN invariant: row count MUST be preserved ----
+    rows_after_enrich <- nrow(completed_all)
+    if (rows_after_enrich != rows_before_enrich) {
+      stop(sprintf(
+        "Enrichment broke LEFT JOIN invariant: before=%d, after=%d (likely duplicate keys in profile/review)",
+        rows_before_enrich, rows_after_enrich
+      ))
+    }
+    message(sprintf("  OK enrichment preserved row count: %d", rows_after_enrich))
 
     ordered_cols <- c(
       "amz_asin", "time", "year", "day",
