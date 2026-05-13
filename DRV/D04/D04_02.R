@@ -113,8 +113,16 @@ con_processed <- dbConnectDuckdb(db_path_list$processed_data, read_only = FALSE)
 cat("  ✓ Connected to processed_data.duckdb (read-write) - for individual tables\n")
 cat("\n")
 
-# Product lines to process
-PRODUCT_LINES <- c("alf", "irf", "pre", "rek", "tur", "wak")
+# Product lines to process (per DM_R066 platform agnosticism: derived from
+# meta_data df_product_line via get_active_product_lines(), not hardcoded.
+# Refs #674 — was hard-coded c("alf","irf","pre","rek","tur","wak") inherited
+# from cbz_D04_02.R, never updated for amz/eby platforms; #670 platform-agnostic
+# refactor moved the file but did not retire this hardcode.)
+PRODUCT_LINES <- get_active_product_lines()$product_line_id
+if (length(PRODUCT_LINES) == 0) {
+  stop("No active product lines returned by get_active_product_lines(); ",
+       "verify meta_data.duckdb df_product_line and app_config.yaml.")
+}
 cat("Product lines to process:", paste(toupper(PRODUCT_LINES), collapse=", "), "\n")
 cat("\n")
 
