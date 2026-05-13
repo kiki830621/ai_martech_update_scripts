@@ -1,30 +1,33 @@
 #!/usr/bin/env Rscript
 #####
-#P07_D04_02
-# DERIVATION: CBZ Poisson Analysis
-# VERSION: 5.0
-# PLATFORM: cbz
+# D04_02
+# DERIVATION: Platform-Agnostic Poisson Analysis
+# VERSION: 6.0 (DM_R066 refactor)
 # GROUP: D04
 # SEQUENCE: 02
 # PURPOSE: Pre-compute Poisson regression results using ALL historical data
-# CONSUMES: df_cbz_sales_complete_time_series_{product_line}
-# PRODUCES: df_cbz_poisson_analysis_{product_line}, df_cbz_poisson_analysis_all
-# PRINCIPLE: DM_R044, MP064, MP135, DM_R046, R118, R119, R120, DM_R043
+#          for any platform; platform identity resolved at runtime per DM_R066
+# CONSUMES: df_{platform}_sales_complete_time_series_{product_line} (app_data.duckdb)
+# PRODUCES: df_{platform}_poisson_analysis_{product_line} (processed_data.duckdb)
+#           df_{platform}_poisson_analysis_all (app_data.duckdb)
+# PRINCIPLE: DM_R066, DM_R044, MP064, MP135, DM_R046, DM_R047, R118, R119, R120, DM_R043
 #####
 
-#cbz_D04_02
+# D04_02
 
-#' @title CBZ Poisson Analysis - Type B Steady-State Analytics
+#' @title Platform-Agnostic Poisson Analysis - Type B Steady-State Analytics
 #' @description Pre-compute Poisson regression results using ALL historical data.
 #'              Implements MP135 v2.0 (Analytics Temporal Classification - Type B).
 #'              Uses all_time data ONLY (no period loops), analyzes coefficients.
+#'              Platform identity resolved at runtime per DM_R066 (DRV Platform Agnosticism).
 #' @requires DBI, duckdb, dplyr, tidyr, broom
-#' @input_tables df_cbz_sales_complete_time_series_{product_line} (app_data.duckdb)
-#' @output_tables df_cbz_poisson_analysis_{product_line}, df_cbz_poisson_analysis_all
+#' @input_tables df_{platform}_sales_complete_time_series_{product_line} (app_data.duckdb)
+#' @output_tables df_{platform}_poisson_analysis_{product_line} (processed_data.duckdb)
+#'                df_{platform}_poisson_analysis_all (app_data.duckdb)
 #' @business_rules Type B analytics: use all historical data; per-product-line outputs to processed_data; merged _all to app_data.
-#' @platform cbz
+#' @platform runtime-resolved (Sys.getenv DRV_PLATFORM | MAMBA_PLATFORM | --platform CLI)
 #' @author MAMBA Development Team
-#' @date 2025-12-14
+#' @date 2026-05-14
 
 # ==============================================================================
 # PART 1: INITIALIZE
@@ -52,10 +55,15 @@ library(dplyr)
 library(tidyr)
 library(broom)
 
-# 1.2: Load utility functions (DM_R046)
+# 1.2: Load utility functions (DM_R046 + DM_R066)
 source("scripts/global_scripts/04_utils/fn_enrich_with_display_names.R")
+source("scripts/global_scripts/04_utils/fn_resolve_drv_platform.R")
 
-# 1.3: Initialize tracking variables
+# 1.3: DM_R066 — resolve platform at runtime
+# Resolution chain: Sys.getenv("DRV_PLATFORM") -> Sys.getenv("MAMBA_PLATFORM") -> --platform CLI flag
+platform <- resolve_drv_platform()
+
+# 1.4: Initialize tracking variables
 error_occurred <- FALSE
 test_passed <- FALSE
 rows_processed <- 0
@@ -69,13 +77,15 @@ if (!exists("db_path_list", inherits = TRUE)) {
 # Print header
 cat("\n")
 cat("════════════════════════════════════════════════════════════════════\n")
-cat("CBZ Product-Line Poisson DRV - Type B Steady-State (MP135 v2.0)\n")
+cat(sprintf("%s Product-Line Poisson DRV - Type B Steady-State (MP135 v2.0, DM_R066)\n",
+            toupper(platform)))
 cat("════════════════════════════════════════════════════════════════════\n")
 cat("Process Date:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+cat("Platform (runtime-resolved):", platform, "\n")
 cat("Input Database:", db_path_list$app_data, "\n")
 cat("Output Database (intermediate):", db_path_list$processed_data, "\n")
 cat("Output Database (final):", db_path_list$app_data, "\n")
-cat("Script Version: v4.0 (2025-11-13) - Type B Implementation\n")
+cat("Script Version: v6.0 (2026-05-14) - DM_R066 platform-agnostic refactor\n")
 cat("\n")
 cat("Analytics Classification: TYPE B - Steady-State Analytics\n")
 cat("  • Uses ALL historical data (no period filtering)\n")
@@ -83,6 +93,7 @@ cat("  • Analyzes coefficients (not trends over time)\n")
 cat("  • Requires complete data for reliable estimates\n")
 cat("\n")
 cat("Principle Compliance:\n")
+cat("  ✓ DM_R066: DRV Platform Agnosticism (platform resolved at runtime)\n")
 cat("  ✓ MP135 v2.0: Analytics Temporal Classification (Type B)\n")
 cat("  ✓ UI_R024: Metadata Display for Steady-State Analytics\n")
 cat("  ✓ DM_R046: Variable Display Name Metadata Rule\n")
@@ -108,7 +119,7 @@ cat("Product lines to process:", paste(toupper(PRODUCT_LINES), collapse=", "), "
 cat("\n")
 
 # DRV version for metadata (increment when logic changes)
-DRV_VERSION <- "v4.0_TypeB"
+DRV_VERSION <- "v6.0_TypeB_DMR066"
 
 # Empty schema for skipped product lines (MP029: no fake data)
 # Updated for DM_R043 v2.0: includes data_type and source_variable
@@ -234,9 +245,9 @@ for (pl in PRODUCT_LINES) {
   cat(sprintf("║ Product Line: %-53s ║\n", toupper(pl)))
   cat(sprintf("╚═══════════════════════════════════════════════════════════════════╝\n\n"))
 
-  # Read time series data (all historical data)
-  table_name <- sprintf("df_cbz_sales_complete_time_series_%s", pl)
-  output_table_name <- sprintf("df_cbz_poisson_analysis_%s", pl)
+  # Read time series data (all historical data) — table names parameterized on platform
+  table_name <- sprintf("df_%s_sales_complete_time_series_%s", platform, pl)
+  output_table_name <- sprintf("df_%s_poisson_analysis_%s", platform, pl)
   skip_reason <- NULL
 
   if (!dbExistsTable(con_app, table_name)) {
@@ -296,8 +307,15 @@ for (pl in PRODUCT_LINES) {
 
   # Identify predictor columns (exclude IDs, time, sales, and constant metadata)
   # Keep: year, day, month_*, weekday dummies, product features
+  #
+  # DM_R066 NOTE: exclude_cols enumerates ALL known platform-specific
+  # item-id column names as a cross-platform exclude list. This is NOT
+  # platform hard-coding — these are KNOWN COLUMN NAMES that may appear
+  # in input data regardless of which platform's DRV is running, due to
+  # JOIN history. Listing them here keeps the script defensive.
   exclude_cols <- c(
-    "eby_item_id", "cbz_item_id", "time", "sales", "sales_platform",
+    "eby_item_id", "cbz_item_id", "amz_item_id", "shp_item_id",  # known item-id cols across platforms
+    "time", "sales", "sales_platform",
     "product_line_id", "product_line_id.x", "product_line_id.y", "product_line_name",
     "data_source", "filling_method", "filling_timestamp",
     "source_table", "processing_version", "enrichment_version",
@@ -587,10 +605,11 @@ for (pl in PRODUCT_LINES) {
   data_type_vals <- mapply(classify_data_type, predictor_is_binary_vals, source_var_vals)
 
   # Create output table (schema-compliant with Type B metadata + DM_R043 v2.0)
+  # DM_R066: platform column populated from runtime-resolved variable (no literal)
   output_table <- tibble(
     # IDENTIFIERS
     product_line_id = pl,
-    platform = "cbz",
+    platform = platform,                                                  # was hard-coded "cbz"
     predictor = predictor_terms,
     predictor_type = vapply(predictor_terms, classify_predictor_type, character(1)),
 
@@ -688,6 +707,8 @@ cat("═════════════════════════
 cat("[Phase 2/3] Merging All Product Lines\n")
 cat("════════════════════════════════════════════════════════════════════\n\n")
 
+merged_table_name <- sprintf("df_%s_poisson_analysis_all", platform)
+
 if (length(all_results) > 0) {
 
   # Combine all product lines
@@ -708,14 +729,14 @@ if (length(all_results) > 0) {
               format(n_sig_all, big.mark=","),
               100 * n_sig_all / nrow(merged_table)))
 
-  # Write merged table (Type B: simple overwrite)
-  dbWriteTable(con_app, "df_cbz_poisson_analysis_all", merged_table, overwrite = TRUE)
-  cat("\n  ✅ Wrote to: df_cbz_poisson_analysis_all\n")
+  # Write merged table (Type B: simple overwrite) — table name parameterized
+  dbWriteTable(con_app, merged_table_name, merged_table, overwrite = TRUE)
+  cat(sprintf("\n  ✅ Wrote to: %s\n", merged_table_name))
 
 } else {
   cat("  ⚠️  No results to merge\n")
-  dbWriteTable(con_app, "df_cbz_poisson_analysis_all", empty_output_table, overwrite = TRUE)
-  cat("  → Wrote empty schema to: df_cbz_poisson_analysis_all\n")
+  dbWriteTable(con_app, merged_table_name, empty_output_table, overwrite = TRUE)
+  cat(sprintf("  → Wrote empty schema to: %s\n", merged_table_name))
 }
 
 cat("\n")
@@ -746,7 +767,7 @@ validation_pass <- TRUE
 # Validate individual tables in processed_data.duckdb
 cat("Checking individual tables (processed_data.duckdb):\n")
 for (pl in PRODUCT_LINES) {
-  table_name <- sprintf("df_cbz_poisson_analysis_%s", pl)
+  table_name <- sprintf("df_%s_poisson_analysis_%s", platform, pl)
   if (dbExistsTable(con_processed, table_name)) {
     row_count <- tbl2(con_processed, table_name) %>%
       summarise(n = dplyr::n()) %>%
@@ -775,18 +796,18 @@ cat("\n")
 
 # Validate merged table in app_data.duckdb
 cat("Checking merged table (app_data.duckdb):\n")
-if (dbExistsTable(con_app, "df_cbz_poisson_analysis_all")) {
-  row_count <- tbl2(con_app, "df_cbz_poisson_analysis_all") %>%
+if (dbExistsTable(con_app, merged_table_name)) {
+  row_count <- tbl2(con_app, merged_table_name) %>%
     summarise(n = dplyr::n()) %>%
     collect() %>%
     dplyr::pull(n)
 
   # Verify Type B metadata columns
-  cols <- dbListFields(con_app, "df_cbz_poisson_analysis_all")
+  cols <- dbListFields(con_app, merged_table_name)
   has_computed_at <- "computed_at" %in% cols
   has_data_version <- "data_version" %in% cols
 
-  cat(sprintf("  ✓ df_cbz_poisson_analysis_all: %d predictors", row_count))
+  cat(sprintf("  ✓ %s: %d predictors", merged_table_name, row_count))
   if (has_computed_at && has_data_version) {
     cat(" (Type B metadata ✓)\n")
   } else {
@@ -794,7 +815,7 @@ if (dbExistsTable(con_app, "df_cbz_poisson_analysis_all")) {
     validation_pass <- FALSE
   }
 } else {
-  cat("  ❌ df_cbz_poisson_analysis_all: NOT FOUND\n")
+  cat(sprintf("  ❌ %s: NOT FOUND\n", merged_table_name))
   validation_pass <- FALSE
 }
 
@@ -822,8 +843,8 @@ end_time <- Sys.time()
 execution_time <- difftime(end_time, start_time, units = "secs")
 
 summary_report <- list(
-  script = "cbz_D04_02.R",
-  platform = "cbz",
+  script = "D04_02.R",
+  platform = platform,                                                  # runtime-resolved
   group = "D04",
   sequence = "02",
   start_time = start_time,
@@ -839,6 +860,7 @@ cat("═════════════════════════
 cat("DERIVATION SUMMARY\n")
 cat("════════════════════════════════════════════════════════════════════\n")
 cat(sprintf("Script: %s\n", summary_report$script))
+cat(sprintf("Platform: %s (runtime-resolved per DM_R066)\n", summary_report$platform))
 cat(sprintf("Status: %s\n", summary_report$status))
 cat(sprintf("Rows Processed: %d\n", summary_report$rows_processed))
 cat(sprintf("Execution Time: %.2f seconds\n", summary_report$execution_time_secs))
@@ -852,21 +874,23 @@ cat("\n")
 cat("Output Tables Created:\n")
 cat("  processed_data.duckdb (intermediate):\n")
 for (pl in PRODUCT_LINES) {
-  cat(sprintf("    - df_cbz_poisson_analysis_%s\n", pl))
+  cat(sprintf("    - df_%s_poisson_analysis_%s\n", platform, pl))
 }
 cat("  app_data.duckdb (for UI):\n")
-cat("    - df_cbz_poisson_analysis_all (merged)\n")
+cat(sprintf("    - %s (merged)\n", merged_table_name))
 cat("\n")
 cat("Type B Metadata Added:\n")
 cat("  - computed_at: Timestamp when DRV ran\n")
 cat("  - data_version: Latest order_date in input data\n")
 cat("\n")
-cat("Principle Compliance: DM_R044 Five-Part Structure\n")
-cat("  - PART 1: INITIALIZE (autoinit, packages, connections)\n")
-cat("  - PART 2: MAIN (product-line processing, merging)\n")
-cat("  - PART 3: TEST (output verification)\n")
-cat("  - PART 4: SUMMARIZE (execution report)\n")
-cat("  - PART 5: DEINITIALIZE (cleanup, autodeinit)\n")
+cat("Principle Compliance:\n")
+cat("  - DM_R066: DRV Platform Agnosticism (platform resolved at runtime)\n")
+cat("  - DM_R044: Five-Part Structure\n")
+cat("    - PART 1: INITIALIZE (autoinit, packages, connections, platform resolution)\n")
+cat("    - PART 2: MAIN (product-line processing, merging)\n")
+cat("    - PART 3: TEST (output verification)\n")
+cat("    - PART 4: SUMMARIZE (execution report)\n")
+cat("    - PART 5: DEINITIALIZE (cleanup, autodeinit)\n")
 cat("════════════════════════════════════════════════════════════════════\n")
 cat("\n")
 
