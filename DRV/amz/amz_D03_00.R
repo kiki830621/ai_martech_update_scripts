@@ -157,12 +157,16 @@ if (!error_occurred) {
         print(product_line_counts)
         
         # Show sample entries
+        # Refs #679: collect() BEFORE slice_head() — slice_head() has no dbplyr
+        # SQL translation, throwing "not supported on database backends" on
+        # every run. df_product_profile_dictionary is a small mapping table
+        # (~13 rows for QEF), no perf concern with R-side collect-then-slice.
         message("Sample entries:")
         sample_data <- tbl2(processed_data, "df_product_profile_dictionary") %>%
+          collect() %>%
           group_by(product_line_id) %>%
           slice_head(n = 2) %>%
-          ungroup() %>%
-          collect()
+          ungroup()
         print(sample_data)
         
         test_passed <- TRUE
