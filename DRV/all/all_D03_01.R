@@ -61,21 +61,66 @@ if (!file.exists(core_path)) {
 }
 source(core_path)
 
+# Resolve per-platform column_spec from app_config (Refs #671).
+# Loads `app_config.yaml > derivations > D03_01 > column_spec > <platform>` mapping.
+# When missing, falls back to `default_amz_column_spec()` (legacy backward-compat for amz).
+# Returns named list: platform_id → column_spec (list with order_id/revenue/country/state/quantity).
+resolve_d03_column_spec_map <- function() {
+  project_root <- if (exists("MAMBA_PROJECT_ROOT", inherits = TRUE) &&
+                       nzchar(Sys.getenv("MAMBA_PROJECT_ROOT", unset = ""))) {
+    Sys.getenv("MAMBA_PROJECT_ROOT")
+  } else if (exists("MAMBA_PROJECT_ROOT", inherits = TRUE)) {
+    get("MAMBA_PROJECT_ROOT", inherits = TRUE)
+  } else {
+    getwd()
+  }
+  app_cfg_path <- file.path(project_root, "app_config.yaml")
+  if (!requireNamespace("yaml", quietly = TRUE) || !file.exists(app_cfg_path)) {
+    return(list())  # no override; callers fall back to default_amz_column_spec()
+  }
+  cfg <- tryCatch(yaml::read_yaml(app_cfg_path), error = function(e) NULL)
+  if (is.null(cfg)) return(list())
+  override <- cfg$derivations$D03_01$column_spec
+  if (is.null(override) || !is.list(override)) return(list())
+  override
+}
+
+column_spec_map <- resolve_d03_column_spec_map()
+
 # ---- PART 2: MAIN ----
 result <- NULL
 tryCatch({
   # NOTE (#374): Multi-platform now safe — fn_D03_01_core.R uses
   # write_platform_table_d03() which preserves rows for other platforms when
   # called sequentially. Previous abort guard removed (#371 blocker 9 → #374).
+  # Per-platform tryCatch (Refs #671): a single platform failing graceful-skip
+  # (missing column_spec, missing source table) must NOT abort sibling platforms.
+  # test_passed = TRUE iff AT LEAST ONE platform produced output successfully.
+  any_platform_succeeded <- FALSE
   for (platform_id in platforms) {
+    spec <- column_spec_map[[platform_id]]
+    if (is.null(spec)) {
+      message(sprintf("[%s] No app_config derivations.D03_01.column_spec — using default_amz_column_spec() (Refs #671 backward-compat)", platform_id))
+      spec <- default_amz_column_spec()
+    }
     message(sprintf("[%s] Running D03_01 geographic aggregation...", platform_id))
-    result      <- run_D03_01(platform_id = platform_id)
-    test_passed <- isTRUE(result$success)
-    if (!test_passed) {
-      message(sprintf("[%s] D03_01 failed", platform_id))
-      break
+    result <- tryCatch(
+      run_D03_01(platform_id = platform_id, config = NULL, column_spec = spec),
+      error = function(e) {
+        message(sprintf("[%s] D03_01 error (continuing with other platforms): %s",
+                        platform_id, e$message))
+        list(success = FALSE, platform_id = platform_id,
+             rows_processed = 0L, outputs = character(0))
+      }
+    )
+    if (isTRUE(result$success)) {
+      any_platform_succeeded <- TRUE
+    } else {
+      message(sprintf("[%s] D03_01 did not succeed (success=%s); continuing",
+                      platform_id, isTRUE(result$success)))
     }
   }
+  test_passed <- any_platform_succeeded
 
   # #417: after per-platform rows are in place, produce the cross-platform
   # platform_id='all' rollup so UI components that default to platform=all
