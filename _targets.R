@@ -94,13 +94,60 @@ resolve_script_path <- function(layer_dir, platform, script_path) {
   file.path(layer_dir, platform, script_path)
 }
 
+# Refs #678: detect script self-reported Status: FAILED even when system2()
+# exit code is 0 (which happens when tryCatch absorbs the error in MAIN, sets
+# error_occurred <<- TRUE, prints SUMMARY with "Status: FAILED", then proceeds
+# to clean DEINITIALIZE so the R process exits 0). Without this check, the
+# {targets} orchestrator falsely marks the target as completed.
+check_script_log_for_failure <- function(log_file, script_path, layer) {
+  if (!file.exists(log_file)) return(invisible(NULL))
+  lines <- tryCatch(readLines(log_file, warn = FALSE), error = function(e) character(0))
+  # Match the SUMMARY block's "Status: FAILED" line (case-sensitive on FAILED).
+  # Scripts conventionally emit this as part of their PART 4 SUMMARIZE block.
+  failed_lines <- grep("Status:\\s*FAILED", lines, value = TRUE, perl = TRUE)
+  if (length(failed_lines) > 0) {
+    # Echo a tail of the log so the user sees context (the full log is
+    # captured to log_file; tail emits the last 30 lines including SUMMARY).
+    tail_n <- min(length(lines), 30L)
+    message(sprintf("\n=== %s log tail (last %d lines) ===", toupper(layer), tail_n))
+    message(paste(tail(lines, tail_n), collapse = "\n"))
+    message(sprintf("=== end %s log tail ===\n", toupper(layer)))
+    stop(sprintf(
+      "%s script self-reported Status: FAILED (%s)\n  matched line: %s\n  full log: %s",
+      toupper(layer), script_path, failed_lines[[1L]], log_file
+    ))
+  }
+  invisible(NULL)
+}
+
+# Helper: invoke `R` against a script with stdout+stderr captured to a temp
+# log file. Returns (status, log_file). Echoes log to console after so the
+# user sees the same output they would have without redirection.
+run_script_with_log <- function(r_bin, script_path, full_path, layer) {
+  log_dir <- file.path(tempdir(), "mamba_pipeline_logs")
+  if (!dir.exists(log_dir)) dir.create(log_dir, recursive = TRUE)
+  timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+  log_name <- gsub("[^A-Za-z0-9_]", "_", basename(script_path))
+  log_file <- file.path(log_dir, sprintf("%s_%s_%s.log", layer, log_name, timestamp))
+  status <- system2(r_bin, build_r_command(full_path),
+                    stdout = log_file, stderr = log_file)
+  # Echo log to console (so {targets} captures it in target output)
+  if (file.exists(log_file)) {
+    log_text <- tryCatch(readLines(log_file, warn = FALSE), error = function(e) character(0))
+    if (length(log_text) > 0) message(paste(log_text, collapse = "\n"))
+  }
+  list(status = status, log_file = log_file)
+}
+
 run_etl_script <- function(script_path, platform) {
   full_path <- resolve_script_path(file.path(pipeline_dir, "ETL"), platform, script_path)
   r_bin <- Sys.which("R")
   if (r_bin == "") stop("R not found on PATH")
   message(sprintf("[ETL:%s] %s", platform, script_path))
-  status <- system2(r_bin, build_r_command(full_path))
-  if (status != 0) stop(sprintf("ETL failed (%s)", script_path))
+  res <- run_script_with_log(r_bin, script_path, full_path, "etl")
+  if (res$status != 0) stop(sprintf("ETL failed (%s) [exit=%d]", script_path, res$status))
+  # Refs #678: catch script-self-reported FAILED even when exit=0
+  check_script_log_for_failure(res$log_file, script_path, "etl")
   list(success = TRUE, script = script_path, platform = platform, layer = "etl")
 }
 
@@ -109,8 +156,10 @@ run_drv_script <- function(script_path, platform) {
   r_bin <- Sys.which("R")
   if (r_bin == "") stop("R not found on PATH")
   message(sprintf("[DRV:%s] %s", platform, script_path))
-  status <- system2(r_bin, build_r_command(full_path))
-  if (status != 0) stop(sprintf("DRV failed (%s)", script_path))
+  res <- run_script_with_log(r_bin, script_path, full_path, "drv")
+  if (res$status != 0) stop(sprintf("DRV failed (%s) [exit=%d]", script_path, res$status))
+  # Refs #678: catch script-self-reported FAILED even when exit=0
+  check_script_log_for_failure(res$log_file, script_path, "drv")
   list(success = TRUE, script = script_path, platform = platform, layer = "drv")
 }
 
