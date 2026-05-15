@@ -55,13 +55,69 @@ library(dplyr)
 library(tidyr)
 library(broom)
 
-# 1.2: Load utility functions (DM_R046 + DM_R066)
+# 1.2: Load utility functions (DM_R046 + DM_R066 + #716 metadata-driven classifier)
 source("scripts/global_scripts/04_utils/fn_enrich_with_display_names.R")
 source("scripts/global_scripts/04_utils/fn_resolve_drv_platform.R")
+source("scripts/global_scripts/04_utils/fn_classify_predictor_type.R")
+source("scripts/global_scripts/04_utils/fn_load_predictor_classification.R")
 
 # 1.3: DM_R066 — resolve platform at runtime
 # Resolution chain: Sys.getenv("DRV_PLATFORM") -> Sys.getenv("MAMBA_PLATFORM") -> --platform CLI flag
 platform <- resolve_drv_platform()
+
+# 1.5: Build predictor_meta_lookup once per platform (#716 metadata-driven path).
+# Pre-load df_predictor_classification rows for this platform from
+# meta_data.duckdb into an in-memory data.frame, then wrap a closure for the
+# classifier vapply calls. This keeps classify_predictor_type pure and avoids
+# per-call DB queries (would be 100+ queries per PL otherwise).
+build_predictor_meta_lookup <- function(platform_id, meta_db_path) {
+  if (is.null(meta_db_path) || !file.exists(meta_db_path)) {
+    # No meta_data.duckdb yet — return NULL so classifier falls through to
+    # keyword stage 4 (backward-compat for environments without metadata yet)
+    return(NULL)
+  }
+  con <- tryCatch(
+    DBI::dbConnect(duckdb::duckdb(), meta_db_path, read_only = TRUE),
+    error = function(e) NULL
+  )
+  if (is.null(con)) return(NULL)
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+
+  if (!DBI::dbExistsTable(con, "df_predictor_classification")) {
+    return(NULL)
+  }
+
+  meta_df <- DBI::dbGetQuery(
+    con,
+    "SELECT column_name, predictor_type, source FROM df_predictor_classification
+     WHERE platform = ?",
+    params = list(platform_id)
+  )
+
+  if (nrow(meta_df) == 0L) {
+    # Empty per-platform metadata — still return a function (lookups will miss)
+    # rather than NULL, so callers don't conditionally branch.
+    return(function(p, c) NULL)
+  }
+
+  # Closure captures meta_df; classifier calls hit pure in-memory lookup.
+  function(p, c) {
+    hit <- meta_df[meta_df$column_name == c, , drop = FALSE]
+    if (nrow(hit) == 0L) return(NULL)
+    list(predictor_type = hit$predictor_type[1L],
+         source = hit$source[1L])
+  }
+}
+
+predictor_meta_lookup <- build_predictor_meta_lookup(
+  platform_id   = platform,
+  meta_db_path  = if (exists("db_path_list")) db_path_list$meta_data else NULL
+)
+if (!is.null(predictor_meta_lookup) && is.function(predictor_meta_lookup)) {
+  message("[D04_02] predictor_meta_lookup ready for platform=", platform)
+} else {
+  message("[D04_02] predictor_meta_lookup unavailable; classify_predictor_type will fall through to keyword stage (backward-compat path)")
+}
 
 # 1.4: Initialize tracking variables
 error_occurred <- FALSE
@@ -172,36 +228,14 @@ empty_output_table <- tibble(
 # CLASSIFICATION FUNCTIONS (DM_R043 v2.0)
 # =============================================================================
 
-#' Classify predictor_type for UI module routing
-#' @param term Character, predictor variable name
-#' @return Character, one of: time_feature, product_attribute, comment_attribute, structural
-classify_predictor_type <- function(term) {
-  term_lower <- tolower(term)
-
-  # Time features: temporal patterns (poissonTimeAnalysis)
-  is_time <- grepl("^month_[0-9]+$", term_lower) ||
-    grepl("^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$", term_lower) ||
-    grepl("^(year|day|week|quarter|is_holiday|is_weekend)", term_lower)
-
-  if (is_time) {
-    return("time_feature")
-  }
-
-  # Structural: identifiers and names (EXCLUDED from UI)
-  is_structural <- grepl("_name$|_id$|_code$|^sku$|^asin$|_series_name", term_lower)
-  if (is_structural) {
-    return("structural")
-  }
-
-  # Comment attributes: review and sentiment related (poissonCommentAnalysis)
-  is_comment <- grepl("rating|sentiment|review|comment|stars|feedback", term_lower)
-  if (is_comment) {
-    return("comment_attribute")
-  }
-
-  # Default: product attributes (poissonFeatureAnalysis)
-  return("product_attribute")
-}
+# classify_predictor_type was inlined here until #716. It now lives at
+# `shared/global_scripts/04_utils/fn_classify_predictor_type.R` and is sourced
+# in PART 1 (line ~62). The refactored version accepts a `platform` parameter
+# and an optional `predictor_meta_lookup` function for source-driven metadata
+# dispatch. See:
+#   - spec predictor-type-classifier-lookup (5-stage dispatch)
+#   - spec drv-platform-agnosticism (helpers accept platform param)
+#   - tests at 98_test/general/test_classify_predictor_type_metadata_lookup.R
 
 #' Infer source_variable for dummy-coded columns
 #' @param term Character, predictor variable name
@@ -236,6 +270,13 @@ classify_data_type <- function(is_binary, source_var) {
 # Store all results for merging
 all_results <- list()
 
+# Pre-compute merged_table_name OUTSIDE tryCatch scope (#724 Bug A fix).
+# Originally defined inside tryCatch at L755, but PART 4 SUMMARIZE references
+# this variable unconditionally — if Phase 1 fails before L755 executes, the
+# top-level summary crashes with `object 'merged_table_name' not found`.
+# sprintf produces a pure string with no side effects, safe to compute early.
+merged_table_name <- sprintf("df_%s_poisson_analysis_all", platform)
+
 # ==============================================================================
 # PART 2: MAIN
 # ==============================================================================
@@ -244,7 +285,14 @@ cat("═════════════════════════
 cat("[Phase 1/3] Running Poisson Regression by Product Line (All-Time Data)\n")
 cat("════════════════════════════════════════════════════════════════════\n\n")
 
-tryCatch({
+# Buffer for capturing call stack via withCallingHandlers (#724 Bug B fix).
+# withCallingHandlers fires BEFORE the error handler unwinds the stack, so
+# sys.calls() inside it captures the actual error location. The outer
+# tryCatch still catches and swallows (preserving existing behavior).
+.D04_02_err_calls <- NULL
+
+tryCatch(
+withCallingHandlers({
 
 # Process each product line (NO period loop - Type B uses all_time only)
 for (pl in PRODUCT_LINES) {
@@ -612,6 +660,21 @@ for (pl in PRODUCT_LINES) {
   source_var_vals <- vapply(predictor_terms, infer_source_variable, character(1))
   data_type_vals <- mapply(classify_data_type, predictor_is_binary_vals, source_var_vals)
 
+  # #724 Bug C fix: Pre-compute predictor_type vector OUTSIDE tibble().
+  # tibble() exposes earlier columns as a data mask to later expressions;
+  # `platform = platform` creates a recycled length-N column that shadows the
+  # outer scalar. If vapply(..., platform = platform, ...) ran inside the
+  # tibble call, the inner `platform` would resolve to that length-N column,
+  # passing a vector instead of a scalar to classify_predictor_type — which
+  # triggers R 4.2+ fatal `'length = N' in coercion to 'logical(1)'` when the
+  # function uses `nzchar(platform)` inside `||`.
+  predictor_type_vals <- vapply(
+    predictor_terms, classify_predictor_type,
+    character(1),
+    platform = platform,
+    predictor_meta_lookup = predictor_meta_lookup
+  )
+
   # Create output table (schema-compliant with Type B metadata + DM_R043 v2.0)
   # DM_R066: platform column populated from runtime-resolved variable (no literal)
   output_table <- tibble(
@@ -619,7 +682,7 @@ for (pl in PRODUCT_LINES) {
     product_line_id = pl,
     platform = platform,                                                  # was hard-coded "cbz"
     predictor = predictor_terms,
-    predictor_type = vapply(predictor_terms, classify_predictor_type, character(1)),
+    predictor_type = predictor_type_vals,
 
     # DM_R043 v2.0 CLASSIFICATION
     data_type = as.character(data_type_vals),
@@ -715,7 +778,7 @@ cat("═════════════════════════
 cat("[Phase 2/3] Merging All Product Lines\n")
 cat("════════════════════════════════════════════════════════════════════\n\n")
 
-merged_table_name <- sprintf("df_%s_poisson_analysis_all", platform)
+# merged_table_name pre-computed at L271 (Bug A fix) — keep this scope clean
 
 if (length(all_results) > 0) {
 
@@ -754,8 +817,40 @@ cat("\n")
     rows_processed <- nrow(bind_rows(all_results))
   }
 
-}, error = function(e) {
+},
+# withCallingHandlers (innermost) — snapshots call stack BEFORE tryCatch unwinds (#724 Bug B)
+error = function(e) {
+  all_calls <- sys.calls()
+  user_frames <- list()
+  for (i in seq_len(length(all_calls))) {
+    line <- paste(deparse(all_calls[[i]]), collapse = " ")
+    is_internal <- grepl("^(tryCatch|withCallingHandlers|doTryCatch|tryCatchList|tryCatchOne|h\\(simpleError)", line)
+    if (!is_internal) user_frames[[length(user_frames) + 1L]] <- all_calls[[i]]
+  }
+  .D04_02_err_calls <<- user_frames
+  # Calling handler: do NOT muffle — let error propagate to outer tryCatch
+}
+),
+# Outer tryCatch exiting handler — receives error AFTER withCallingHandlers populated .D04_02_err_calls
+error = function(e) {
   message("ERROR in MAIN: ", e$message)
+  # Print call stack captured BEFORE tryCatch unwinding (#724 Bug B fix).
+  # The stack was snapshotted by the outer withCallingHandlers via sys.calls()
+  # at the moment of error — that's the actual D04_02 user-code frames, not
+  # tryCatch internals.
+  if (!is.null(.D04_02_err_calls)) {
+    message("--- Call stack at error (most recent first):")
+    n <- length(.D04_02_err_calls)
+    # Show outer frames first (user code typically near top)
+    for (i in seq_len(n)) {
+      frame <- .D04_02_err_calls[[i]]
+      line <- paste(deparse(frame), collapse = " ")
+      if (nchar(line) > 200) line <- paste0(substr(line, 1, 200), "...")
+      message(sprintf("  [%d] %s", i, line))
+    }
+  } else {
+    message("  (no call stack captured — withCallingHandlers did not fire)")
+  }
   error_occurred <<- TRUE
 })
 
