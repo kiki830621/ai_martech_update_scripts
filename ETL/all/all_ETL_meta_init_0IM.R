@@ -70,6 +70,23 @@ if (!requireNamespace("yaml", quietly = TRUE)) {
 # Local helper (autoinit-provided %||% is not available in pre-autoinit ETL)
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
+# Source SCHEMA_006 to make fn_initialize_predictor_classification available.
+# Per metadata-driven-predictor-type-classification change: meta_init owns the
+# CREATE TABLE for df_predictor_classification; 2TR ETL emit phase populates rows.
+schema_006_path <- file.path(
+  project_root, "scripts", "global_scripts",
+  "01_db", "raw_schema", "_authoring", "r_definitions",
+  "SCHEMA_006_predictor_classification.R"
+)
+if (!file.exists(schema_006_path)) {
+  stop(
+    "SCHEMA_006_predictor_classification.R not found: ", schema_006_path, "\n",
+    "Ensure shared/global_scripts symlink is correctly set up.",
+    call. = FALSE
+  )
+}
+source(schema_006_path)
+
 error_occurred <- FALSE
 start_time     <- Sys.time()
 
@@ -254,6 +271,55 @@ tryCatch({
   DBI::dbWriteTable(con_meta, "df_platform",     df_platform,     overwrite = TRUE)
   DBI::dbWriteTable(con_meta, "df_product_line", df_product_line, overwrite = TRUE)
   message("[meta_init] wrote df_platform + df_product_line to meta_data.duckdb")
+
+  # Initialize df_predictor_classification table (empty initially).
+  # Per metadata-driven-predictor-type-classification change spec
+  # predictor-type-metadata-table > "Producer ETL enforces schema at table creation"
+  # scenario. Idempotent via CREATE TABLE IF NOT EXISTS — safe across re-runs.
+  fn_initialize_predictor_classification(con_meta, db_type = "duckdb")
+  message("[meta_init] ensured df_predictor_classification table exists in meta_data.duckdb")
+
+  # Populate df_predictor_classification from bridge yaml field_extractors.
+  # Per design.md Refinement 1+2: bridge yaml is metadata source-of-truth;
+  # meta_init reads bridges/<company>/<platform>/*.bridge.yaml, derives
+  # predictor_type via canonical name semantic prefix, writes rows. Idempotent
+  # via DELETE+INSERT per (platform, source='bridge_yaml').
+  global_scripts_dir <- file.path(project_root, "scripts", "global_scripts")
+  populate_helper_path <- file.path(
+    global_scripts_dir, "04_utils",
+    "fn_populate_predictor_classification_from_bridges.R"
+  )
+  if (file.exists(populate_helper_path)) {
+    source(populate_helper_path)
+
+    # Resolve company: COMPANY env var > app_config.yaml brand_name >
+    # basename(project_root). bridge_root from global_scripts_dir.
+    company_name <- Sys.getenv("COMPANY", "")
+    if (!nzchar(company_name)) {
+      cfg <- yaml::read_yaml(file.path(project_root, "app_config.yaml"))
+      company_name <- cfg$company_name %||% cfg$company %||%
+                      cfg$brand_name   %||% basename(project_root) %||% ""
+    }
+    bridge_root <- file.path(
+      global_scripts_dir, "01_db", "raw_schema", "_authoring", "bridges"
+    )
+
+    if (nzchar(company_name) && dir.exists(bridge_root)) {
+      n_pop <- populate_predictor_classification_from_bridges(
+        company = company_name,
+        meta_con = con_meta,
+        bridge_root = bridge_root
+      )
+      message(sprintf(
+        "[meta_init] populated df_predictor_classification: %d rows from bridge yamls (company=%s)",
+        n_pop, company_name
+      ))
+    } else {
+      message("[meta_init] SKIP bridge yaml populate: company unknown or bridge_root missing")
+    }
+  } else {
+    message("[meta_init] SKIP bridge yaml populate: helper not present at ", populate_helper_path)
+  }
 
   # Smoke check: verify row counts
   check_platform     <- DBI::dbGetQuery(con_meta,
