@@ -60,6 +60,7 @@ source("scripts/global_scripts/04_utils/fn_enrich_with_display_names.R")
 source("scripts/global_scripts/04_utils/fn_resolve_drv_platform.R")
 source("scripts/global_scripts/04_utils/fn_classify_predictor_type.R")
 source("scripts/global_scripts/04_utils/fn_load_predictor_classification.R")
+source("scripts/global_scripts/04_utils/fn_join_by_asin_ratings.R")  # #733 PR #2
 
 # 1.3: DM_R066 — resolve platform at runtime
 # Resolution chain: Sys.getenv("DRV_PLATFORM") -> Sys.getenv("MAMBA_PLATFORM") -> --platform CLI flag
@@ -320,6 +321,36 @@ for (pl in PRODUCT_LINES) {
   ts_data <- tbl2(con_app, table_name) %>% collect()
   cat(sprintf("  ✓ Loaded full historical dataset: %s rows, %s columns\n",
               format(nrow(ts_data), big.mark=","), ncol(ts_data)))
+
+  # ---- #733 PR #2: LEFT JOIN per-ASIN attribute ratings (D-B / D-E) ----
+  # Adds <attr>_rating columns from df_comment_property_ratingonly_by_asin_<pl>
+  # so Stage 2.5 (#733 D-D / PR #745) classifies them as comment_attribute
+  # predictors. MP163-compliant: missing by_asin table → graceful skip,
+  # not stop(). DM_R066-compliant: platform-specific ts_key resolved per
+  # platform; non-amz platforms skip silently via dbExistsTable check.
+  ts_key <- switch(platform,
+                   "amz" = "amz_asin",
+                   "cbz" = "cbz_item_id",
+                   "eby" = "eby_item_id",
+                   "shp" = "shp_item_id",
+                   NULL)
+  by_asin_table <- sprintf("df_comment_property_ratingonly_by_asin_%s", pl)
+  if (!is.null(ts_key) && ts_key %in% names(ts_data) &&
+      dbExistsTable(con_processed, by_asin_table)) {
+    by_asin_data <- tbl2(con_processed, by_asin_table) %>% collect()
+    by_asin_key <- if ("asin" %in% names(by_asin_data)) "asin" else "product_id"
+    orig_ncol <- ncol(ts_data)
+    ts_data <- join_by_asin_ratings(ts_data, by_asin_data,
+                                    ts_key = ts_key, by_asin_key = by_asin_key)
+    cat(sprintf("  ✓ JOINed by_asin ratings (%s key %s, %d ASINs): +%d _rating cols (now %d total)\n",
+                by_asin_table, by_asin_key, nrow(by_asin_data),
+                ncol(ts_data) - orig_ncol, ncol(ts_data)))
+  } else {
+    cat(sprintf("  → by_asin JOIN skipped (table=%s exists=%s, ts_key=%s)\n",
+                by_asin_table,
+                dbExistsTable(con_processed, by_asin_table),
+                ifelse(is.null(ts_key), "NA(non-listed platform)", ts_key)))
+  }
 
   if (nrow(ts_data) == 0) {
     skip_reason <- "Input time series table is empty"
