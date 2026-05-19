@@ -61,6 +61,8 @@ source("scripts/global_scripts/04_utils/fn_resolve_drv_platform.R")
 source("scripts/global_scripts/04_utils/fn_classify_predictor_type.R")
 source("scripts/global_scripts/04_utils/fn_load_predictor_classification.R")
 source("scripts/global_scripts/04_utils/fn_join_by_asin_ratings.R")  # #733 PR #2
+source("scripts/global_scripts/04_utils/fn_fit_univariate_poisson.R")  # #755 / #718
+source("scripts/global_scripts/04_utils/fn_make_skip_sentinel.R")  # #715
 
 # 1.3: DM_R066 — resolve platform at runtime
 # Resolution chain: Sys.getenv("DRV_PLATFORM") -> Sys.getenv("MAMBA_PLATFORM") -> --platform CLI flag
@@ -225,6 +227,11 @@ empty_output_table <- tibble(
   display_description = character()
 )
 
+# #715: make_skip_sentinel() lives at
+# `shared/global_scripts/04_utils/fn_make_skip_sentinel.R` and is sourced in
+# PART 1. It builds a schema-complete sentinel row for skipped product lines so
+# they still appear in df_<platform>_poisson_analysis_all (MP163).
+
 # =============================================================================
 # CLASSIFICATION FUNCTIONS (DM_R043 v2.0)
 # =============================================================================
@@ -314,7 +321,12 @@ for (pl in PRODUCT_LINES) {
   if (!is.null(skip_reason)) {
     cat(sprintf("  ⚠️  %s\n", skip_reason))
     dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    cat(sprintf("  → Wrote empty schema to: %s\n", output_table_name))
+    # #715: emit an MP163 sentinel into the merge so this PL still appears in
+    # df_<platform>_poisson_analysis_all instead of vanishing from `_all`.
+    all_results[[pl]] <- make_skip_sentinel(pl, platform, skip_reason,
+                                            empty_output_table, DRV_VERSION)
+    cat(sprintf("  → #715: sentinel row added for %s\n\n", toupper(pl)))
     next
   }
 
@@ -359,7 +371,12 @@ for (pl in PRODUCT_LINES) {
   if (!is.null(skip_reason)) {
     cat(sprintf("  ⚠️  %s\n", skip_reason))
     dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    cat(sprintf("  → Wrote empty schema to: %s\n", output_table_name))
+    # #715: emit an MP163 sentinel into the merge so this PL still appears in
+    # df_<platform>_poisson_analysis_all instead of vanishing from `_all`.
+    all_results[[pl]] <- make_skip_sentinel(pl, platform, skip_reason,
+                                            empty_output_table, DRV_VERSION)
+    cat(sprintf("  → #715: sentinel row added for %s\n\n", toupper(pl)))
     next
   }
 
@@ -380,7 +397,12 @@ for (pl in PRODUCT_LINES) {
   if (!is.null(skip_reason)) {
     cat(sprintf("  ❌ %s\n", skip_reason))
     dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    cat(sprintf("  → Wrote empty schema to: %s\n", output_table_name))
+    # #715: emit an MP163 sentinel into the merge so this PL still appears in
+    # df_<platform>_poisson_analysis_all instead of vanishing from `_all`.
+    all_results[[pl]] <- make_skip_sentinel(pl, platform, skip_reason,
+                                            empty_output_table, DRV_VERSION)
+    cat(sprintf("  → #715: sentinel row added for %s\n\n", toupper(pl)))
     next
   }
 
@@ -424,7 +446,12 @@ for (pl in PRODUCT_LINES) {
   if (!is.null(skip_reason)) {
     cat(sprintf("  ❌ %s\n", skip_reason))
     dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    cat(sprintf("  → Wrote empty schema to: %s\n", output_table_name))
+    # #715: emit an MP163 sentinel into the merge so this PL still appears in
+    # df_<platform>_poisson_analysis_all instead of vanishing from `_all`.
+    all_results[[pl]] <- make_skip_sentinel(pl, platform, skip_reason,
+                                            empty_output_table, DRV_VERSION)
+    cat(sprintf("  → #715: sentinel row added for %s\n\n", toupper(pl)))
     next
   }
 
@@ -449,7 +476,12 @@ for (pl in PRODUCT_LINES) {
   if (!is.null(skip_reason)) {
     cat(sprintf("  ❌ %s\n", skip_reason))
     dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    cat(sprintf("  → Wrote empty schema to: %s\n", output_table_name))
+    # #715: emit an MP163 sentinel into the merge so this PL still appears in
+    # df_<platform>_poisson_analysis_all instead of vanishing from `_all`.
+    all_results[[pl]] <- make_skip_sentinel(pl, platform, skip_reason,
+                                            empty_output_table, DRV_VERSION)
+    cat(sprintf("  → #715: sentinel row added for %s\n\n", toupper(pl)))
     next
   }
 
@@ -497,30 +529,37 @@ for (pl in PRODUCT_LINES) {
 
   cat(sprintf("  → Final predictor count: %d (after removing constants)\n\n", length(predictor_cols)))
 
-  # Prepare final modeling dataset with only kept predictors
-  model_data_final <- model_data %>% select(sales, all_of(predictor_cols))
-
-  # Remove rows with ANY NA in predictors (complete case analysis)
-  initial_rows <- nrow(model_data_final)
-  model_data_final <- model_data_final %>% tidyr::drop_na()
-
-  if (nrow(model_data_final) < initial_rows) {
-    cat(sprintf("  → Removed %d rows with missing predictor values (complete case analysis)\n",
-                initial_rows - nrow(model_data_final)))
-  }
-
-  if (nrow(model_data_final) == 0) {
-    skip_reason <- "No complete cases available after removing missing values"
-  }
-
-  if (!is.null(skip_reason)) {
-    cat(sprintf("  ❌ %s\n", skip_reason))
+  # #715 (post-verify follow-up — 7th defensive skip path).
+  # If every predictor was constant/all-NA after the setdiff above, predictor_cols
+  # is now empty. The univariate helper's `length(predictor_cols) == 0L` guard
+  # would `stop()`, unwinding the outer per-platform tryCatch INCLUDING the
+  # final `dbWriteTable(con_app, merged_table_name, ...)` merge — meaning the
+  # entire-platform `_all` table would never be written and yesterday's stale
+  # `_all` would remain. That regresses MP163 ("Always-Runnable Pipeline").
+  # Emit an MP163 sentinel here for this PL and continue to the next PL so the
+  # `_all` merge still runs across the loop.
+  if (length(predictor_cols) == 0L) {
+    skip_reason <- "No estimable predictors after constant/all-NA removal"
+    cat(sprintf("  ⚠️  SKIPPING %s: %s\n\n", toupper(pl), skip_reason))
     dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    cat(sprintf("  → Wrote empty schema to: %s\n", output_table_name))
+    all_results[[pl]] <- make_skip_sentinel(pl, platform, skip_reason,
+                                            empty_output_table, DRV_VERSION)
+    cat(sprintf("  → #715: sentinel row added for %s\n\n", toupper(pl)))
     next
   }
 
-  cat(sprintf("  → Final modeling dataset: %d rows\n", nrow(model_data_final)))
+  # Prepare final modeling dataset with only kept predictors.
+  # #755: NO global complete-case drop_na() here. The loop below fits
+  # UNIVARIATE models — model k only needs (sales, predictor_k) non-NA, not
+  # all ~150 predictors jointly. NA filtering is done PER PREDICTOR inside
+  # fit_univariate_poisson(). A global drop_na() on heterogeneous-NA data
+  # (the #733 `_rating` JOIN adds 59 cols NA for unmatched ASINs) returned
+  # 0 rows and zeroed 8/12 product lines.
+  model_data_final <- model_data %>% select(sales, all_of(predictor_cols))
+
+  cat(sprintf("  → Modeling dataset: %d rows (per-predictor NA filtering applied in fit loop)\n",
+              nrow(model_data_final)))
 
   # Check for extreme sparsity (Poisson regression issue)
   zero_pct <- 100 * sum(model_data_final$sales == 0) / nrow(model_data_final)
@@ -543,7 +582,12 @@ for (pl in PRODUCT_LINES) {
 
   if (!is.null(skip_reason)) {
     dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
-    cat(sprintf("  → Wrote empty schema to: %s\n\n", output_table_name))
+    cat(sprintf("  → Wrote empty schema to: %s\n", output_table_name))
+    # #715: emit an MP163 sentinel into the merge so this PL still appears in
+    # df_<platform>_poisson_analysis_all instead of vanishing from `_all`.
+    all_results[[pl]] <- make_skip_sentinel(pl, platform, skip_reason,
+                                            empty_output_table, DRV_VERSION)
+    cat(sprintf("  → #715: sentinel row added for %s\n\n", toupper(pl)))
     next
   }
 
@@ -560,103 +604,30 @@ for (pl in PRODUCT_LINES) {
   # TYPE B METADATA: Only 2 columns needed (MP135 v2.0)
   computed_timestamp <- Sys.time()
 
-  # Store results for each predictor
-  univariate_results <- list()
-  n_success <- 0
-  n_failed <- 0
+  # ---- #755 / #718: per-predictor univariate Poisson regression ----
+  # fit_univariate_poisson() does NA filtering PER PREDICTOR — each
+  # glm(sales ~ predictor_k) fits on its own maximal (sales, predictor_k)
+  # non-NA subset. It returns per-predictor `n_obs` (#755 — real sample size)
+  # and `drop_reason` (#718 — explainable not_estimable cause).
+  coef_summary <- fit_univariate_poisson(model_data_final, predictor_cols)
 
-  for (pred_idx in seq_along(predictor_cols)) {
-    predictor <- predictor_cols[pred_idx]
+  n_success <- sum(coef_summary$estimation_status == "estimated")
+  n_failed  <- sum(coef_summary$estimation_status == "not_estimable")
 
-    # Progress indicator every 50 predictors
-    if (pred_idx %% 50 == 1 || pred_idx == length(predictor_cols)) {
-      cat(sprintf("  → Processing predictor %d/%d: %s\n", pred_idx, length(predictor_cols), predictor))
-    }
+  cat(sprintf("  ✅ Univariate regression complete: %d estimated, %d not_estimable\n",
+              n_success, n_failed))
 
-    tryCatch({
-      # Fit univariate Poisson model: sales ~ predictor
-      formula_str <- paste("sales ~", predictor)
-      univariate_model <- glm(as.formula(formula_str),
-                               data = model_data_final,
-                               family = poisson())
-
-      # Extract coefficient for this predictor (R118 compliance)
-      coef_info <- tidy(univariate_model, conf.int = TRUE, conf.level = 0.95) %>%
-        filter(term == predictor)
-
-      if (nrow(coef_info) == 0) {
-        # Predictor dropped (e.g., contrasts issue)
-        univariate_results[[predictor]] <- tibble(
-          predictor = predictor,
-          coefficient = NA_real_,
-          std_error = NA_real_,
-          z_value = NA_real_,
-          p_value = NA_real_,
-          conf_low = NA_real_,
-          conf_high = NA_real_,
-          incidence_rate_ratio = NA_real_,
-          irr_conf_low = NA_real_,
-          irr_conf_high = NA_real_,
-          deviance = NA_real_,
-          aic = NA_real_,
-          convergence = "dropped",
-          estimation_status = "not_estimable"
-        )
-        n_failed <- n_failed + 1
-      } else {
-        # Get model statistics
-        model_stats <- glance(univariate_model)
-
-        # Calculate IRR
-        irr <- exp(coef_info$estimate)
-        irr_conf_low <- exp(coef_info$conf.low)
-        irr_conf_high <- exp(coef_info$conf.high)
-
-        univariate_results[[predictor]] <- tibble(
-          predictor = predictor,
-          coefficient = coef_info$estimate,
-          std_error = coef_info$std.error,
-          z_value = coef_info$statistic,
-          p_value = coef_info$p.value,
-          conf_low = coef_info$conf.low,
-          conf_high = coef_info$conf.high,
-          incidence_rate_ratio = irr,
-          irr_conf_low = irr_conf_low,
-          irr_conf_high = irr_conf_high,
-          deviance = model_stats$deviance,
-          aic = model_stats$AIC,
-          convergence = ifelse(isTRUE(univariate_model$converged), "converged", "not_converged"),
-          estimation_status = "estimated"
-        )
-        n_success <- n_success + 1
-      }
-
-    }, error = function(e) {
-      # Model fitting failed for this predictor
-      univariate_results[[predictor]] <<- tibble(
-        predictor = predictor,
-        coefficient = NA_real_,
-        std_error = NA_real_,
-        z_value = NA_real_,
-        p_value = NA_real_,
-        conf_low = NA_real_,
-        conf_high = NA_real_,
-        incidence_rate_ratio = NA_real_,
-        irr_conf_low = NA_real_,
-        irr_conf_high = NA_real_,
-        deviance = NA_real_,
-        aic = NA_real_,
-        convergence = "error",
-        estimation_status = "not_estimable"
-      )
-      n_failed <<- n_failed + 1
-    })
+  # #718 — explainable dropped-rate: tabulate WHY predictors were not estimable
+  # (insufficient_rows / constant_in_subset / aliased / glm_error) instead of
+  # surfacing an opaque ~70% dropped figure.
+  if (n_failed > 0) {
+    drop_reasons <- coef_summary$drop_reason[
+      coef_summary$estimation_status == "not_estimable"]
+    drop_tab <- table(drop_reasons, useNA = "ifany")
+    cat("  → Not-estimable breakdown (#718): ",
+        paste(sprintf("%s=%d", names(drop_tab), as.integer(drop_tab)),
+              collapse = ", "), "\n", sep = "")
   }
-
-  # Combine all univariate results
-  coef_summary <- bind_rows(univariate_results)
-
-  cat(sprintf("  ✅ Univariate regression complete: %d estimated, %d failed\n", n_success, n_failed))
 
   # Calculate predictor range metadata (R120)
   predictor_terms <- coef_summary$predictor
@@ -743,7 +714,9 @@ for (pl in PRODUCT_LINES) {
     # MODEL STATISTICS (per-predictor for univariate)
     deviance = coef_summary$deviance,
     aic = coef_summary$aic,
-    sample_size = nrow(model_data_final),
+    # #755: per-predictor real sample size — each univariate model fits on its
+    # own (sales, predictor) non-NA subset, so N differs per predictor.
+    sample_size = as.integer(coef_summary$n_obs),
     convergence = coef_summary$convergence,
 
     # EXISTING METADATA (MP102 compliance)
