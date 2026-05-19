@@ -529,6 +529,26 @@ for (pl in PRODUCT_LINES) {
 
   cat(sprintf("  → Final predictor count: %d (after removing constants)\n\n", length(predictor_cols)))
 
+  # #715 (post-verify follow-up — 7th defensive skip path).
+  # If every predictor was constant/all-NA after the setdiff above, predictor_cols
+  # is now empty. The univariate helper's `length(predictor_cols) == 0L` guard
+  # would `stop()`, unwinding the outer per-platform tryCatch INCLUDING the
+  # final `dbWriteTable(con_app, merged_table_name, ...)` merge — meaning the
+  # entire-platform `_all` table would never be written and yesterday's stale
+  # `_all` would remain. That regresses MP163 ("Always-Runnable Pipeline").
+  # Emit an MP163 sentinel here for this PL and continue to the next PL so the
+  # `_all` merge still runs across the loop.
+  if (length(predictor_cols) == 0L) {
+    skip_reason <- "No estimable predictors after constant/all-NA removal"
+    cat(sprintf("  ⚠️  SKIPPING %s: %s\n\n", toupper(pl), skip_reason))
+    dbWriteTable(con_processed, output_table_name, empty_output_table, overwrite = TRUE)
+    cat(sprintf("  → Wrote empty schema to: %s\n", output_table_name))
+    all_results[[pl]] <- make_skip_sentinel(pl, platform, skip_reason,
+                                            empty_output_table, DRV_VERSION)
+    cat(sprintf("  → #715: sentinel row added for %s\n\n", toupper(pl)))
+    next
+  }
+
   # Prepare final modeling dataset with only kept predictors.
   # #755: NO global complete-case drop_na() here. The loop below fits
   # UNIVARIATE models — model k only needs (sales, predictor_k) non-NA, not
