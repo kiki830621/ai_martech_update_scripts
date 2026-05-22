@@ -133,14 +133,65 @@ tryCatch({
   if (!dbExistsTable(con_raw, MAPPING_TABLE)) {
     stop(sprintf("Missing asin mapping table: %s", MAPPING_TABLE))
   }
-  asin_mapping_raw <- tbl2(con_raw, MAPPING_TABLE) %>%
-    select(any_of(c("asin", "product_line_id"))) %>%
+  # Read full mapping (with source_header if present) before dedup,
+  # so we can detect ASINs claimed by multiple PLs (per #818 root cause:
+  # df_amz_competitor_product_id had 16 hsg-sfg duplicate entries that
+  # silently lost to distinct() ordering, masking sfg as "code bug").
+  asin_mapping_full <- tbl2(con_raw, MAPPING_TABLE) %>%
+    select(any_of(c("asin", "product_line_id", "source_header"))) %>%
     collect() %>%
     mutate(
       asin = as.character(asin),
       product_line_id = as.character(product_line_id)
     ) %>%
-    filter(!is.na(asin) & asin != "") %>%
+    filter(!is.na(asin) & asin != "")
+
+  # Defensive: detect duplicate ASINs across product_line_id BEFORE distinct().
+  # MP154 (side-effect defense — no silent mapping failure) +
+  # MP163 (visible-gap sentinel — surface gaps to attention loop).
+  # Audit table written to app_data so downstream Shiny can surface it.
+  mapping_dup_counts <- asin_mapping_full %>%
+    group_by(asin) %>%
+    summarise(n_pls = dplyr::n_distinct(product_line_id), .groups = "drop") %>%
+    filter(n_pls > 1)
+
+  if (nrow(mapping_dup_counts) > 0) {
+    mapping_dup_audit <- asin_mapping_full %>%
+      filter(asin %in% mapping_dup_counts$asin) %>%
+      arrange(asin, product_line_id) %>%
+      group_by(asin) %>%
+      mutate(
+        distinct_winner = product_line_id == dplyr::first(product_line_id),
+        conflict_pls = paste(sort(unique(product_line_id)), collapse = ", "),
+        detected_at = Sys.time()
+      ) %>%
+      ungroup()
+
+    dbWriteTable(con_app, "df_amz_mapping_duplicates_audit",
+                 as.data.frame(mapping_dup_audit), overwrite = TRUE)
+
+    warning(sprintf(
+      "[MP154/MP163] %d ASIN(s) in '%s' map to multiple product_line_id; %d rows silently dropped by distinct(). See df_amz_mapping_duplicates_audit in app_data for full conflict list. PLs affected: %s",
+      nrow(mapping_dup_counts),
+      MAPPING_TABLE,
+      nrow(asin_mapping_full) - dplyr::n_distinct(asin_mapping_full$asin),
+      paste(sort(unique(mapping_dup_audit$product_line_id)), collapse = ", ")
+    ))
+  } else {
+    # Write empty audit table so downstream can rely on the table existing
+    # (MP163 progressive completeness — pipeline always runnable).
+    empty_audit <- data.frame(
+      asin = character(), product_line_id = character(),
+      source_header = character(), distinct_winner = logical(),
+      conflict_pls = character(), detected_at = as.POSIXct(character())
+    )
+    dbWriteTable(con_app, "df_amz_mapping_duplicates_audit",
+                 empty_audit, overwrite = TRUE)
+  }
+
+  # Apply dedup AFTER audit captured the full picture
+  asin_mapping_raw <- asin_mapping_full %>%
+    select(asin, product_line_id) %>%
     distinct(asin, .keep_all = TRUE)
 
   # Build a simple name lookup (may not have both zh/en for every row)
@@ -395,6 +446,20 @@ if (!error_occurred) {
     if (length(missing_cols) > 0) {
       stop(sprintf("Missing columns: %s", paste(missing_cols, collapse = ", ")))
     }
+
+    # #818 defensive instrumentation: verify mapping duplicates audit table
+    # exists (always — even when empty — per MP163 progressive completeness)
+    if (!dbExistsTable(con_app, "df_amz_mapping_duplicates_audit")) {
+      stop("Missing: df_amz_mapping_duplicates_audit (#818 defensive audit table)")
+    }
+    audit_cols <- dbListFields(con_app, "df_amz_mapping_duplicates_audit")
+    required_audit_cols <- c("asin", "product_line_id", "distinct_winner", "conflict_pls")
+    missing_audit_cols <- setdiff(required_audit_cols, audit_cols)
+    if (length(missing_audit_cols) > 0) {
+      stop(sprintf("Audit table missing columns: %s",
+                   paste(missing_audit_cols, collapse = ", ")))
+    }
+
     message("  OK Output tables validated")
     test_passed <- TRUE
   }, error = function(e) {
