@@ -194,14 +194,16 @@ tryCatch({
 
     # Avoid truncation on realistic multi-co × multi-PL warnings (default
     # warning.length = 1000 truncates ~3k+ char strings — verify #818 Logic#3 fix).
-    old_warn_len <- getOption("warning.length")
+    # NOTE: on.exit() at top-level inside a tryCatch() has no enclosing function
+    # frame and never fires (verify #818 round 2 Logic NEW#2 / Codex on.exit caveat).
+    # Production `Rscript` exits naturally so warning.length=8170L doesn't leak;
+    # `source()` callers will leak the option (acceptable — script is Rscript-first).
     options(warning.length = 8170L)
-    on.exit(options(warning.length = old_warn_len), add = TRUE)
     warning(sprintf(
       "[MP154 + MP163 partial] %d ASIN(s) in '%s' map to multiple product_line_id; %d rows silently dropped by distinct() (raw row order winner). See df_amz_mapping_duplicates_audit in app_data for full conflict list. PLs affected: %s",
       nrow(mapping_dup_counts),
       MAPPING_TABLE,
-      nrow(mapping_dup_counts),
+      nrow(asin_mapping_full) - dplyr::n_distinct(asin_mapping_full$asin),
       paste(sort(unique(mapping_dup_audit$product_line_id)), collapse = ", ")
     ))
   } else {
