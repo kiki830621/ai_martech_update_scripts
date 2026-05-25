@@ -133,14 +133,96 @@ tryCatch({
   if (!dbExistsTable(con_raw, MAPPING_TABLE)) {
     stop(sprintf("Missing asin mapping table: %s", MAPPING_TABLE))
   }
-  asin_mapping_raw <- tbl2(con_raw, MAPPING_TABLE) %>%
-    select(any_of(c("asin", "product_line_id"))) %>%
+  # Read full mapping (with source_header if present) before dedup,
+  # so we can detect ASINs claimed by multiple PLs (per #818 root cause:
+  # df_amz_competitor_product_id had 16 hsg-sfg duplicate entries that
+  # silently lost to distinct() ordering, masking sfg as "code bug").
+  # Preserve raw row order via .orig_row so the audit can report the SAME
+  # winner that production distinct(asin, .keep_all=TRUE) keeps
+  # (verify #818 Logic#1 fix — alphabetical arrange would diverge once raw
+  # row order differs from alphabetical, e.g. (psg, rpl) conflicts).
+  asin_mapping_full <- tbl2(con_raw, MAPPING_TABLE) %>%
+    select(any_of(c("asin", "product_line_id", "source_header"))) %>%
     collect() %>%
     mutate(
       asin = as.character(asin),
       product_line_id = as.character(product_line_id)
-    ) %>%
+    )
+  # Enforce uniform 6-col schema for audit (verify #818 Logic#4 fix —
+  # source_header NA when upstream mapping table doesn't have it).
+  if (!"source_header" %in% names(asin_mapping_full)) {
+    asin_mapping_full$source_header <- NA_character_
+  }
+  asin_mapping_full <- asin_mapping_full %>%
     filter(!is.na(asin) & asin != "") %>%
+    mutate(.orig_row = dplyr::row_number())
+
+  # Defensive: detect duplicate ASINs across product_line_id BEFORE distinct().
+  # MP154 (side-effect defense — no silent mapping failure) +
+  # MP163 partial — Gate 1 (always-runnable) + Gate 2 (visible-gap sentinel)
+  # + Gate 4 (asymptotic completeness) satisfied; **Gate 3 (Surface-to-Attention)
+  # deferred** — currently no Shiny / GSheet / digest reader of the audit table.
+  # Track full alignment via #839 (Shiny reader / GSheet pipeline / email digest
+  # wiring); until that lands, do NOT upgrade the doc-string back to plain MP163.
+  #
+  # NA product_line_id is pre-filtered (verify #818 Logic#2 fix) so (hsg, NA)
+  # does not false-flag as 2-PL dup. ASIN rows with NA product_line_id are
+  # a separate data-quality concern out of scope for this audit.
+  mapping_dup_counts <- asin_mapping_full %>%
+    filter(!is.na(product_line_id)) %>%
+    group_by(asin) %>%
+    summarise(n_pls = dplyr::n_distinct(product_line_id), .groups = "drop") %>%
+    filter(n_pls > 1)
+
+  if (nrow(mapping_dup_counts) > 0) {
+    # Audit winner aligned with production distinct() semantics:
+    # raw row order first (NOT alphabetical). Use .orig_row preserved above.
+    mapping_dup_audit <- asin_mapping_full %>%
+      filter(asin %in% mapping_dup_counts$asin) %>%
+      arrange(asin, .orig_row) %>%
+      group_by(asin) %>%
+      mutate(
+        distinct_winner = .orig_row == dplyr::first(.orig_row),
+        conflict_pls = paste(sort(unique(product_line_id)), collapse = ", "),
+        detected_at = Sys.time()
+      ) %>%
+      ungroup() %>%
+      select(-.orig_row)
+
+    dbWriteTable(con_app, "df_amz_mapping_duplicates_audit",
+                 as.data.frame(mapping_dup_audit), overwrite = TRUE)
+
+    # Avoid truncation on realistic multi-co × multi-PL warnings (default
+    # warning.length = 1000 truncates ~3k+ char strings — verify #818 Logic#3 fix).
+    # NOTE: on.exit() at top-level inside a tryCatch() has no enclosing function
+    # frame and never fires (verify #818 round 2 Logic NEW#2 / Codex on.exit caveat).
+    # Production `Rscript` exits naturally so warning.length=8170L doesn't leak;
+    # `source()` callers will leak the option (acceptable — script is Rscript-first).
+    options(warning.length = 8170L)
+    warning(sprintf(
+      "[MP154 + MP163 partial] %d ASIN(s) in '%s' map to multiple product_line_id; %d rows silently dropped by distinct() (raw row order winner). See df_amz_mapping_duplicates_audit in app_data for full conflict list. PLs affected: %s",
+      nrow(mapping_dup_counts),
+      MAPPING_TABLE,
+      nrow(asin_mapping_full) - dplyr::n_distinct(asin_mapping_full$asin),
+      paste(sort(unique(mapping_dup_audit$product_line_id)), collapse = ", ")
+    ))
+  } else {
+    # Write empty audit table so downstream can rely on the table existing
+    # (MP163 Gate 1 — pipeline always runnable). Schema matches the
+    # populated path (6 cols including source_header) per #818 Logic#4 fix.
+    empty_audit <- data.frame(
+      asin = character(), product_line_id = character(),
+      source_header = character(), distinct_winner = logical(),
+      conflict_pls = character(),
+      detected_at = as.POSIXct(character(), tz = "UTC")
+    )
+    dbWriteTable(con_app, "df_amz_mapping_duplicates_audit",
+                 empty_audit, overwrite = TRUE)
+  }
+
+  # Apply dedup AFTER audit captured the full picture
+  asin_mapping_raw <- asin_mapping_full %>%
+    select(asin, product_line_id) %>%
     distinct(asin, .keep_all = TRUE)
 
   # Build a simple name lookup (may not have both zh/en for every row)
@@ -395,6 +477,20 @@ if (!error_occurred) {
     if (length(missing_cols) > 0) {
       stop(sprintf("Missing columns: %s", paste(missing_cols, collapse = ", ")))
     }
+
+    # #818 defensive instrumentation: verify mapping duplicates audit table
+    # exists (always — even when empty — per MP163 progressive completeness)
+    if (!dbExistsTable(con_app, "df_amz_mapping_duplicates_audit")) {
+      stop("Missing: df_amz_mapping_duplicates_audit (#818 defensive audit table)")
+    }
+    audit_cols <- dbListFields(con_app, "df_amz_mapping_duplicates_audit")
+    required_audit_cols <- c("asin", "product_line_id", "distinct_winner", "conflict_pls")
+    missing_audit_cols <- setdiff(required_audit_cols, audit_cols)
+    if (length(missing_audit_cols) > 0) {
+      stop(sprintf("Audit table missing columns: %s",
+                   paste(missing_audit_cols, collapse = ", ")))
+    }
+
     message("  OK Output tables validated")
     test_passed <- TRUE
   }, error = function(e) {
@@ -433,4 +529,11 @@ if (exists("con_app") && inherits(con_app, "DBIConnection")) {
 }
 
 autodeinit()
+
+# verify #818 Logic#5 / Codex#2 fix — exit nonzero on PART 3 TEST failure
+# so CI / cron / make pipeline catches schema regressions instead of
+# silently returning exit 0 with "Status: FAILED" only in log.
+if (exists("test_passed") && isFALSE(test_passed)) {
+  quit(status = 1, save = "no")
+}
 # End of file
