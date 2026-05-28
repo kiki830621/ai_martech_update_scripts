@@ -187,6 +187,26 @@ run_drv_output_shape_gate_target <- function() {
   gate_env <- new.env(parent = globalenv())
   source(gate_script, local = gate_env)
 
+  # MP165 v1.4 L4/L5 primitives (assert_conditional_invariant /
+  # assert_setdiff_zero_bidir) live in contracts.R. The gate's own
+  # script-relative loader can't resolve its path when source()d inside
+  # targets/callr (no --file= for the gate; cwd is not project_root), so
+  # .drv_gate_require_primitive() would error "unknown assertion callback".
+  # Load contracts.R explicitly into globalenv (where require_primitive looks)
+  # using the reliable project_root path.
+  contracts_script <- normalizePath(
+    file.path(project_root, "scripts", "global_scripts", "98_test", "e2e",
+              "contracts", "contracts.R"),
+    mustWork = FALSE
+  )
+  if (file.exists(contracts_script)) {
+    source(contracts_script, local = FALSE)
+  } else {
+    warning(sprintf(
+      "MP165 gate: contracts.R primitives not found at %s; L4/L5 contracts will error",
+      contracts_script))
+  }
+
   # Derive company code from project_root basename.
   company <- basename(project_root)
 
