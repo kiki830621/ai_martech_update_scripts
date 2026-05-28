@@ -391,8 +391,11 @@ if (script_success) {
         print(sample_data)
         
         # Check for required columns
-        required_cols <- c("product_line_id", "asin", "brand")
+        # Per legacy-amz-tables-amz-asin-alignment Decision 5: canonical column
+        # name is `amz_asin` (post-migration); `asin` accepted during transition.
         actual_cols <- names(sample_data)
+        asin_col <- if ("amz_asin" %in% actual_cols) "amz_asin" else "asin"
+        required_cols <- c("product_line_id", asin_col, "brand")
         missing_cols <- setdiff(required_cols, actual_cols)
         
         if (length(missing_cols) > 0) {
@@ -415,15 +418,23 @@ if (script_success) {
 
         # DM_R027 v1.1: 0IM source-to-local ASIN reconciliation gate
         if (test_passed && nrow(expected_competitor_asin) > 0) {
+          # SQL alias canonical `amz_asin AS asin` (per Decision 5 transition-compat)
+          # so downstream R variable names remain `asin`. Falls back to bare
+          # `asin` if the table was never migrated (pre-Phase 1 dev env).
+          local_asin_col_sql <- if ("amz_asin" %in% dbListFields(raw_data, "df_amz_competitor_product_id")) {
+            "amz_asin"
+          } else {
+            "asin"
+          }
           local_asin_query <- paste(
             "SELECT DISTINCT",
             "CAST(product_line_id AS VARCHAR) AS product_line_id,",
-            "CAST(asin AS VARCHAR) AS asin",
+            sprintf("CAST(%s AS VARCHAR) AS asin", local_asin_col_sql),
             "FROM df_amz_competitor_product_id",
             "WHERE product_line_id IS NOT NULL",
             "AND length(trim(CAST(product_line_id AS VARCHAR))) > 0",
-            "AND asin IS NOT NULL",
-            "AND length(trim(CAST(asin AS VARCHAR))) > 0"
+            sprintf("AND %s IS NOT NULL", local_asin_col_sql),
+            sprintf("AND length(trim(CAST(%s AS VARCHAR))) > 0", local_asin_col_sql)
           )
           local_competitor_asin <- DBI::dbGetQuery(raw_data, local_asin_query) %>%
             dplyr::mutate(
