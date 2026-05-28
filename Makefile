@@ -52,7 +52,7 @@ TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
 # MAIN TARGETS
 # =============================================================================
 
-.PHONY: help run run-dry status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs e2e e2e-filter e2e-login e2e-vitalsigns upload run-no-upload _maybe-upload _stale-warn
+.PHONY: help run run-dry status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs e2e e2e-filter e2e-login e2e-vitalsigns upload run-no-upload _maybe-upload _stale-warn verify-partial-month
 
 help:
 	@echo "MAMBA Pipeline Orchestration"
@@ -201,6 +201,14 @@ verify-drv:
 	MODE_FLAG=$${DRV_GATE_MODE:+--$${DRV_GATE_MODE}-mode}; \
 	echo "═══ MP165 v1.3 DRV Output Shape Gate ($$COMPANY) ═══"; \
 	Rscript $$GATE --company $$COMPANY --contracts-path $$YAML --db-path $$DB $$MODE_FLAG
+
+# Partial-month reader lint (#910). Static scan -- no DB, no app.
+# Enforces that every df_macro_monthly_summary reader filters is_partial_month
+# (defensive infra for the #811 regression class). On-demand / CI only; NOT
+# chained into `make run` (source lint, orthogonal to the data pipeline).
+verify-partial-month:
+	@echo "=== Partial-month reader lint (#910) ==="; \
+	Rscript $(PIPELINE_DIR)/../global_scripts/23_deployment/check_partial_month_filter.R
 
 # =============================================================================
 # STATUS COMMANDS
