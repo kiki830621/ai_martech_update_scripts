@@ -23,6 +23,10 @@ PLATFORM ?= all
 TARGET ?=
 LAYER ?= both
 
+# DM_R069 Deploy Data Sync Discipline: `make run` conditionally chains Supabase
+# upload (mtime drift threshold). Override with `make run-no-upload` (sets =0).
+UPLOAD_CHAIN ?= 1
+
 # R command
 R := Rscript
 
@@ -48,7 +52,7 @@ TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
 # MAIN TARGETS
 # =============================================================================
 
-.PHONY: help run run-dry status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs e2e e2e-filter e2e-login e2e-vitalsigns
+.PHONY: help run run-dry status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs e2e e2e-filter e2e-login e2e-vitalsigns upload run-no-upload _maybe-upload _stale-warn
 
 help:
 	@echo "MAMBA Pipeline Orchestration"
@@ -117,6 +121,7 @@ run:
 	@echo "Completed: $$(date)"
 	@echo "Log: $(LOGS_DIR)/run_$(TIMESTAMP).log"
 	@echo "═══════════════════════════════════════════════════════════════════"
+	@if [ "$(UPLOAD_CHAIN)" = "1" ]; then $(MAKE) --no-print-directory _maybe-upload; else $(MAKE) --no-print-directory _stale-warn; fi
 
 run-dry:
 	@echo "Dry run - showing what would execute:"
@@ -147,6 +152,40 @@ run-etl:
 
 run-drv:
 	$(MAKE) run LAYER=drv
+
+# =============================================================================
+# SUPABASE UPLOAD (DM_R069 Deploy Data Sync Discipline)
+# =============================================================================
+
+# Upload local app_data DuckDB to Supabase (production backend per DM_R063).
+upload:
+	@echo "═══════════════════════════════════════════════════════════════════"
+	@echo "Supabase Upload (DM_R069)"
+	@echo "═══════════════════════════════════════════════════════════════════"
+	@cd "$(PROJECT_ROOT)" && $(R) "$(GLOBAL_SCRIPTS)/23_deployment/03_deploy/upload_app_data_to_supabase.R"
+
+# Internal: conditionally invoke upload based on mtime drift threshold.
+# should_upload() exit convention: status 10 = upload needed, 0 = up-to-date.
+_maybe-upload:
+	@cd "$(PROJECT_ROOT)" && $(R) -e 'source("$(GLOBAL_SCRIPTS)/23_deployment/03_deploy/fn_should_upload.R"); quit(status = if (isTRUE(should_upload(project_root = "."))) 10L else 0L)' ; \
+	rc=$$? ; \
+	if [ $$rc -eq 10 ]; then \
+		echo "→ Supabase upload needed (DuckDB mtime > last upload)" ; \
+		$(MAKE) --no-print-directory upload ; \
+	elif [ $$rc -eq 0 ]; then \
+		echo "✓ Supabase already up-to-date (skipping upload)" ; \
+	else \
+		echo "⚠ should_upload check errored (rc=$$rc); skipping auto-upload — run 'make upload' manually if needed" ; \
+	fi
+
+# Internal: warn (to stderr) if stale but do NOT upload (used by run-no-upload).
+_stale-warn:
+	@cd "$(PROJECT_ROOT)" && $(R) -e 'source("$(GLOBAL_SCRIPTS)/23_deployment/03_deploy/fn_should_upload.R"); if (isTRUE(should_upload(project_root = "."))) message("\342\232\240 Supabase stale (DuckDB updated since last upload). Run \47make upload\47 before deploying.")' 1>&2 || true
+
+# Run the pipeline WITHOUT chaining Supabase upload (dev iteration escape hatch).
+# Still warns to stderr if Supabase is stale (never fully silent, per DM_R069).
+run-no-upload:
+	@$(MAKE) --no-print-directory run UPLOAD_CHAIN=0
 
 # MP165 v1.3 (#668) DRV-Layer Step 2 propagation gate.
 # Runs `drv_output_shape_gate.R` against the per-company contract yaml
