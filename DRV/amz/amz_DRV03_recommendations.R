@@ -103,13 +103,15 @@ for (product_line_id_i in vec_product_line_id_noall) {
     # Count columns
     col_count <- length(DBI::dbListFields(processed_data, table_name))
     
-    # Check for specific columns
-    asin_exists <- "asin" %in% DBI::dbListFields(processed_data, table_name)
-    
-    message("- Table ", table_name, ": ", 
-            row_count, " rows, ", 
+    # Check for specific columns — accept both canonical `amz_asin` and legacy `asin`
+    # (per legacy-amz-tables-amz-asin-alignment Decision 5).
+    cols_present <- DBI::dbListFields(processed_data, table_name)
+    asin_exists <- "amz_asin" %in% cols_present || "asin" %in% cols_present
+
+    message("- Table ", table_name, ": ",
+            row_count, " rows, ",
             col_count, " columns",
-            if (!asin_exists) " (WARNING: missing 'asin' column)" else "")
+            if (!asin_exists) " (WARNING: missing 'amz_asin'/'asin' column)" else "")
   } else {
     message("- Table not found: ", table_name)
   }
