@@ -350,7 +350,10 @@ for (pl in PRODUCT_LINES) {
   if (!is.null(ts_key) && ts_key %in% names(ts_data) &&
       dbExistsTable(con_processed, by_asin_table)) {
     by_asin_data <- tbl2(con_processed, by_asin_table) %>% collect()
-    by_asin_key <- if ("asin" %in% names(by_asin_data)) "asin" else "product_id"
+    # Prefer canonical `amz_asin` over legacy `asin` (per legacy-amz-tables-amz-asin-alignment Decision 5).
+    by_asin_key <- if ("amz_asin" %in% names(by_asin_data)) "amz_asin"
+                   else if ("asin" %in% names(by_asin_data)) "asin"
+                   else "product_id"
     orig_ncol <- ncol(ts_data)
     ts_data <- join_by_asin_ratings(ts_data, by_asin_data,
                                     ts_key = ts_key, by_asin_key = by_asin_key)

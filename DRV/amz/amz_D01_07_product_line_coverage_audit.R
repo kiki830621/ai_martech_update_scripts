@@ -77,7 +77,8 @@ detect_competitor_source <- function() {
   for (cand in candidates) {
     if (!DBI::dbExistsTable(cand$con, cand$table)) next
     cols <- DBI::dbListFields(cand$con, cand$table)
-    id_col <- c("asin", "product_id", "sku")
+    # Prefer canonical `amz_asin` over legacy `asin` (per legacy-amz-tables-amz-asin-alignment Decision 5).
+    id_col <- c("amz_asin", "asin", "product_id", "sku")
     id_col <- id_col[id_col %in% cols][1]
     if (is.na(id_col)) next
 
@@ -100,7 +101,8 @@ get_profile_distinct_asin <- function(product_line_id) {
   }
 
   cols <- DBI::dbListFields(transformed_data, tbl)
-  asin_col <- c("asin", "product_id", "sku")
+  # Prefer canonical `amz_asin` over legacy `asin` (per legacy-amz-tables-amz-asin-alignment Decision 5).
+  asin_col <- c("amz_asin", "asin", "product_id", "sku")
   asin_col <- asin_col[asin_col %in% cols][1]
   if (is.na(asin_col)) {
     return(list(n = 0L, missing_source = TRUE))

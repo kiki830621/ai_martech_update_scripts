@@ -87,7 +87,8 @@ if (is.na(sales_count) || sales_count == 0L) {
 
 asin_count <- sql_read(
   raw_data,
-  "SELECT COUNT(DISTINCT asin) AS count FROM df_amz_competitor_sales"
+  # Canonical column name (per legacy-amz-tables-amz-asin-alignment Decision 1)
+  "SELECT COUNT(DISTINCT amz_asin) AS count FROM df_amz_competitor_sales"
 )[1, 1]
 
 product_line_count <- sql_read(
@@ -103,7 +104,7 @@ message("- Product lines: ", product_line_count)
 message("\nSample of imported data:")
 sample_data <- sql_read(
   raw_data,
-  "SELECT asin, date, product_line_id, sales FROM df_amz_competitor_sales LIMIT 5"
+  "SELECT amz_asin, date, product_line_id, sales FROM df_amz_competitor_sales LIMIT 5"
 )
 print(sample_data)
 

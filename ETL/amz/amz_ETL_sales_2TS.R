@@ -195,7 +195,10 @@ tryCatch({
 
   if (dbExistsTable(raw_data, "df_amz_product_keys")) {
     message("MAIN: 🧭 Mapping product_line_id from df_amz_product_keys...")
-    keys_map <- sql_read(raw_data, "SELECT product_line_id, asin, sku FROM df_amz_product_keys")
+    # Boundary rename: canonical raw column is `amz_asin` (per legacy-amz-tables-amz-asin-alignment
+    # spectra change Decision 1); SELECT alias to `asin` so downstream variable names work unchanged
+    # per Decision 5 transition-phase dual-name coexist.
+    keys_map <- sql_read(raw_data, "SELECT product_line_id, amz_asin AS asin, sku FROM df_amz_product_keys")
     keys_dt <- as.data.table(keys_map)
     keys_dt <- keys_dt[!is.na(product_line_id) & nzchar(product_line_id)]
 

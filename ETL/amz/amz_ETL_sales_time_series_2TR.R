@@ -141,9 +141,17 @@ tryCatch({
   # winner that production distinct(asin, .keep_all=TRUE) keeps
   # (verify #818 Logic#1 fix — alphabetical arrange would diverge once raw
   # row order differs from alphabetical, e.g. (psg, rpl) conflicts).
+  # Transition-phase compat: handle both post-migration (`amz_asin` canonical)
+  # and pre-migration (`asin` legacy) per legacy-amz-tables-amz-asin-alignment
+  # spectra change Decision 5. Normalize to `asin` internal name so downstream
+  # variable references work unchanged.
   asin_mapping_full <- tbl2(con_raw, MAPPING_TABLE) %>%
-    select(any_of(c("asin", "product_line_id", "source_header"))) %>%
-    collect() %>%
+    select(any_of(c("amz_asin", "asin", "product_line_id", "source_header"))) %>%
+    collect()
+  if ("amz_asin" %in% names(asin_mapping_full) && !"asin" %in% names(asin_mapping_full)) {
+    asin_mapping_full <- asin_mapping_full %>% dplyr::rename(asin = amz_asin)
+  }
+  asin_mapping_full <- asin_mapping_full %>%
     mutate(
       asin = as.character(asin),
       product_line_id = as.character(product_line_id)

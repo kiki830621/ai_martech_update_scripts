@@ -345,7 +345,13 @@ tryCatch({
     ) %>%
     dplyr::distinct(product_line_id, asin)
 
-  DBI::dbWriteTable(raw_data, "df_amz_competitor_product_id", competitor_products, overwrite = TRUE)
+  # Boundary rename: legacy ETL script uses `asin` as in-memory column name;
+  # canonical raw table column is `amz_asin` (per legacy-amz-tables-amz-asin-alignment
+  # spectra change Decision 1). Rename at write boundary to preserve script's
+  # internal variable names per Decision 5 (transition phase dual-name coexist).
+  competitor_products_canonical <- competitor_products %>%
+    dplyr::rename(amz_asin = asin)
+  DBI::dbWriteTable(raw_data, "df_amz_competitor_product_id", competitor_products_canonical, overwrite = TRUE)
   message("MAIN: Wrote ", nrow(competitor_products), " rows into df_amz_competitor_product_id")
 
   script_success <- TRUE
