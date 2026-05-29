@@ -207,8 +207,8 @@ tryCatch({
     # Production `Rscript` exits naturally so warning.length=8170L doesn't leak;
     # `source()` callers will leak the option (acceptable — script is Rscript-first).
     options(warning.length = 8170L)
-    warning(sprintf(
-      "[MP154 + MP163 partial] %d ASIN(s) in '%s' map to multiple product_line_id; %d rows silently dropped by distinct() (raw row order winner). See df_amz_mapping_duplicates_audit in app_data for full conflict list. PLs affected: %s",
+    message(sprintf(
+      "[#943 cross-market fan-out] %d ASIN(s) in '%s' map to multiple product_line_id; their sales are attributed to EACH PL (DUPLICATE semantics, #943 — these were silently dropped to one PL pre-#943). %d extra (asin,PL) attributions retained. See df_amz_mapping_duplicates_audit in app_data for full list. PLs affected: %s",
       nrow(mapping_dup_counts),
       MAPPING_TABLE,
       nrow(asin_mapping_full) - dplyr::n_distinct(asin_mapping_full$asin),
@@ -228,10 +228,16 @@ tryCatch({
                  empty_audit, overwrite = TRUE)
   }
 
-  # Apply dedup AFTER audit captured the full picture
+  # #943 DUPLICATE semantics (maintainer-approved): keep ALL (asin, product_line_id)
+  # pairs so a cross-market OWN product fans out into each of its product lines via
+  # the downstream left_join. Replaces the order-dependent distinct(asin, .keep_all=TRUE)
+  # that silently collapsed cross-listed own ASINs to one raw-row-order-winner PL —
+  # the root cause of #894/#895 (sfg empty, hsg inflated ~12%). Safe: only own products
+  # have sales (0 competitor-only sales verified), so the fan-out cannot duplicate
+  # competitor sales. distinct(asin, product_line_id) still drops exact (asin,PL) dup rows.
   asin_mapping_raw <- asin_mapping_full %>%
     select(asin, product_line_id) %>%
-    distinct(asin, .keep_all = TRUE)
+    distinct(asin, product_line_id)
 
   # Build a simple name lookup (may not have both zh/en for every row)
   pl_names <- product_line_lookup %>%
