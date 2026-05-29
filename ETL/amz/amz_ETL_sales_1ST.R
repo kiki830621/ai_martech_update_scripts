@@ -137,17 +137,24 @@ tryCatch({
     set(dt, j = col, value = trimws(dt[[col]]))
   }
 
-  # Deduplicate based on amz_amazon_order_id + amz_seller_sku (canonical names)
-  # Was: amazon_order_id + sku (pre-glue legacy names)
+  # Deduplicate TRUE (byte-identical) duplicate source rows only — full-row unique.
+  # FIX #958: previously deduped by c("amz_amazon_order_id", "amz_seller_sku"),
+  # which destroyed legitimately-distinct Amazon line items. The Amazon All Orders
+  # Report emits MULTIPLE rows for the same order+SKU at different quantity/price
+  # tiers; treating (order_id, sku) as a unique key silently dropped ~$976K (7.4%)
+  # of QEF revenue (raw $13,195,864 -> staged $12,220,098). Full-row unique() drops
+  # only exact duplicates (108 rows / ~$5.5K of genuine re-export dups for QEF),
+  # preserving every distinct line item -> staged revenue $13,190,359. Downstream
+  # D01 aggregates by (customer, date) summing total_spent, so multiple line-item
+  # rows per order are summed correctly; no downstream code relies on (order_id,
+  # sku) uniqueness in the staged table. MP163-clean: only zero-information-loss
+  # exact dups are removed, so no coverage_audit row is required.
+  # Verified on real data: shared/global_scripts/98_test/etl/test_amz_sales_1ST_dedup.R
   n_before <- nrow(dt)
-  if ("amz_amazon_order_id" %in% names(dt)) {
-    dt <- unique(dt, by = c("amz_amazon_order_id", "amz_seller_sku"))
-  } else {
-    dt <- unique(dt)
-  }
+  dt <- unique(dt)
   n_deduped <- n_before - nrow(dt)
   if (n_deduped > 0) {
-    message(sprintf("    Removed %d duplicate records", n_deduped))
+    message(sprintf("    Removed %d exact-duplicate (full-row) records", n_deduped))
   }
 
   # Note: platform_id is already set by sales.bridge.yaml (type=derive,
