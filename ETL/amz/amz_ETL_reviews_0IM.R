@@ -58,11 +58,24 @@ tryCatch({
 
   matched_files <- Sys.glob(file.path(rawdata_root, rawdata_pattern))
   matched_files <- matched_files[file.exists(matched_files)]
-  matched_files <- matched_files[grepl("\\.(csv|xlsx?)$", matched_files, ignore.case = TRUE)]
+  # Keep only regular files (drop directories matched by the glob)
+  matched_files <- matched_files[!dir.exists(matched_files)]
+  # #607 (regression of #368): Amazon scrapes frequently produce Excel-format
+  # files WITHOUT a filename suffix (e.g. "B00080FKIO"). A strict extension-only
+  # regex pre-filter silently dropped those files (37% of QEF reviews on 2026-05-10).
+  # Fix per issue Path (b): accept files with a recognized data extension OR
+  # extensionless files (content format is sniffed by magic bytes at read time).
+  # Files with a NON-data extension (.txt, .json, .pdf, ...) or hidden dotfiles
+  # are excluded here, while extensionless ones are passed through to the reader.
+  has_data_ext <- grepl("\\.(csv|xlsx?)$", matched_files, ignore.case = TRUE)
+  is_extensionless <- !nzchar(tools::file_ext(matched_files))
+  is_hidden <- grepl("^\\.", basename(matched_files))
+  matched_files <- matched_files[(has_data_ext | is_extensionless) & !is_hidden]
   if (length(matched_files) == 0) {
     stop(sprintf("VALIDATE FAILED: No files match pattern '%s'", rawdata_pattern))
   }
-  message(sprintf("VALIDATE: Found %d files matching declared pattern", length(matched_files)))
+  message(sprintf("VALIDATE: Found %d files matching declared pattern (%d extensionless)",
+                  length(matched_files), sum(is_extensionless[(has_data_ext | is_extensionless) & !is_hidden])))
 
   rawdata_rel_dir <- sub("/\\*.*$", "", rawdata_pattern)
   rawdata_rel_dir <- sub("/$", "", rawdata_rel_dir)
@@ -73,17 +86,40 @@ tryCatch({
     stop("VALIDATE FAILED: Reviews directory does not exist: ", reviews_dir)
   }
 
+  # Sniff the true file format from its magic bytes so extensionless files
+  # (see #607) are routed to the correct reader instead of being dropped.
+  #   PK\x03\x04           -> ZIP container == .xlsx (OOXML)
+  #   \xD0\xCF\x11\xE0...   -> OLE2 compound == .xls (legacy Excel)
+  # Anything else falls back to CSV parsing.
+  detect_file_format <- function(path) {
+    con <- file(path, "rb")
+    on.exit(close(con), add = TRUE)
+    magic <- readBin(con, what = "raw", n = 8L)
+    if (length(magic) >= 4L &&
+        identical(magic[1:4], as.raw(c(0x50, 0x4B, 0x03, 0x04)))) {
+      return("xlsx")
+    }
+    if (length(magic) >= 8L &&
+        identical(magic[1:8],
+                  as.raw(c(0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1)))) {
+      return("xls")
+    }
+    "csv"
+  }
+
   # Import all CSV and Excel files from the directory
   message("MAIN: Found ", length(matched_files), " files to import")
   review_dfs <- lapply(matched_files, function(f) {
     tryCatch({
       ext <- tolower(tools::file_ext(f))
-      if (ext == "csv") {
+      # Trust an explicit data extension; otherwise sniff magic bytes (#607).
+      fmt <- if (ext %in% c("csv", "xlsx", "xls")) ext else detect_file_format(f)
+      if (fmt == "csv") {
         df <- readr::read_csv(f, show_col_types = FALSE)
-      } else if (ext %in% c("xlsx", "xls")) {
+      } else if (fmt %in% c("xlsx", "xls")) {
         df <- readxl::read_excel(f)
       } else {
-        stop("Unsupported extension: ", ext)
+        stop("Unsupported file format: ", fmt)
       }
       tibble::as_tibble(df) %>% dplyr::mutate(path = f)
     }, error = function(e) {
