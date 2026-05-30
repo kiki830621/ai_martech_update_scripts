@@ -290,10 +290,12 @@ tryCatch({
     sum(!is.na(dt_sales$customer_email) & nzchar(dt_sales$customer_email)) > 0
   address_candidates <- c("ship_address_1", "shipping_address_1", "ship_address", "ship_city")
   address_col <- address_candidates[address_candidates %in% names(dt_sales)][1]
-  # has_address accepts EITHER full postal+address OR geo-only (state/country/city)
-  # Post-glue canonical Amazon schema lacks ship_postal_code; use geo fallback so
-  # repeat buyers at same address get same customer_id (avoids per-order isolation).
-  has_full_address <- "ship_postal_code" %in% names(dt_sales) && !is.na(address_col)
+  # has_address accepts EITHER full postal+geo OR geo-only (state/country/city)
+  # #957: ship_postal_code is now mapped (promoted from bridge unused_source_columns).
+  # When postal_code + full geo are present, build a per-buyer postal::city::state::
+  # country key (resolves ~230k real customers vs ~26k under geo-only). cbz/eby lack
+  # postal_code → has_full_address=FALSE → geo fallback still applies (MP163).
+  has_full_address <- all(c("ship_postal_code", "ship_city", "ship_state", "ship_country") %in% names(dt_sales))
   has_geo_fallback <- all(c("ship_state", "ship_country") %in% names(dt_sales)) &&
     "ship_city" %in% names(dt_sales)
   has_address <- has_full_address || has_geo_fallback
@@ -310,14 +312,20 @@ tryCatch({
                     has_full_address, has_geo_fallback))
     lookup_start <- Sys.time()
     if (has_full_address) {
-      # Build composite key: "zipcode::address" (lowercase, trimmed)
+      # #957: postal::city::state::country composite key (lowercase, trimmed).
+      # postal_code is the primary buyer discriminator (99.7% populated, 228k+
+      # distinct); city/state/country guard against postal codes recycled across
+      # regions/countries. Collision-safe per-buyer resolution.
       dt_sales[, customer_identity_key := paste0(
+        "postal::",
         tolower(trimws(as.character(ship_postal_code))), "::",
-        tolower(trimws(as.character(get(address_col))))
+        tolower(trimws(as.character(ship_city))), "::",
+        tolower(trimws(as.character(ship_state))), "::",
+        tolower(trimws(as.character(ship_country)))
       )]
-      # Remove keys with empty components
-      dt_sales[ship_postal_code == "" | is.na(ship_postal_code) |
-               get(address_col) == "" | is.na(get(address_col)),
+      # Rows missing postal_code → NA → fall through to geo / buyer_id / order_id
+      # fallback chain below (B1/B2/B3), preserving MP163 visible-sentinel resolution.
+      dt_sales[is.na(ship_postal_code) | !nzchar(trimws(as.character(ship_postal_code))),
                customer_identity_key := NA_character_]
     } else {
       # Geo-only fallback (post-glue Amazon canonical): start with empty key,
