@@ -42,7 +42,7 @@ script_to_target_name <- function(script_path) {
   make.names(gsub("[^A-Za-z0-9_]", "_", base))
 }
 
-build_r_command <- function(full_path) {
+build_r_command <- function(full_path, platform = NULL) {
   # Use the already-resolved project_root (from env var or fallback)
   # instead of re-deriving from relative path
   rprofile_path <- normalizePath(file.path(project_root, ".Rprofile"), winslash = "/", mustWork = FALSE)
@@ -59,11 +59,23 @@ build_r_command <- function(full_path) {
     stop("Cannot find .Rprofile or sc_Rprofile.R for autoinit()")
   }
   full_path_norm <- normalizePath(full_path, winslash = "/", mustWork = FALSE)
+  # #1008: inject DRV_PLATFORM into the subprocess R session so DM_R066
+  # resolve_drv_platform() (Tier 1) resolves to the orchestrator-intended
+  # platform instead of falling back to the inherited MAMBA_PLATFORM env
+  # (which is "all" on a default `make run` and triggers a DM_R066 stop).
+  # In-band Sys.setenv (not system2 env=) preserves all inherited env vars
+  # (PG*, OPENAI_API_KEY, etc.) — base R system2(env=) would REPLACE them.
+  platform_setenv <- if (!is.null(platform) && nzchar(platform)) {
+    sprintf("Sys.setenv(DRV_PLATFORM = %s); ", shQuote(platform))
+  } else {
+    ""
+  }
   # Force UPDATE_MODE for ETL/DRV orchestration.
   # In `R --vanilla -e`, script-path detection falls back to APP_MODE.
-  expr <- sprintf("setwd(%s); OPERATION_MODE <- 'UPDATE_MODE'; %s; autoinit(); source(%s)",
+  expr <- sprintf("setwd(%s); OPERATION_MODE <- 'UPDATE_MODE'; %s; autoinit(); %ssource(%s)",
                   shQuote(project_root),
                   init_source,
+                  platform_setenv,
                   shQuote(full_path_norm))
   c("--vanilla", "-e", shQuote(expr))
 }
@@ -123,13 +135,13 @@ check_script_log_for_failure <- function(log_file, script_path, layer) {
 # Helper: invoke `R` against a script with stdout+stderr captured to a temp
 # log file. Returns (status, log_file). Echoes log to console after so the
 # user sees the same output they would have without redirection.
-run_script_with_log <- function(r_bin, script_path, full_path, layer) {
+run_script_with_log <- function(r_bin, script_path, full_path, layer, platform = NULL) {
   log_dir <- file.path(tempdir(), "mamba_pipeline_logs")
   if (!dir.exists(log_dir)) dir.create(log_dir, recursive = TRUE)
   timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
   log_name <- gsub("[^A-Za-z0-9_]", "_", basename(script_path))
   log_file <- file.path(log_dir, sprintf("%s_%s_%s.log", layer, log_name, timestamp))
-  status <- system2(r_bin, build_r_command(full_path),
+  status <- system2(r_bin, build_r_command(full_path, platform),
                     stdout = log_file, stderr = log_file)
   # Echo log to console (so {targets} captures it in target output)
   if (file.exists(log_file)) {
@@ -144,7 +156,7 @@ run_etl_script <- function(script_path, platform) {
   r_bin <- Sys.which("R")
   if (r_bin == "") stop("R not found on PATH")
   message(sprintf("[ETL:%s] %s", platform, script_path))
-  res <- run_script_with_log(r_bin, script_path, full_path, "etl")
+  res <- run_script_with_log(r_bin, script_path, full_path, "etl", platform)
   if (res$status != 0) stop(sprintf("ETL failed (%s) [exit=%d]", script_path, res$status))
   # Refs #678: catch script-self-reported FAILED even when exit=0
   check_script_log_for_failure(res$log_file, script_path, "etl")
@@ -156,7 +168,7 @@ run_drv_script <- function(script_path, platform) {
   r_bin <- Sys.which("R")
   if (r_bin == "") stop("R not found on PATH")
   message(sprintf("[DRV:%s] %s", platform, script_path))
-  res <- run_script_with_log(r_bin, script_path, full_path, "drv")
+  res <- run_script_with_log(r_bin, script_path, full_path, "drv", platform)
   if (res$status != 0) stop(sprintf("DRV failed (%s) [exit=%d]", script_path, res$status))
   # Refs #678: catch script-self-reported FAILED even when exit=0
   check_script_log_for_failure(res$log_file, script_path, "drv")
