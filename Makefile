@@ -52,7 +52,7 @@ TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
 # MAIN TARGETS
 # =============================================================================
 
-.PHONY: help run run-dry status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs e2e e2e-filter e2e-login e2e-vitalsigns upload run-no-upload _maybe-upload _stale-warn verify-partial-month
+.PHONY: help run run-dry status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs e2e e2e-filter e2e-login e2e-vitalsigns upload run-no-upload _maybe-upload _stale-warn verify-partial-month verify-drv verify-dataflow
 
 help:
 	@echo "MAMBA Pipeline Orchestration"
@@ -201,6 +201,22 @@ verify-drv:
 	MODE_FLAG=$${DRV_GATE_MODE:+--$${DRV_GATE_MODE}-mode}; \
 	echo "═══ MP165 v1.3 DRV Output Shape Gate ($$COMPANY) ═══"; \
 	Rscript $$GATE --company $$COMPANY --contracts-path $$YAML --db-path $$DB $$MODE_FLAG
+
+# Phase-2 content-lineage dataflow gate (#955). Complements verify-drv (which
+# checks SHAPE) by verifying CONTENT LINEAGE across all 6 local DuckDB layers:
+# A presence / B internal-value / C invariant / D revenue-conservation /
+# E unclassified-ratio (#995 #996) / F cross-source-PL-divergence (#994).
+# Standalone -- NOT part of `make run`; run after pipeline completes.
+# Calendar default: warn-mode pre-2026-07-15, strict-mode after.
+# Override via `make verify-dataflow DATAFLOW_GATE_MODE=strict` (or warn).
+verify-dataflow:
+	@COMPANY=$$(basename $(PROJECT_ROOT)); \
+	YAML_NAME=$$(echo $$COMPANY | tr '[:upper:]' '[:lower:]'); \
+	GATE=$(PIPELINE_DIR)/../global_scripts/23_deployment/dataflow_audit_gate.R; \
+	YAML=$(PIPELINE_DIR)/../global_scripts/98_test/e2e/contracts/$${YAML_NAME}_dataflow.yaml; \
+	MODE_FLAG=$${DATAFLOW_GATE_MODE:+--$${DATAFLOW_GATE_MODE}-mode}; \
+	echo "═══ Dataflow Content-Lineage Gate ($$COMPANY) #955 ═══"; \
+	Rscript $$GATE --company $$COMPANY --db-root $(PROJECT_ROOT)/data --contracts-path $$YAML $$MODE_FLAG
 
 # Partial-month reader lint (#910). Static scan -- no DB, no app.
 # Enforces that every df_macro_monthly_summary reader filters is_partial_month
