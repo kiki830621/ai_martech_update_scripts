@@ -8,15 +8,15 @@
 # SEQUENCE: 01
 # PURPOSE: Add hierarchical time labels to Poisson analysis outputs
 # CONSUMES: app_data.df_amz_poisson_analysis_all, raw_data.df_amazon_sales
-# PRODUCES: app_data.df_amz_poisson_analysis_all, app_data.df_amz_poisson_analysis_all_backup_YYYYMMDD
-# PRINCIPLE: DM_R044, MP064, R120
+# PRODUCES: app_data.df_amz_poisson_analysis_all, app_data.df_amz_poisson_analysis_all_backup
+# PRINCIPLE: DM_R044, MP064, R120, MP163
 #####
 
 #' @title AMZ Poisson Time Label Enrichment
 #' @description Add year/month/weekday labels to Poisson analysis outputs for UI display.
 #' @requires DBI, duckdb, dplyr, lubridate
 #' @input_tables app_data.df_amz_poisson_analysis_all, raw_data.df_amazon_sales
-#' @output_tables app_data.df_amz_poisson_analysis_all, app_data.df_amz_poisson_analysis_all_backup_YYYYMMDD
+#' @output_tables app_data.df_amz_poisson_analysis_all, app_data.df_amz_poisson_analysis_all_backup
 #' @business_rules Derive year/month/weekday labels from raw orders; overwrite app_data with backup.
 #' @platform amz
 #' @author MAMBA Development Team
@@ -279,20 +279,34 @@ tryCatch({
   # Step 5: Write enriched data back to database
   message("Step 5: Writing enriched data back to database...")
 
-  # Create backup of original table
-  backup_table_name <- paste0("df_amz_poisson_analysis_all_backup_",
-                              format(Sys.Date(), "%Y%m%d"))
+  # Create a single rolling backup of the original table (#1049).
+  # Previously this used a per-day-dated name (..._backup_YYYYMMDD), which
+  # accumulated one table per calendar run forever in app_data (a rebuildable
+  # layer) and inflated the deploy bundle + Supabase upload. We now keep exactly
+  # one rolling snapshot (overwritten each run) and self-heal any legacy dated
+  # snapshots so they vanish on the next pipeline run (MP163, zero redeploy).
+  backup_table_name <- "df_amz_poisson_analysis_all_backup"
+
+  # Self-heal: drop legacy dated backup tables left by prior versions.
+  legacy_backups <- grep(
+    "^df_amz_poisson_analysis_all_backup_[0-9]{8}$",
+    DBI::dbListTables(con_app), value = TRUE
+  )
+  for (lb in legacy_backups) {
+    DBI::dbRemoveTable(con_app, lb)
+    message(sprintf("  Dropped legacy dated backup table: %s", lb))
+  }
 
   if (DBI::dbExistsTable(con_app, backup_table_name)) {
     DBI::dbRemoveTable(con_app, backup_table_name)
   }
 
-  # Create backup
+  # Create rolling backup
   DBI::dbExecute(con_app, sprintf(
     "CREATE TABLE %s AS SELECT * FROM df_amz_poisson_analysis_all",
     backup_table_name
   ))
-  message(sprintf("  Created backup table: %s", backup_table_name))
+  message(sprintf("  Created rolling backup table: %s", backup_table_name))
 
   # Write enriched data
   DBI::dbWriteTable(con_app, "df_amz_poisson_analysis_all",
