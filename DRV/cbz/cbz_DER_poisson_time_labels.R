@@ -1,6 +1,8 @@
 #####
-# CONSUMES: df_cbz_orders___raw, df_cbz_poisson_analysis_all, df_cbz_poisson_analysis_all_backup_
-# PRODUCES: df_cbz_poisson_analysis_all
+# CONSUMES: df_cbz_orders___raw, df_cbz_poisson_analysis_all
+# PRODUCES: df_cbz_poisson_analysis_all, df_cbz_poisson_analysis_all_backup_rolling
+# NOTE (#1049): not referenced in any _targets config — superseded by cbz_D04_01.R.
+#   Kept in sync with the single-rolling-backup fix for consistency.
 # DEPENDS_ON_ETL: cbz_ETL_orders_0IM
 # DEPENDS_ON_DRV: none
 #####
@@ -242,20 +244,34 @@ tryCatch({
   # Step 5: Write enriched data back to database
   message("Step 5: Writing enriched data back to database...")
 
-  # Create backup of original table
-  backup_table_name <- paste0("df_cbz_poisson_analysis_all_backup_",
-                              format(Sys.Date(), "%Y%m%d"))
+  # Create a single rolling backup of the original table (#1049).
+  # Previously this used a per-day-dated name (..._backup_YYYYMMDD), which
+  # accumulated one table per calendar run forever in app_data (a rebuildable
+  # layer) and inflated the deploy bundle + Supabase upload. We now keep exactly
+  # one rolling snapshot (overwritten each run) and self-heal any legacy dated
+  # snapshots so they vanish on the next pipeline run (MP163, zero redeploy).
+  backup_table_name <- "df_cbz_poisson_analysis_all_backup_rolling"
+
+  # Self-heal: drop legacy dated backup tables left by prior versions.
+  legacy_backups <- grep(
+    "^df_cbz_poisson_analysis_all_backup_[0-9]{8}$",
+    DBI::dbListTables(con_app), value = TRUE
+  )
+  for (lb in legacy_backups) {
+    DBI::dbRemoveTable(con_app, lb)
+    message(sprintf("  Dropped legacy dated backup table: %s", lb))
+  }
 
   if (DBI::dbExistsTable(con_app, backup_table_name)) {
     DBI::dbRemoveTable(con_app, backup_table_name)
   }
 
-  # Create backup
+  # Create rolling backup
   DBI::dbExecute(con_app, sprintf(
     "CREATE TABLE %s AS SELECT * FROM df_cbz_poisson_analysis_all",
     backup_table_name
   ))
-  message(sprintf("  Created backup table: %s", backup_table_name))
+  message(sprintf("  Created rolling backup table: %s", backup_table_name))
 
   # Write enriched data
   DBI::dbWriteTable(con_app, "df_cbz_poisson_analysis_all",
