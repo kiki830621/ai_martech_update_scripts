@@ -68,14 +68,19 @@ if (!nzchar(api_key)) {
 }
 
 # --- connect + load upstream (collect once) ---------------------------------
-app_data <- dbConnectDuckdb(db_path_list$app_data, read_only = FALSE)
-on.exit(tryCatch(DBI::dbDisconnect(app_data, shutdown = TRUE), error = function(e) NULL), add = TRUE)
+# NB: open the RW connection but do NOT register a top-level on.exit() handler.
+# When this script is source()'d by the targets runner (make run), a top-level
+# on.exit() attaches to a transient eval frame and fires almost immediately —
+# a `shutdown = TRUE` disconnect there kills the connection before the next line
+# (dbExistsTable) runs, surfacing as "Invalid connection". Disconnect explicitly
+# at the end instead (shutdown = FALSE; autodeinit does the full teardown).
+app_con <- dbConnectDuckdb(db_path_list$app_data, read_only = FALSE)
 
-if (!DBI::dbExistsTable(app_data, "df_ai_insight")) create_df_ai_insight_table(app_data, or_replace = FALSE)
+if (!DBI::dbExistsTable(app_con, "df_ai_insight")) create_df_ai_insight_table(app_con, or_replace = FALSE)
 
-dna_full <- tbl2(app_data, "df_dna_by_customer") |> dplyr::collect()
-df_position <- if (DBI::dbExistsTable(app_data, "df_position")) {
-  tbl2(app_data, "df_position") |> dplyr::collect()
+dna_full <- tbl2(app_con, "df_dna_by_customer") |> dplyr::collect()
+df_position <- if (DBI::dbExistsTable(app_con, "df_position")) {
+  tbl2(app_con, "df_position") |> dplyr::collect()
 } else NULL
 
 # MP163 sentinel product lines are gap markers, not real lines to precompute.
@@ -88,15 +93,15 @@ build_source <- function(name, platform, pl) {
     # macroTrends.R / growthValidation.R: df_macro_monthly_summary scoped
     "macro" = ,
     "growth" = {
-      if (!DBI::dbExistsTable(app_data, "df_macro_monthly_summary")) return(NULL)
-      tbl2(app_data, "df_macro_monthly_summary") |>
+      if (!DBI::dbExistsTable(app_con, "df_macro_monthly_summary")) return(NULL)
+      tbl2(app_con, "df_macro_monthly_summary") |>
         dplyr::filter(platform_id == !!platform, product_line_id_filter == !!pl) |>
         dplyr::collect()
     },
     # worldMap.R: df_geo_sales_by_country scoped (no country filter, #348)
     "geo" = {
-      if (!DBI::dbExistsTable(app_data, "df_geo_sales_by_country")) return(NULL)
-      tbl2(app_data, "df_geo_sales_by_country") |>
+      if (!DBI::dbExistsTable(app_con, "df_geo_sales_by_country")) return(NULL)
+      tbl2(app_con, "df_geo_sales_by_country") |>
         dplyr::filter(platform_id == !!platform, product_line_id_filter == !!pl) |>
         dplyr::collect()
     },
@@ -165,7 +170,7 @@ for (platform in platforms) {
     res <- run_D07_01(
       platform_id   = platform,
       dna_data      = dna_plat,
-      app_data_con  = app_data,
+      app_data_con  = app_con,
       prompt_keys   = entry$prompt_key,
       product_lines = pls,
       locales       = LOCALES,
@@ -180,5 +185,10 @@ for (platform in platforms) {
 
 message(sprintf("[D07_01] DONE: written=%d unchanged=%d skipped=%d across %d platform(s)",
                 tot_written, tot_unchanged, tot_skipped, length(platforms)))
+
+# Explicit cleanup (shutdown = FALSE so the shared duckdb instance stays alive for
+# autodeinit's full teardown; mirrors all_D05_01.R). No top-level on.exit (see above).
+tryCatch(if (DBI::dbIsValid(app_con)) DBI::dbDisconnect(app_con, shutdown = FALSE),
+         error = function(e) NULL)
 
 autodeinit()
