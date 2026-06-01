@@ -8,7 +8,7 @@
 # SEQUENCE: 01
 # PURPOSE: Add hierarchical time labels to Poisson analysis outputs
 # CONSUMES: app_data.df_amz_poisson_analysis_all, raw_data.df_amazon_sales
-# PRODUCES: app_data.df_amz_poisson_analysis_all, app_data.df_amz_poisson_analysis_all_backup
+# PRODUCES: app_data.df_amz_poisson_analysis_all, app_data.df_amz_poisson_analysis_all_backup_rolling
 # PRINCIPLE: DM_R044, MP064, R120, MP163
 #####
 
@@ -16,7 +16,7 @@
 #' @description Add year/month/weekday labels to Poisson analysis outputs for UI display.
 #' @requires DBI, duckdb, dplyr, lubridate
 #' @input_tables app_data.df_amz_poisson_analysis_all, raw_data.df_amazon_sales
-#' @output_tables app_data.df_amz_poisson_analysis_all, app_data.df_amz_poisson_analysis_all_backup
+#' @output_tables app_data.df_amz_poisson_analysis_all, app_data.df_amz_poisson_analysis_all_backup_rolling
 #' @business_rules Derive year/month/weekday labels from raw orders; overwrite app_data with backup.
 #' @platform amz
 #' @author MAMBA Development Team
@@ -285,7 +285,12 @@ tryCatch({
   # layer) and inflated the deploy bundle + Supabase upload. We now keep exactly
   # one rolling snapshot (overwritten each run) and self-heal any legacy dated
   # snapshots so they vanish on the next pipeline run (MP163, zero redeploy).
-  backup_table_name <- "df_amz_poisson_analysis_all_backup"
+  # NOTE: the "_backup_" infix is load-bearing — upload_app_data_to_supabase.R
+  # excludes via unanchored grepl("_backup_", ...). A trailing-underscore-free
+  # name (..._backup) would escape that filter and get uploaded, defeating the
+  # whole point of #1049. The "_rolling" suffix keeps the "_backup_" infix while
+  # staying clear of the self-heal regex's [0-9]{8} date anchor.
+  backup_table_name <- "df_amz_poisson_analysis_all_backup_rolling"
 
   # Self-heal: drop legacy dated backup tables left by prior versions.
   legacy_backups <- grep(

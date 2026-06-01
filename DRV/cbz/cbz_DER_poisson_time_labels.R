@@ -1,6 +1,6 @@
 #####
 # CONSUMES: df_cbz_orders___raw, df_cbz_poisson_analysis_all
-# PRODUCES: df_cbz_poisson_analysis_all, df_cbz_poisson_analysis_all_backup
+# PRODUCES: df_cbz_poisson_analysis_all, df_cbz_poisson_analysis_all_backup_rolling
 # NOTE (#1049): not referenced in any _targets config — superseded by cbz_D04_01.R.
 #   Kept in sync with the single-rolling-backup fix for consistency.
 # DEPENDS_ON_ETL: cbz_ETL_orders_0IM
@@ -250,7 +250,7 @@ tryCatch({
   # layer) and inflated the deploy bundle + Supabase upload. We now keep exactly
   # one rolling snapshot (overwritten each run) and self-heal any legacy dated
   # snapshots so they vanish on the next pipeline run (MP163, zero redeploy).
-  backup_table_name <- "df_cbz_poisson_analysis_all_backup"
+  backup_table_name <- "df_cbz_poisson_analysis_all_backup_rolling"
 
   # Self-heal: drop legacy dated backup tables left by prior versions.
   legacy_backups <- grep(
