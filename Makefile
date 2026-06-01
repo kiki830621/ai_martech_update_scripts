@@ -291,10 +291,13 @@ config-validate:
 	@echo "Validating $(CONFIG_PATH)..."
 	@$(R) -e "\
 	library(yaml); \
+	source('$(GLOBAL_SCRIPTS)/04_utils/fn_merge_pipeline_config.R'); \
 	config <- yaml::read_yaml('$(CONFIG_PATH)'); \
 	cat('✓ YAML syntax valid\n'); \
 	cat('✓ Platforms:', paste(names(config\$$platforms), collapse=', '), '\n'); \
 	cat('✓ Phase order:', paste(config\$$phase_order, collapse=' → '), '\n'); \
+	report_cross_platform_drv_conflicts(detect_cross_platform_drv_conflicts(config), strict = TRUE); \
+	cat('✓ No cross-platform DRV registration conflicts (#980/#1028)\n'); \
 	"
 
 # =============================================================================
