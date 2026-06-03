@@ -57,6 +57,11 @@ source(gs("16_derivations", "fn_d07_prompt_registry.R"))
 if (!exists("fn_ai_insight_fingerprint", mode = "function")) source(gs("08_ai", "fn_ai_insight_fingerprint.R"))
 if (!exists("create_df_ai_insight_table", mode = "function")) source(gs("01_db", "fn_create_df_ai_insight_table.R"))
 if (!exists("build_ai_insight_inputs", mode = "function")) source(gs("08_ai", "fn_build_ai_insight_inputs.R"))
+# #1062 frame-parity fix: the position_csa extra_source needs the same position
+# loader the live positionMSPlotly component uses. autoinit usually sources
+# 11_rshinyapp_utils, but source defensively so the csa entries don't silently
+# skip (which would leave the segmentation report unprecomputed).
+if (!exists("fn_get_position_demonstrate_case", mode = "function")) source(gs("11_rshinyapp_utils", "fn_get_position_demonstrate_case.R"))
 
 stopifnot(exists("run_D07_01", mode = "function"),
           exists("d07_prompt_registry"),
@@ -124,6 +129,33 @@ build_source <- function(name, platform, pl) {
     "position" = {
       if (is.null(df_position)) return(NULL)
       df_position[df_position$product_line_id == pl, , drop = FALSE]
+    },
+    # positionMSPlotly.R CSA (#1062 frame-parity fix): the live component feeds
+    # perform_csa_analysis + analyze_clusters the fn_get_position_demonstrate_case
+    # frame (apply_type_filter=TRUE, apply_iterative_filter=FALSE — positionMSPlotly.R
+    # position_data() reactive), NOT the raw df_position slice. analyze_clusters
+    # indexes that frame with csa_result$complete_rows, so the precompute MUST use
+    # the SAME frame or the logical subscript size mismatches (raw slice keeps the
+    # Rating/Revenue special rows that perform_csa_analysis filters internally) AND
+    # the clustering would diverge from the live plot. Use the same loader so the
+    # stored report matches what the user sees.
+    "position_csa" = {
+      if (!exists("fn_get_position_demonstrate_case", mode = "function")) {
+        warning("[D07_01] fn_get_position_demonstrate_case not sourced — position_csa skipped")
+        return(NULL)
+      }
+      tryCatch(
+        fn_get_position_demonstrate_case(
+          app_data_connection    = app_con,
+          product_line_id        = pl,
+          apply_iterative_filter = FALSE,
+          apply_type_filter      = TRUE
+        ),
+        error = function(e) {
+          warning(sprintf("[D07_01] position_csa loader failed for %s: %s", pl, conditionMessage(e)))
+          NULL
+        }
+      )
     },
     # marketGrowthTrack.R: serialized k-means segmentation profile (whole df, filters internally)
     "profile" = {
