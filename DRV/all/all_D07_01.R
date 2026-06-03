@@ -130,6 +130,27 @@ build_source <- function(name, platform, pl) {
       if (is.null(df_position)) return(NULL)
       tryCatch(build_ansoff_segmentation_profile(df_position, pl), error = function(e) NULL)
     },
+    # #1062 A2 chain: the FROZEN cluster names this run's csa_segment_naming entry
+    # already wrote (registry order guarantees naming precedes csa_market_segments,
+    # same platform iteration, same app_con). Read the zh_tw row — both csa prompts
+    # are single-language (zh) so names are locale-invariant. NULL on miss
+    # (naming not yet run / empty) -> report builder falls back to "Segment N".
+    # DM_R023: tbl2 + dplyr, no raw SQL read.
+    "cluster_names" = {
+      if (!DBI::dbExistsTable(app_con, "df_ai_insight")) return(NULL)
+      res <- tryCatch(
+        tbl2(app_con, "df_ai_insight") |>
+          dplyr::filter(prompt_key == "position_analysis.csa_segment_naming",
+                        platform == !!platform,
+                        product_line == !!pl,
+                        locale == "zh_tw") |>
+          dplyr::select(insight_text) |>
+          dplyr::collect(),
+        error = function(e) NULL
+      )
+      if (is.null(res) || nrow(res) == 0) return(NULL)
+      res$insight_text[1]
+    },
     NULL
   )
 }
