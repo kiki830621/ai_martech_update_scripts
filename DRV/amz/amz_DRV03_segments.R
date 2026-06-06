@@ -54,7 +54,13 @@ if (gpt_key == "") {
 # Configuration parameters
 chunk_size <- 20   # Number of records to process in each batch
 workers <- 8       # Number of parallel workers (adjust based on your system)
-model <- "o4-mini" # OpenAI model to use
+# Model from ai_prompts.yaml single source of truth (#1171). No hardcode AND no fallback:
+# was hardcoded "o4-mini" (went stale — that's the bug). A %||% fallback would re-introduce a
+# stale-prone literal, so fail loud if the config is missing instead.
+model <- app_configs$ai_prompts$comment_property_rating$property_scoring$model
+if (is.null(model) || !nzchar(as.character(model))) {
+  stop("comment_property_rating.property_scoring.model not found in ai_prompts.yaml — set it there (single source of truth, #1171). Do NOT add a hardcoded fallback here.")
+}
 
 # Log beginning of process
 message("Starting D03_02 (Rate Reviews) for Amazon product lines")
