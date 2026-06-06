@@ -233,11 +233,22 @@ run_drv_output_shape_gate_target <- function() {
          "Ensure DRV pipeline completed and DM_R062 canonical paths apply.")
   }
 
+  # #1148: per-review db (scd_type2 comment_property_rating_results) — ATTACHed as
+  # `rev` for the binary-theme presence-collapse witness. Pass the canonical path;
+  # the gate file.exists-guards the ATTACH, so a company without it (no comment
+  # scoring) -> witness SKIPs gracefully.
+  review_db_path <- normalizePath(
+    file.path(project_root, "data", "local_data", "scd_type2",
+              "comment_property_rating_results.duckdb"),
+    mustWork = FALSE
+  )
+
   result <- gate_env$run_drv_output_shape_gate(
     company = company,
     contracts_path = NULL,  # auto-derive from company via locate_contracts_path
     mode = "auto",
-    db_path = db_path
+    db_path = db_path,
+    review_db_path = review_db_path
   )
 
   # Print structured report so make run log captures it
