@@ -390,15 +390,27 @@ tryCatch({
       product_profile_all <- product_profile_all %>%
         mutate(product_id = as.character(product_id)) %>%
         filter(!is.na(product_id), product_id != "") %>%
-        distinct(product_id, .keep_all = TRUE)  # one row per asin
+        # #1165 PL-AWARE dedup: one row per (asin, source PL), NOT per asin alone.
+        # A cross-market fan-out ASIN (#943, legitimately listed in >1 PL per MP169)
+        # has one profile row PER PL; the old PL-blind distinct(product_id) kept only
+        # the loop-order-first PL's row, so e.g. sfg sales rows received hsg's image
+        # columns + NA for sfg's own. Keeping (asin, source PL) preserves each PL's
+        # own profile so the PL-aware join below attaches the CORRECT one.
+        distinct(product_id, source_product_line_id, .keep_all = TRUE)
 
-      # Drop columns that would collide with completed_all (product_line_id is
-      # already present as .x/.y; we keep source_product_line_id for trace)
+      # Drop the profile's own product_line_id (already present on completed_all as
+      # product_line_id.x/.y). source_product_line_id is RETAINED here because the
+      # join below uses it as the second join key (#1165 PL-aware join).
       product_profile_join <- product_profile_all %>%
         select(-any_of(c("product_line_id")))
 
+      # #1165 PL-AWARE join: match on (asin, product line) so each PL's sales rows
+      # pull THEIR PL's profile. product_line_id.x is the sales row's true PL (bare
+      # product_line_id was renamed .x/.y upstream); source_product_line_id is the
+      # profile row's PL. Joining by asin alone mis-attributed fan-out ASINs.
       completed_all <- completed_all %>%
-        left_join(product_profile_join, by = c("amz_asin" = "product_id"))
+        left_join(product_profile_join,
+                  by = c("amz_asin" = "product_id", "product_line_id.x" = "source_product_line_id"))
 
       message(sprintf("  OK product_profile enrichment: %d distinct asins, %d columns added",
                       nrow(product_profile_all),

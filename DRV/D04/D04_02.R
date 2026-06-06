@@ -198,6 +198,7 @@ empty_output_table <- tibble(
   data_type = character(),           # NEW: DM_R043 v2.0
   source_variable = character(),     # NEW: DM_R043 v2.0
   estimation_status = character(),   # NEW: estimated/not_estimable/dropped
+  drop_reason = character(),         # #1165: WHY not_estimable (taxonomy from fn_fit_univariate_poisson + constant_or_all_na_prefilter for pre-fit drops); NA for estimated
   coefficient = numeric(),
   incidence_rate_ratio = numeric(),
   std_error = numeric(),
@@ -277,6 +278,14 @@ classify_data_type <- function(is_binary, source_var) {
 
 # Store all results for merging
 all_results <- list()
+
+# #1165 CHANGE 2: accumulate PRE-FIT-dropped (zero-variance / all-NA) attributes per
+# PL for the analyzability audit table. These are removed before the fitter and were
+# previously only cat()'d (vanished from any queryable surface) — now surfaced so the
+# un-analyzable set is enumerable (client transparency: "which attributes can't be
+# analyzed"). Per #1165 decision: exclude only completely-no-variance attributes early;
+# the rest run through the fitter and unreasonable results are filtered post-analysis.
+analyzability_audit_rows <- list()
 
 # Pre-compute merged_table_name OUTSIDE tryCatch scope (#724 Bug A fix).
 # Originally defined inside tryCatch at L755, but PART 4 SUMMARIZE references
@@ -508,19 +517,31 @@ for (pl in PRODUCT_LINES) {
   # Remove predictors with only one level (constant columns)
   # These cannot be used in regression and cause the "contrasts" error
   single_level_predictors <- c()
+  # #1165 CHANGE 2: track WHY each predictor is dropped so the analyzability audit
+  # can distinguish two very different cases that BOTH look like "no variance":
+  #   - all_na_prefilter  → column is all-NA for THIS PL = it is NOT this PL's own
+  #     attribute, just an empty union-fill from another PL's schema (664-col union).
+  #     Not the client's attribute → the report must NOT list it.
+  #   - constant_prefilter → this PL's OWN attribute, but homogeneous across its
+  #     products (zero between-product variance) → genuinely un-analyzable. THIS is
+  #     the meaningful transparency item the client (林郁翔) asked to see.
+  single_level_reasons <- c()
   for (col in predictor_cols) {
     # Check for all-NA columns (after NaN->NA conversion)
     if (all(is.na(model_data[[col]]))) {
       single_level_predictors <- c(single_level_predictors, col)
+      single_level_reasons <- c(single_level_reasons, "all_na_prefilter")
     } else if (is.factor(model_data[[col]])) {
       if (nlevels(model_data[[col]]) < 2) {
         single_level_predictors <- c(single_level_predictors, col)
+        single_level_reasons <- c(single_level_reasons, "constant_prefilter")
       }
     } else if (is.numeric(model_data[[col]])) {
       # For numeric, check unique non-NA values
       unique_vals <- unique(model_data[[col]][!is.na(model_data[[col]])])
       if (length(unique_vals) < 2) {
         single_level_predictors <- c(single_level_predictors, col)
+        single_level_reasons <- c(single_level_reasons, "constant_prefilter")
       }
     }
   }
@@ -528,6 +549,28 @@ for (pl in PRODUCT_LINES) {
   if (length(single_level_predictors) > 0) {
     cat(sprintf("  → Removing %d constant/all-NA predictors\n", length(single_level_predictors)))
     predictor_cols <- setdiff(predictor_cols, single_level_predictors)
+    # #1165 CHANGE 2: surface these pre-fit zero-variance drops (previously only
+    # cat()'d → vanished). Captured HERE (before the empty-predictor skip below) so
+    # even fully-flat PLs are recorded. predictor_type lets the report list only the
+    # product attributes (not time_feature / structural constants).
+    # #724 Bug C avoidance: classify_predictor_type is HOISTED out of the tibble().
+    # If vapply(..., platform = platform, ...) ran inside the tibble call, tibble's
+    # data mask would expose the earlier `platform = platform` column (length-N) and
+    # shadow the outer scalar, so nzchar(platform) inside classify_predictor_type
+    # throws the R 4.2+ fatal 'length = N in coercion to logical(1)'. Same fix as
+    # the predictor_type_vals hoist at the output_table assembly below.
+    slp_predictor_types <- vapply(
+      single_level_predictors, classify_predictor_type, character(1),
+      platform = platform, predictor_meta_lookup = predictor_meta_lookup
+    )
+    analyzability_audit_rows[[pl]] <- tibble(
+      product_line_id = pl,
+      platform = platform,
+      predictor = single_level_predictors,
+      predictor_type = slp_predictor_types,
+      estimation_status = "not_estimable",
+      drop_reason = single_level_reasons   # all_na_prefilter | constant_prefilter (parallel to predictors)
+    )
   }
 
   cat(sprintf("  → Final predictor count: %d (after removing constants)\n\n", length(predictor_cols)))
@@ -693,6 +736,9 @@ for (pl in PRODUCT_LINES) {
     data_type = as.character(data_type_vals),
     source_variable = source_var_vals,
     estimation_status = coef_summary$estimation_status,
+    # #1165: carry the WHY (taxonomy: insufficient_rows/constant_in_subset/aliased/
+    # glm_error/missing_column; NA for estimated). Previously computed then discarded.
+    drop_reason = coef_summary$drop_reason,
 
     # REGRESSION COEFFICIENTS (R118 compliance)
     coefficient = coef_summary$coefficient,
@@ -815,6 +861,29 @@ if (length(all_results) > 0) {
   cat("  ⚠️  No results to merge\n")
   dbWriteTable(con_app, merged_table_name, empty_output_table, overwrite = TRUE)
   cat(sprintf("  → Wrote empty schema to: %s\n", merged_table_name))
+}
+
+# #1165 CHANGE 2: write the attribute analyzability audit (pre-fit zero-variance /
+# all-NA drops, tagged constant_or_all_na_prefilter). Always written — empty schema
+# if no drops — so the report + DRV gate can read it unconditionally (MP163 §3:
+# business-accessible surface for the un-analyzable attribute list).
+analyzability_audit_table_name <- sprintf("df_%s_attribute_analyzability_audit", platform)
+analyzability_audit_schema <- tibble(
+  product_line_id = character(), platform = character(), predictor = character(),
+  predictor_type = character(), estimation_status = character(),
+  drop_reason = character(), detected_at = as.POSIXct(character())
+)
+if (length(analyzability_audit_rows) > 0) {
+  analyzability_audit <- bind_rows(analyzability_audit_rows) %>%
+    mutate(detected_at = Sys.time())
+  dbWriteTable(con_app, analyzability_audit_table_name, analyzability_audit, overwrite = TRUE)
+  cat(sprintf("  ✅ #1165 analyzability audit: %d pre-fit-dropped attrs across %d PL(s) → %s\n",
+              nrow(analyzability_audit), length(analyzability_audit_rows),
+              analyzability_audit_table_name))
+} else {
+  dbWriteTable(con_app, analyzability_audit_table_name, analyzability_audit_schema, overwrite = TRUE)
+  cat(sprintf("  → #1165 analyzability audit: no pre-fit drops; wrote empty schema → %s\n",
+              analyzability_audit_table_name))
 }
 
 cat("\n")
