@@ -198,9 +198,10 @@ verify-drv:
 	GATE=$(PIPELINE_DIR)/../global_scripts/23_deployment/drv_output_shape_gate.R; \
 	YAML=$(PIPELINE_DIR)/../global_scripts/98_test/e2e/contracts/$${YAML_NAME}_drv.yaml; \
 	DB=$(PROJECT_ROOT)/data/app_data/app_data.duckdb; \
+	PROC=$(PROJECT_ROOT)/data/local_data/processed_data.duckdb; \
 	MODE_FLAG=$${DRV_GATE_MODE:+--$${DRV_GATE_MODE}-mode}; \
 	echo "═══ MP165 v1.3 DRV Output Shape Gate ($$COMPANY) ═══"; \
-	Rscript $$GATE --company $$COMPANY --contracts-path $$YAML --db-path $$DB $$MODE_FLAG
+	Rscript $$GATE --company $$COMPANY --contracts-path $$YAML --db-path $$DB --processed-data-path $$PROC $$MODE_FLAG
 
 # Phase-2 content-lineage dataflow gate (#955). Complements verify-drv (which
 # checks SHAPE) by verifying CONTENT LINEAGE across all 6 local DuckDB layers:
