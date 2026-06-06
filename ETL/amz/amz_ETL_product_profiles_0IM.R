@@ -98,6 +98,34 @@ tryCatch({
   )
 
   resolve_best_tab <- function(product_line_id, candidates) {
+    # PRIMARY — data-driven, company-agnostic (#1163/#1130). Match the GSheet profile
+    # tab name against this product line's canonical names from df_product_line
+    # (loaded by UPDATE_MODE init). Replaces the hardcoded QEF eyewear anchor/keyword
+    # maps below for non-QEF companies: for D_RACING the profile tabs ARE the english
+    # names (e.g. "Classic Gauge Set" -> cgs), an exact 1:1 match. The legacy QEF maps
+    # remain as fallback (preserves QEF behaviour whenever its tab names do NOT match
+    # its df_product_line names directly). Same port as competitor_ids_0IM (899e274).
+    if (exists("df_product_line", inherits = TRUE) && is.data.frame(df_product_line) &&
+        all(c("product_line_id", "product_line_name_english",
+              "product_line_name_chinese") %in% names(df_product_line))) {
+      pl_row <- df_product_line[df_product_line$product_line_id == product_line_id, , drop = FALSE]
+      if (nrow(pl_row) >= 1L) {
+        names_to_try <- trimws(c(as.character(pl_row$product_line_name_english[1]),
+                                 as.character(pl_row$product_line_name_chinese[1])))
+        names_to_try <- names_to_try[!is.na(names_to_try) & nzchar(names_to_try)]
+        cand_trim <- trimws(candidates)
+        for (nm in names_to_try) {
+          exact <- candidates[cand_trim == nm]
+          if (length(exact) >= 1L) return(exact[1])
+        }
+        for (nm in names_to_try) {
+          sub <- candidates[vapply(candidates, function(h)
+            grepl(nm, h, fixed = TRUE) || grepl(trimws(h), nm, fixed = TRUE), logical(1))]
+          if (length(sub) == 1L) return(sub)
+        }
+      }
+    }
+
     anchor <- product_line_zh_anchor[[product_line_id]] %||% ""
     candidate_pool <- candidates
     if (nzchar(anchor)) {
