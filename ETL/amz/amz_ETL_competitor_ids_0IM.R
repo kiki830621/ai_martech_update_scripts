@@ -102,6 +102,39 @@ tryCatch({
   )
 
   resolve_best_header <- function(product_line_id, candidates) {
+    # PRIMARY — data-driven, company-agnostic (#1130). Match the GSheet block-identity
+    # header against this product line's canonical names from df_product_line (loaded
+    # by UPDATE_MODE init via fn_load_product_lines). Replaces the company-specific
+    # need for the hardcoded keyword/anchor maps below: for D_RACING the 產品對照表
+    # headers ARE the english names (e.g. "Classic Gauge Set" -> cgs), an exact 1:1
+    # match. The legacy QEF eyewear maps remain as a fallback (preserves QEF behavior
+    # whenever its headers do NOT match its df_product_line names directly).
+    if (exists("df_product_line", inherits = TRUE) && is.data.frame(df_product_line) &&
+        all(c("product_line_id", "product_line_name_english",
+              "product_line_name_chinese") %in% names(df_product_line))) {
+      pl_row <- df_product_line[df_product_line$product_line_id == product_line_id, , drop = FALSE]
+      if (nrow(pl_row) >= 1L) {
+        names_to_try <- c(as.character(pl_row$product_line_name_english[1]),
+                          as.character(pl_row$product_line_name_chinese[1]))
+        names_to_try <- trimws(names_to_try[!is.na(names_to_try)])
+        names_to_try <- names_to_try[nzchar(names_to_try)]
+        cand_trim <- trimws(candidates)
+        # 1) exact name match (strongest, unambiguous)
+        for (nm in names_to_try) {
+          exact <- candidates[cand_trim == nm]
+          if (length(exact) >= 1L) return(exact[1])
+        }
+        # 2) substring match (header contains the name or vice versa) — only when
+        #    it resolves to exactly ONE candidate (ambiguous -> fall through)
+        for (nm in names_to_try) {
+          sub <- candidates[vapply(candidates, function(h)
+            grepl(nm, h, fixed = TRUE) || grepl(trimws(h), nm, fixed = TRUE),
+            logical(1))]
+          if (length(sub) == 1L) return(sub)
+        }
+      }
+    }
+
     anchor <- product_line_zh_anchor[[product_line_id]] %||% ""
     candidate_pool <- candidates
     if (nzchar(anchor)) {
