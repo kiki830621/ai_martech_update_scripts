@@ -20,10 +20,9 @@ D04_VALIDATE_SCRIPT := $(PROJECT_ROOT)/scripts/global_scripts/00_principles/docs
 
 .PHONY: help run status clean vis schedule unschedule schedule-status check-targets \
 	d01 d01-cbz d01-eby d01-all d01-validate \
-	d04 d04-cbz d04-eby d04-all d04-validate \
+	d04 d04-cbz d04-eby d04-validate \
 	d04-01-cbz d04-02-cbz d04-03-cbz d04-04-cbz d04-05-cbz d04-06-cbz \
 	d04-02-eby d04-04-eby \
-	d04-04-all d04-05-all d04-06-all d04-07-all d04-08-all d04-09-all \
 	d01-00 d01-00-cbz d01-00-eby \
 	d01-01 d01-01-cbz d01-01-eby \
 	d01-02 d01-02-cbz d01-02-eby \
@@ -45,10 +44,9 @@ help:
 	@echo "  make d01 D01_PLATFORMS=cbz,eby  Run D01 for selected platforms"
 	@echo "  make d01-cbz     Run D01 for cbz only"
 	@echo "  make d01-validate Validate D01 outputs (tables + row counts)"
-	@echo "  make d04         Run D04 pipelines (cbz + eby + all)"
+	@echo "  make d04         Run D04 pipelines (cbz + eby)"
 	@echo "  make d04-cbz     Run D04 for cbz (D04_04 -> D04_02 + optional D04_01/D04_03)"
 	@echo "  make d04-eby     Run D04 for eby (D04_04 then D04_02)"
-	@echo "  make d04-all     Run D04 precision (D04_07 + D04_09 + D04_08)"
 	@echo "  make d04-validate Validate D04 scripts (DM_R044 format)"
 	@echo ""
 	@echo "D01_03 DNA Analysis (DEV_R038 pattern):"
@@ -69,9 +67,6 @@ help:
 	@echo "  make d04-04-cbz  Run D04_04 Time Series (CBZ)"
 	@echo "  make d04-04-eby  Run D04_04 Time Series (EBY)"
 	@echo "  make d04-02-eby  Run D04_02 Poisson Analysis (EBY)"
-	@echo "  make d04-07-all  Run D04_07 Precision Time Series (ALL)"
-	@echo "  make d04-09-all  Run D04_09 Feature Preparation (ALL)"
-	@echo "  make d04-08-all  Run D04_08 Precision Poisson (ALL)"
 	@echo "D05 Macro Trend Analysis:"
 	@echo "  make d05         Run D05 for all platforms"
 	@echo "  make d05-amz     Run D05_01 Macro Monthly Summary (AMZ)"
@@ -234,7 +229,6 @@ d01-03: d01-03-cbz d01-03-eby
 d04:
 	@$(MAKE) d04-cbz
 	@$(MAKE) d04-eby
-	@$(MAKE) d04-all
 	@echo ""
 	@echo "All D04 pipelines completed!"
 
@@ -245,10 +239,6 @@ d04-cbz: d04-04-cbz d04-02-cbz d04-01-cbz d04-03-cbz
 d04-eby: d04-04-eby d04-02-eby
 	@echo ""
 	@echo "D04 EBY pipeline completed!"
-
-d04-all: d04-07-all d04-09-all d04-08-all
-	@echo ""
-	@echo "D04 ALL precision pipeline completed!"
 
 d04-validate:
 	@echo ""
@@ -316,15 +306,8 @@ d04-04-eby:
 	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/eby/eby_D04_04.R
 	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
 
-d04-04-all:
-	@echo ""
-	@echo "Running D04_04 Time Series Expansion (ALL wrapper)..."
-	@echo "Started: $$(date '+%Y-%m-%d %H:%M:%S')"
-	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/all/all_D04_04.R
-	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
-
 # ============================================================================
-# D04_05: Poisson Wrappers (CBZ/ALL)
+# D04_05: Poisson Wrapper (CBZ)
 # ============================================================================
 
 d04-05-cbz:
@@ -334,15 +317,8 @@ d04-05-cbz:
 	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/cbz/cbz_D04_05.R
 	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
 
-d04-05-all:
-	@echo ""
-	@echo "Running D04_05 Poisson Calculation (ALL wrapper)..."
-	@echo "Started: $$(date '+%Y-%m-%d %H:%M:%S')"
-	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/all/all_D04_05.R
-	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
-
 # ============================================================================
-# D04_06: App Data Publishing / Feature Prep (CBZ/ALL)
+# D04_06: App Data Publishing (CBZ)
 # ============================================================================
 
 d04-06-cbz:
@@ -350,38 +326,6 @@ d04-06-cbz:
 	@echo "Running D04_06 App Data Publishing (CBZ wrapper)..."
 	@echo "Started: $$(date '+%Y-%m-%d %H:%M:%S')"
 	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/cbz/cbz_D04_06.R
-	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
-
-d04-06-all:
-	@echo ""
-	@echo "Running D04_06 Feature Preparation (ALL wrapper)..."
-	@echo "Started: $$(date '+%Y-%m-%d %H:%M:%S')"
-	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/all/all_D04_06.R
-	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
-
-# ============================================================================
-# D04_07/08/09: Precision Marketing (ALL)
-# ============================================================================
-
-d04-07-all:
-	@echo ""
-	@echo "Running D04_07 Precision Time Series (ALL)..."
-	@echo "Started: $$(date '+%Y-%m-%d %H:%M:%S')"
-	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/all/all_D04_07.R
-	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
-
-d04-08-all:
-	@echo ""
-	@echo "Running D04_08 Precision Poisson Analysis (ALL)..."
-	@echo "Started: $$(date '+%Y-%m-%d %H:%M:%S')"
-	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/all/all_D04_08.R
-	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
-
-d04-09-all:
-	@echo ""
-	@echo "Running D04_09 Feature Preparation (ALL)..."
-	@echo "Started: $$(date '+%Y-%m-%d %H:%M:%S')"
-	@cd "$(PROJECT_ROOT)" && "$(RSCRIPT)" scripts/update_scripts/DRV/all/all_D04_09.R
 	@echo "Completed: $$(date '+%Y-%m-%d %H:%M:%S')"
 
 # ==============================================================================
