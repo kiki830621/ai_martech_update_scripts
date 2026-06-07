@@ -98,10 +98,16 @@ empty_market_schema <- tibble(
   irr_conf_low = numeric(), irr_conf_high = numeric(),
   predictor_min = numeric(), predictor_max = numeric(), predictor_range = numeric(),
   predictor_is_binary = logical(), track_multiplier = numeric(),
+  convergence = character(),
   sample_size = integer(), n_own = integer(), n_competitor = integer(),
   competitor_included = logical(),
+  # display columns — schema-compatible with poissonFeatureAnalysis/CommentAnalysis
+  # so the UI repoint (D9) is a table-name swap. Chinese predictor names are already
+  # human-readable, so display_name = predictor; category by attr_kind.
+  display_name = character(), display_name_en = character(),
+  display_name_zh = character(), display_category = character(),
   analysis_date = as.Date(character()), analysis_version = character(),
-  computed_at = as.POSIXct(character())
+  computed_at = as.POSIXct(character()), data_version = as.Date(character())
 )
 
 market_sentinel <- function(pl, reason) {
@@ -174,9 +180,20 @@ for (pl in PRODUCT_LINES) {
   out$scale <- unname(scale_map[out$predictor])
   out$scale[is.na(out$scale)] <- "5尺度"
   out$attr_kind <- ifelse(out$scale == "2尺度", "mention_proportion", "rating")
+  # Map attr_kind → predictor_type so the two InsightForge panels split correctly
+  # on repoint (D9): 5尺度 ratings (屬性/缺點 = quality attributes) → product_attribute
+  # (poissonFeatureAnalysis); 2尺度 mentions (人/場/情感/persona use-cases) →
+  # comment_attribute (poissonCommentAnalysis).
+  out$predictor_type <- ifelse(out$attr_kind == "rating", "product_attribute", "comment_attribute")
   out$irr_display <- exp(out$coefficient * out$predictor_range)  # #1158
+  # display columns (UI schema compatibility). Chinese predictor = display name.
+  out$display_name <- out$predictor
+  out$display_name_en <- out$predictor
+  out$display_name_zh <- out$predictor
+  out$display_category <- ifelse(out$attr_kind == "rating",
+                                 "市場評分屬性", "市場提及屬性")
   out$analysis_date <- Sys.Date(); out$analysis_version <- DRV_VERSION
-  out$computed_at <- start_time
+  out$computed_at <- start_time; out$data_version <- Sys.Date()
 
   out <- out[, names(empty_market_schema), drop = FALSE]
   n_sig <- sum(out$estimation_status == "estimated" & !is.na(out$p_value) & out$p_value < 0.05)
