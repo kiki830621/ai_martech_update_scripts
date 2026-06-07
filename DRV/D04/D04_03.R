@@ -49,6 +49,7 @@ source("scripts/global_scripts/16_derivations/fn_assemble_market_model_data.R")
 source("scripts/global_scripts/04_utils/fn_fit_univariate_poisson.R")
 source("scripts/global_scripts/16_derivations/fn_fit_market_attribute_coefficients.R")
 source("scripts/global_scripts/16_derivations/fn_build_market_attribute_table.R")
+source("scripts/global_scripts/16_derivations/fn_build_market_attribute_coverage_audit.R")  # #1210
 source("scripts/global_scripts/04_utils/fn_resolve_drv_platform.R")
 
 platform <- resolve_drv_platform()
@@ -133,6 +134,7 @@ ts_key <- switch(platform, "amz" = "amz_asin", "cbz" = "cbz_item_id",
 # ==============================================================================
 
 all_results <- list()
+all_audits <- list()  # #1210 attribute coverage audit (per PL)
 tryCatch({
 
 for (pl in PRODUCT_LINES) {
@@ -245,6 +247,25 @@ for (pl in PRODUCT_LINES) {
               nrow(out), sum(out$estimation_status == "estimated"), n_sig,
               out$n_own[1], out$n_competitor[1]))
   all_results[[pl]] <- out
+
+  # #1210 coverage audit: declared canonical source universe → fate per attr.
+  # Denominator anchored to the DECLARED universe (df_product_profile attr cols ∪
+  # config-declared review topics), NOT producer-consumed cols — so a wrong/incomplete
+  # source surfaces as source_table_not_consumed instead of false full coverage (D1).
+  pp_universe <- setdiff(names(prof), NON_ATTR)
+  pp_universe <- pp_universe[!grepl("^etl_|^\\.", pp_universe)]
+  rev_universe <- setdiff(prop_cfg$property_name[prop_cfg$product_line_id == pl], pp_universe)
+  universe_df <- rbind(
+    data.frame(source_table = "df_product_profile", attr_name = pp_universe, stringsAsFactors = FALSE),
+    data.frame(source_table = "df_position",        attr_name = rev_universe, stringsAsFactors = FALSE)
+  )
+  audit <- fn_build_market_attribute_coverage_audit(
+    universe_df, consumed_cols = names(combined), attr_cols = attr_cols,
+    out = out, platform = platform, product_line = pl)
+  if (nrow(audit) > 0L) {
+    audit$analysis_date <- Sys.Date(); audit$computed_at <- start_time; audit$data_version <- Sys.Date()
+  }
+  all_audits[[pl]] <- audit
 }
 
 cat("════════════════════════════════════════════════════════════════════\n")
@@ -257,6 +278,17 @@ if (length(all_results) > 0) {
 } else {
   dbWriteTable(con_app, output_table_name, empty_market_schema, overwrite = TRUE)
   cat(sprintf("⚠️  No results; wrote empty schema to %s\n", output_table_name))
+}
+
+# #1210 attribute coverage audit table (app_data; rebuildable derived diagnostic).
+if (length(all_audits) > 0) {
+  audit_merged <- bind_rows(all_audits)
+  if (nrow(audit_merged) > 0L) {
+    audit_table_name <- paste0("df_", platform, "_market_attribute_coverage_audit")
+    dbWriteTable(con_app, audit_table_name, audit_merged, overwrite = TRUE)
+    cat(sprintf("✅ Wrote %s: %d rows (coverage trace, #1210)\n",
+                audit_table_name, nrow(audit_merged)))
+  }
 }
 
 }, error = function(e) { message("ERROR in MAIN: ", e$message); error_occurred <<- TRUE })
