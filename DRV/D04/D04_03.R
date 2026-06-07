@@ -141,32 +141,74 @@ for (pl in PRODUCT_LINES) {
   if (!dbExistsTable(con_app, "df_position")) {
     stop("df_position not found in app_data — D03_11 must run before D04_03.")
   }
+  # ---- #1200 rework (鄭澈 2026-06-07): COMBINE attribute sources ----
+  # df_product_profile_{pl} (raw_data) = full product set + GoogleSheet image-mining
+  # attrs (圖片探勘); df_position (app_data) = customer-review-topic attrs. Joined by
+  # ASIN → ~194 attrs (fixes "only 66"). Univariate model retained (#1200); only the
+  # attribute breadth changes. KitchenMAMA multilevel method is for OTHER issues.
+  prof_tbl <- sprintf("df_product_profile_%s", pl)
+  if (!dbExistsTable(con_raw, prof_tbl)) {
+    cat("  ⚠️  no df_product_profile; sentinel\n\n")
+    all_results[[pl]] <- market_sentinel(pl, "no_product_profile"); next
+  }
+  prof <- tbl2(con_raw, prof_tbl) %>% collect()
+  if (!"ASIN" %in% names(prof)) {
+    all_results[[pl]] <- market_sentinel(pl, "profile_no_ASIN"); next
+  }
+  names(prof)[names(prof) == "ASIN"] <- "product_id"
+  prof <- prof[!is.na(prof$product_id) & nzchar(as.character(prof$product_id)), , drop = FALSE]
+
+  # review-topic attrs from df_position (PL-mapped), keyed by ASIN, LEFT JOIN
   pos <- tbl2(con_app, "df_position") %>% filter(product_line_id == !!pl) %>% collect()
-  if (nrow(pos) == 0L) {
-    cat("  ⚠️  no df_position rows; sentinel\n\n")
-    all_results[[pl]] <- market_sentinel(pl, "no_position_rows"); next
+  mapped_rev <- if ("product_id" %in% names(pos))
+    intersect(prop_cfg$property_name[prop_cfg$product_line_id == pl], names(pos)) else character(0)
+  combined <- prof
+  if (length(mapped_rev) > 0L) {
+    pos_rev <- pos[!duplicated(pos$product_id), c("product_id", mapped_rev), drop = FALSE]
+    combined <- merge(prof, pos_rev, by = "product_id", all.x = TRUE)
   }
 
-  # D10: only PL-mapped attributes (exclude union-fill all-NA cols from other PLs)
-  mapped <- prop_cfg$property_name[prop_cfg$product_line_id == pl]
-  attr_cols <- intersect(mapped, names(pos))
+  # attribute columns: profile attrs ∪ review attrs, numeric-coercible, excl id/meta
+  NON_ATTR <- c("product_id", "SKU", "sku", "brand", "品牌", "rating", "sales",
+                "product_line_id", "is_competitor", "amz_asin")
+  cand <- setdiff(names(combined), NON_ATTR)
+  cand <- cand[!grepl("^etl_|^\\.", cand)]
+  is_num <- vapply(cand, function(c) any(!is.na(suppressWarnings(as.numeric(combined[[c]])))), logical(1))
+  attr_cols <- cand[is_num]
+  for (a in attr_cols) combined[[a]] <- suppressWarnings(as.numeric(combined[[a]]))
   if (length(attr_cols) == 0L) {
-    cat("  ⚠️  no mapped attributes for this PL; sentinel\n\n")
-    all_results[[pl]] <- market_sentinel(pl, "no_mapped_attributes"); next
+    all_results[[pl]] <- market_sentinel(pl, "no_numeric_attrs"); next
   }
 
-  # ownership / own-sales backfill: own ASIN = product_id in own time series (D8/D10)
+  # competitor sales: prefer df_position.sales (ASIN-matched to the positioning set,
+  # the proven key), fall back to raw competitor_sales agg for products only in the
+  # profile. Own rows stay NA here → backfilled from own time series below.
+  combined$sales <- NA_real_
+  if ("sales" %in% names(pos) && "product_id" %in% names(pos)) {
+    pos_sales <- setNames(suppressWarnings(as.numeric(pos$sales)),
+                          as.character(pos$product_id))
+    combined$sales <- unname(pos_sales[as.character(combined$product_id)])
+  }
+  if (dbExistsTable(con_raw, "df_amz_competitor_sales")) {
+    cs <- tbl2(con_raw, "df_amz_competitor_sales") %>%
+      filter(product_line_id == !!pl) %>%
+      group_by(amz_asin) %>% summarise(s = sum(sales, na.rm = TRUE), .groups = "drop") %>% collect()
+    csv <- setNames(as.numeric(cs$s), as.character(cs$amz_asin))
+    fill <- is.na(combined$sales)
+    combined$sales[fill] <- unname(csv[as.character(combined$product_id[fill])])
+  }
+
+  # ownership / own-sales backfill: own ASIN = product_id in own time series
   own_lookup <- setNames(numeric(0), character(0))
   ts_tbl <- sprintf("df_%s_sales_complete_time_series_%s", platform, pl)
   if (!is.null(ts_key) && dbExistsTable(con_app, ts_tbl)) {
     agg <- tbl2(con_app, ts_tbl) %>%
-      group_by(.data[[ts_key]]) %>% summarise(s = sum(sales, na.rm = TRUE), .groups = "drop") %>%
-      collect()
+      group_by(.data[[ts_key]]) %>% summarise(s = sum(sales, na.rm = TRUE), .groups = "drop") %>% collect()
     own_lookup <- setNames(as.numeric(agg$s), as.character(agg[[ts_key]]))
   }
 
   out <- tryCatch(
-    fn_build_market_attribute_table(pos, own_lookup, attr_cols,
+    fn_build_market_attribute_table(combined, own_lookup, attr_cols,
                                     platform = platform, product_line = pl,
                                     id_col = "product_id"),
     error = function(e) { cat("  ❌ build failed:", conditionMessage(e), "\n"); NULL })
@@ -174,24 +216,26 @@ for (pl in PRODUCT_LINES) {
     all_results[[pl]] <- market_sentinel(pl, "build_failed_or_empty"); next
   }
 
-  # D10/D11: attach scale label + #1158 displayed IRR + run metadata
+  # D10/D11: attach scale/kind label + #1158 displayed IRR + run metadata.
+  # Three attr origins → attr_kind + predictor_type (drives the InsightForge split):
+  #   review attr scale=2尺度 (人/場/情感 persona mentions) → mention_proportion → comment_attribute (poissonComment)
+  #   review attr scale=5尺度 (屬性/缺點 quality ratings)   → rating            → product_attribute (poissonFeature)
+  #   product-profile attr (image-mining 圖片探勘 + listing features, not in prop_cfg) → product_feature → product_attribute
   scale_map <- setNames(prop_cfg$scale[prop_cfg$product_line_id == pl],
                         prop_cfg$property_name[prop_cfg$product_line_id == pl])
-  out$scale <- unname(scale_map[out$predictor])
-  out$scale[is.na(out$scale)] <- "5尺度"
-  out$attr_kind <- ifelse(out$scale == "2尺度", "mention_proportion", "rating")
-  # Map attr_kind → predictor_type so the two InsightForge panels split correctly
-  # on repoint (D9): 5尺度 ratings (屬性/缺點 = quality attributes) → product_attribute
-  # (poissonFeatureAnalysis); 2尺度 mentions (人/場/情感/persona use-cases) →
-  # comment_attribute (poissonCommentAnalysis).
-  out$predictor_type <- ifelse(out$attr_kind == "rating", "product_attribute", "comment_attribute")
+  is_review <- out$predictor %in% names(scale_map)
+  out$scale <- unname(scale_map[out$predictor])               # NA for product-profile attrs
+  out$attr_kind <- ifelse(!is_review, "product_feature",
+                   ifelse(out$scale == "2尺度", "mention_proportion", "rating"))
+  out$predictor_type <- ifelse(out$attr_kind == "mention_proportion",
+                               "comment_attribute", "product_attribute")
   out$irr_display <- exp(out$coefficient * out$predictor_range)  # #1158
   # display columns (UI schema compatibility). Chinese predictor = display name.
   out$display_name <- out$predictor
   out$display_name_en <- out$predictor
   out$display_name_zh <- out$predictor
-  out$display_category <- ifelse(out$attr_kind == "rating",
-                                 "市場評分屬性", "市場提及屬性")
+  out$display_category <- ifelse(out$attr_kind == "mention_proportion", "市場提及屬性",
+                          ifelse(out$attr_kind == "product_feature", "產品圖文屬性", "市場評分屬性"))
   out$analysis_date <- Sys.Date(); out$analysis_version <- DRV_VERSION
   out$computed_at <- start_time; out$data_version <- Sys.Date()
 
