@@ -49,15 +49,6 @@ list(
   ),
 
   # =========================================================================
-  # Precision Pipeline (independent) - DM_R041: standardized to all/
-  # =========================================================================
-  tar_target(
-    precision_poisson,
-    run_drv_script("all/all_D04_08.R"),
-    format = "file"
-  ),
-
-  # =========================================================================
   # MP165 Tier 1: Dashboard-Presence Lite Check (NULL output detection)
   # Spectra change: dashboard-presence-verification (issue #599)
   #
@@ -97,7 +88,7 @@ list(
 
       # Force re-run when any upstream derivation changes
       .upstream <- c(
-        all_platforms_poisson, cbz_metadata, precision_poisson
+        all_platforms_poisson, cbz_metadata
       )
 
       run_dashboard_smoke_lite_check(

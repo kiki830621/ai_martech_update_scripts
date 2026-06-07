@@ -1,21 +1,28 @@
-# DRV All (Precision Marketing)
+# DRV All (cross-platform "all" derivations)
 
-This directory contains DRV execution scripts for the precision marketing
-domain. Historical week reports and long-form docs live in the principle
-archive at:
-
-scripts/global_scripts/99_archived/drv_week_docs_20251113/
+This directory contains DRV execution scripts whose platform scope is **all**
+(cross-platform aggregations / platform-agnostic derivations); the concrete
+platform is resolved at runtime per DM_R066.
 
 Key scripts:
-- all_D01_06.R: customer DNA analysis (D01_00–D01_05 master)
-- all_D04_09.R: feature preparation
-- all_D04_07.R: time series completion (R117)
-- all_D04_08.R: Poisson analysis (R118)
-- generate_time_series_metadata.R
-- validate_week2.R
-- validate_week3.R
-- validate_week4.R
-- run_full_validation.sh
+- `D00_app_data_init.R` — app_data initialization
+- `all_D01_06.R` / `all_D01_07.R` / `all_D01_08.R` — customer DNA analysis (D01 master)
+- `all_D03_01.R` / `all_D03_02.R` — positioning analysis
+- `all_D05_01.R` / `all_D05_03.R` — macro trend analysis
+- `all_D07_01.R` — app-level AI insight precompute
+- `validate_d01_outputs.R` — D01 output validation
 
-Related:
-- scripts/execute_all_weeks.sh
+## Removed: precision marketing v2.0 scaffolding (2026-06-07)
+
+The "MAMBA Precision Marketing Redesign" v2.0 scaffolding (precision ETL +
+`all_D04_04`–`all_D04_09` + `validate_week2/3/4` + `run_full_validation.sh` +
+`generate_time_series_metadata.R`) was removed as **obsolete-by-convergence**:
+the live legacy `D04_02` (`DRV/D04/`, v6.0) already absorbed its three headline
+capabilities — platform-agnostic (DM_R066), R118 statistical significance, and
+metadata-driven predictor classification (SCHEMA_006 / #716 / #733). The
+scaffolding produced 0 rows, had no live reader, and only caused diagnostic
+confusion.
+
+Git history preserves the removed scaffolding. If a *separate* precision/all
+aggregation pipeline is ever needed again, see gh issue #1143 (removal rationale)
+and #1195 (revival context: git-recover path + trigger conditions).
