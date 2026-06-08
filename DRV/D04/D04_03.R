@@ -50,6 +50,7 @@ source("scripts/global_scripts/04_utils/fn_fit_univariate_poisson.R")
 source("scripts/global_scripts/16_derivations/fn_fit_market_attribute_coefficients.R")
 source("scripts/global_scripts/16_derivations/fn_build_market_attribute_table.R")
 source("scripts/global_scripts/16_derivations/fn_build_market_attribute_coverage_audit.R")  # #1210
+source("scripts/global_scripts/16_derivations/fn_select_market_attr_cols.R")  # #1226 (also exposes MARKET_MODEL_NON_ATTR)
 source("scripts/global_scripts/04_utils/fn_resolve_drv_platform.R")
 
 platform <- resolve_drv_platform()
@@ -170,13 +171,11 @@ for (pl in PRODUCT_LINES) {
     combined <- merge(prof, pos_rev, by = "product_id", all.x = TRUE)
   }
 
-  # attribute columns: profile attrs ∪ review attrs, numeric-coercible, excl id/meta
-  NON_ATTR <- c("product_id", "SKU", "sku", "brand", "品牌", "rating", "sales",
-                "product_line_id", "is_competitor", "amz_asin")
-  cand <- setdiff(names(combined), NON_ATTR)
-  cand <- cand[!grepl("^etl_|^\\.", cand)]
-  is_num <- vapply(cand, function(c) any(!is.na(suppressWarnings(as.numeric(combined[[c]])))), logical(1))
-  attr_cols <- cand[is_num]
+  # attribute columns: profile attrs ∪ review attrs, numeric-coercible, excl id/meta.
+  # #1226: ownership-classification flags (GSheet 競爭對手 / 標竿產品) are excluded via
+  # MARKET_MODEL_NON_ATTR inside fn_select_market_attr_cols — df_product_profile keeps
+  # the raw GSheet names so the canonical `is_competitor` alone failed to drop them.
+  attr_cols <- fn_select_market_attr_cols(combined)
   for (a in attr_cols) combined[[a]] <- suppressWarnings(as.numeric(combined[[a]]))
   if (length(attr_cols) == 0L) {
     all_results[[pl]] <- market_sentinel(pl, "no_numeric_attrs"); next
@@ -261,7 +260,7 @@ for (pl in PRODUCT_LINES) {
   # Denominator anchored to the DECLARED universe (df_product_profile attr cols ∪
   # config-declared review topics), NOT producer-consumed cols — so a wrong/incomplete
   # source surfaces as source_table_not_consumed instead of false full coverage (D1).
-  pp_universe <- setdiff(names(prof), NON_ATTR)
+  pp_universe <- setdiff(names(prof), MARKET_MODEL_NON_ATTR)  # #1226: same exclusion as selector
   pp_universe <- pp_universe[!grepl("^etl_|^\\.", pp_universe)]
   rev_universe <- setdiff(prop_cfg$property_name[prop_cfg$product_line_id == pl], pp_universe)
   universe_df <- rbind(
