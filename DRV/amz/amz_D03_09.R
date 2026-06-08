@@ -58,12 +58,37 @@ processed_data <- dbConnectDuckdb(
 # Log beginning of process
 message("Starting D03_03 (Process Reviews) for Amazon product lines")
 
+# #1239: 2尺度 (mention) property names → binarized in process_review_ratings so the
+# per-review ratingonly mention columns become 0/1 (not stale 1–5 likert means),
+# restoring brand-positioning persona axes for sparse PLs (market segmentation).
+# Source = df_all_comment_property scale codes ("2" / legacy "2尺度").
+# scale codes differ per company: D_RACING uses "2"/"5" (bare digit), QEF uses
+# "2尺度"/"5尺度"; both kept in the filter (verified on live data, #1239). Companies
+# without a `scale` column (MAMBA/WISER/kitchenMAMA) make tbl2 throw → NULL no-op.
+binary_props <- tryCatch({
+  raw_conn <- dbConnectDuckdb(db_path_list$raw_data, read_only = TRUE)
+  # #1239 verify: disconnect on ALL exits (incl. error after connect) — avoid leaking
+  # the read-only handle when the tbl2/collect below throws.
+  on.exit(try(DBI::dbDisconnect(raw_conn, shutdown = TRUE), silent = TRUE), add = TRUE)
+  bp <- tbl2(raw_conn, "df_all_comment_property") %>%
+    dplyr::filter(scale %in% c("2", "2尺度")) %>%
+    dplyr::distinct(property_name) %>%
+    dplyr::collect() %>%
+    dplyr::pull(property_name)
+  as.character(bp)
+}, error = function(e) {
+  message("[#1239] binary_props lookup failed (", e$message, "); proceeding without binarize")
+  NULL
+})
+message("[#1239] ", length(binary_props), " 2尺度 mention properties → binarize")
+
 # Process review ratings for all product lines
 process_review_ratings(
   comment_property_rating = comment_property_rating,
   comment_property_rating_results = comment_property_rating_results,
   processed_data = processed_data,
-  vec_product_line_id_noall = vec_product_line_id_noall
+  vec_product_line_id_noall = vec_product_line_id_noall,
+  binary_props = binary_props
 )
 
 # Verify created tables
