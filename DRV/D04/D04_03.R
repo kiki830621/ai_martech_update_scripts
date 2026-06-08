@@ -85,8 +85,15 @@ if (!dbExistsTable(con_raw, "df_all_comment_property")) {
   stop("df_all_comment_property not found in raw_data — required for scale-driven encoding (D10).")
 }
 prop_cfg <- tbl2(con_raw, "df_all_comment_property") %>%
-  select(product_line_id, property_name, scale) %>% collect()
+  select(product_line_id, property_name, scale, type) %>% collect()
 prop_cfg$scale[is.na(prop_cfg$scale) | prop_cfg$scale == ""] <- "5尺度"  # code fallback (D10)
+# #1247: 缺點 (incl. compound '缺點/場') is excluded from the MARKET MODEL by type at this
+# boundary (NOT by editing comment_property_score_types.yaml — that is dual-purpose and
+# would also stop AI scoring + drop 缺點 from df_position display). Flag it BEFORE the
+# dedup and sort so a (pl, property) that has ANY 缺點-typed row keeps that flag — 3 live
+# (pl, property) pairs carry >1 distinct type, so a naive dedup could silently lose it.
+prop_cfg$is_quedian <- grepl("缺點", prop_cfg$type)
+prop_cfg <- prop_cfg[order(prop_cfg$product_line_id, prop_cfg$property_name, -prop_cfg$is_quedian), ]
 prop_cfg <- prop_cfg[!duplicated(paste(prop_cfg$product_line_id, prop_cfg$property_name)), ]
 
 # Output schema (superset of fn_build_market_attribute_table + scale label + run meta).
@@ -163,13 +170,22 @@ for (pl in PRODUCT_LINES) {
 
   # review-topic attrs from df_position (PL-mapped), keyed by ASIN, LEFT JOIN
   pos <- tbl2(con_app, "df_position") %>% filter(product_line_id == !!pl) %>% collect()
-  mapped_rev <- if ("product_id" %in% names(pos))
-    intersect(prop_cfg$property_name[prop_cfg$product_line_id == pl], names(pos)) else character(0)
+  mapped_rev <- if ("product_id" %in% names(pos))   # #1247: drop 缺點-typed topics from the model
+    intersect(prop_cfg$property_name[prop_cfg$product_line_id == pl & !prop_cfg$is_quedian], names(pos)) else character(0)
   combined <- prof
   if (length(mapped_rev) > 0L) {
     pos_rev <- pos[!duplicated(pos$product_id), c("product_id", mapped_rev), drop = FALSE]
     combined <- merge(prof, pos_rev, by = "product_id", all.x = TRUE)
   }
+
+  # #1247: one-hot the genuine categorical profile attrs (色/材質…) into 0/1 NUMERIC dummies
+  # so they ENTER the fit (R1) instead of being dropped as non_numeric. DROP the encoded
+  # PARENT VARCHARs from combined so they don't surface as a stale non_numeric audit row;
+  # the dummies (parent::level) remain and are selected by fn_select_market_attr_cols below.
+  # Image-mining 圖片_* parents are skipped (their DOUBLE children already enter). enc$map
+  # (parent→children) feeds the children-only audit universe (clean bijection).
+  enc <- fn_onehot_market_categoricals(combined, non_attr = MARKET_MODEL_NON_ATTR)
+  combined <- enc$df[, !names(enc$df) %in% names(enc$map), drop = FALSE]
 
   # attribute columns: profile attrs ∪ review attrs, numeric-coercible, excl id/meta.
   # #1226: ownership-classification flags (GSheet 競爭對手 / 標竿產品) are excluded via
@@ -277,7 +293,12 @@ for (pl in PRODUCT_LINES) {
   # source surfaces as source_table_not_consumed instead of false full coverage (D1).
   pp_universe <- setdiff(names(prof), MARKET_MODEL_NON_ATTR)  # #1226: same exclusion as selector
   pp_universe <- pp_universe[!grepl("^etl_|^\\.", pp_universe)]
-  rev_universe <- setdiff(prop_cfg$property_name[prop_cfg$product_line_id == pl], pp_universe)
+  # #1247: encoded categoricals enter the fit as their dummy CHILDREN (parent::level), not
+  # the parent VARCHAR. Replace each encoded parent with its children so the audit universe
+  # equals what entered (parent+children double-counts; a kept parent would be a stale
+  # non_numeric row with no fit predictor).
+  pp_universe <- c(setdiff(pp_universe, names(enc$map)), unlist(enc$map, use.names = FALSE))
+  rev_universe <- setdiff(prop_cfg$property_name[prop_cfg$product_line_id == pl & !prop_cfg$is_quedian], pp_universe)
   universe_df <- rbind(
     data.frame(source_table = "df_product_profile", attr_name = pp_universe, stringsAsFactors = FALSE),
     data.frame(source_table = "df_position",        attr_name = rev_universe, stringsAsFactors = FALSE)
