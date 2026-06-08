@@ -52,40 +52,15 @@ if (!dir.exists(competitor_sales_dir)) {
   stop("VALIDATE FAILED: competitor_sales directory does not exist: ", competitor_sales_dir)
 }
 
-# Import competitor sales data
-import_result <- core_import_df_amz_competitor_sales(
-  main_folder = competitor_sales_dir,
-  db_connection = raw_data
-)
-imported_count <- if (
-  is.list(import_result) && !is.null(import_result$total_rows_imported)
-) {
-  import_result$total_rows_imported
-} else {
-  import_result
-}
-if (is.null(imported_count) || is.na(imported_count) || imported_count == 0L) {
-  stop("VALIDATE FAILED: D03_10 competitor sales import returned no rows")
-}
-if (is.list(import_result)) {
-  if (length(import_result$skipped_folders_invalid_reference) > 0L) {
-    message(
-      "D03_10: invalid/unmatched product-line folders (skipped): ",
-      paste(import_result$skipped_folders_invalid_reference, collapse = ", ")
-    )
-  }
-  if (length(import_result$skipped_folders_no_supported_files) > 0L) {
-    message(
-      "D03_10: no supported files in these folders (skipped): ",
-      paste(import_result$skipped_folders_no_supported_files, collapse = ", ")
-    )
-  }
-  if (length(import_result$skipped_folders_no_rows) > 0L) {
-    message(
-      "D03_10: supported files found but no imported rows in these folders: ",
-      paste(import_result$skipped_folders_no_rows, collapse = ", ")
-    )
-  }
+# #1219: competitor sales import REMOVED from this DRV script.
+# It is now produced by the ETL-layer 0IM bridge script
+# update_scripts/ETL/amz/amz_ETL_competitor_sales_0IM.R (fn_glue_bridge folder_tree,
+# correct value_map folder->PL). The legacy core_import_df_amz_competitor_sales()
+# used positional-index folder->PL mapping → whole-line off-by-one PL mislabeling
+# (DM_R070 violation) AND rebuilt raw_data in the DRV layer (MP064 violation).
+# This script now only VALIDATES that the ETL 0IM has populated the table.
+if (!("df_amz_competitor_sales" %in% dbListTables(raw_data))) {
+  stop("VALIDATE FAILED: df_amz_competitor_sales missing — run amz_ETL_competitor_sales_0IM (ETL 0IM) first (#1219)")
 }
 
 # Verify imported data
