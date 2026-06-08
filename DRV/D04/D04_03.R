@@ -23,7 +23,7 @@
 #  - D10 encoding = use df_position values directly (2尺度 proportion / 5尺度 rating);
 #        scale (df_all_comment_property) drives the interpretation label only; only
 #        PL-mapped attributes are modeled.
-#  - D11 quasipoisson + min_obs=8 withhold; IRR displayed via exp(coef×range) (#1158).
+#  - D11 quasipoisson + min_obs=3 withhold (#1234: lowered from 8 for own-sparse PLs); IRR displayed via exp(coef×range) (#1158).
 #  - D13 honest-sparse accepted; the UI presents ONLY significant (p<0.05) drivers.
 
 # ==============================================================================
@@ -217,10 +217,25 @@ for (pl in PRODUCT_LINES) {
     own_lookup <- setNames(as.numeric(agg$s), as.character(agg[[ts_key]]))
   }
 
+  # #1234: authoritative ownership from df_amz_product_attributes_{pl}___raw.is_competitor
+  # (SKU-aligned: has-SKU=own=FALSE). Lets own-with-SKU brands not yet in the own time
+  # series (e.g. psg WDP100) be classified own instead of falsely competitor. Absent
+  # table (other companies) → NULL → builder falls back to the time-series heuristic.
+  is_competitor_lookup <- NULL
+  pa_tbl <- sprintf("df_%s_product_attributes_%s___raw", platform, pl)
+  if (dbExistsTable(con_raw, pa_tbl)) {
+    pa <- tbl2(con_raw, pa_tbl) %>% collect()
+    if (all(c("amz_asin", "is_competitor") %in% names(pa))) {
+      pa <- pa[!is.na(pa$amz_asin) & nzchar(as.character(pa$amz_asin)), , drop = FALSE]
+      is_competitor_lookup <- setNames(as.logical(pa$is_competitor), as.character(pa$amz_asin))
+    }
+  }
+
   out <- tryCatch(
     fn_build_market_attribute_table(combined, own_lookup, attr_cols,
                                     platform = platform, product_line = pl,
-                                    id_col = "product_id"),
+                                    id_col = "product_id",
+                                    is_competitor_lookup = is_competitor_lookup),
     error = function(e) { cat("  ❌ build failed:", conditionMessage(e), "\n"); NULL })
   if (is.null(out) || nrow(out) == 0L) {
     all_results[[pl]] <- market_sentinel(pl, "build_failed_or_empty"); next
