@@ -191,8 +191,17 @@ for (pl in PRODUCT_LINES) {
                           as.character(pos$product_id))
     combined$sales <- unname(pos_sales[as.character(combined$product_id)])
   }
-  if (dbExistsTable(con_raw, "df_amz_competitor_sales")) {
-    cs <- tbl2(con_raw, "df_amz_competitor_sales") %>%
+  # #1219: this fallback filters by product_line_id, so it IS sensitive to the
+  # legacy table's off-by-one PL labels. Prefer the canonical glue-bridge raw
+  # table (correct value_map PL labels); fall back to legacy only if the bridge
+  # isn't wired for this company.
+  comp_sales_tbl <- if (dbExistsTable(con_raw, "df_amz_competitor_sales___raw")) {
+    "df_amz_competitor_sales___raw"
+  } else if (dbExistsTable(con_raw, "df_amz_competitor_sales")) {
+    "df_amz_competitor_sales"
+  } else NULL
+  if (!is.null(comp_sales_tbl)) {
+    cs <- tbl2(con_raw, comp_sales_tbl) %>%
       filter(product_line_id == !!pl) %>%
       group_by(amz_asin) %>% summarise(s = sum(sales, na.rm = TRUE), .groups = "drop") %>% collect()
     csv <- setNames(as.numeric(cs$s), as.character(cs$amz_asin))
