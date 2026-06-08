@@ -66,6 +66,16 @@ if (!exists("fn_get_position_demonstrate_case", mode = "function")) source(gs("1
 # precompute (mirrors runtime poissonFeatureAnalysis.R via fn_poisson_insight_inputs.R).
 if (!exists("load_poisson_attribute_data", mode = "function")) source(gs("08_ai", "fn_poisson_insight_inputs.R"))
 if (!exists("get_platform_display_name", mode = "function")) source(gs("04_utils", "fn_get_platform_display_name.R"))
+# #1223 (verify MED-2): load_poisson_attribute_data depends on calculate_track_multiplier,
+# calculate_attribute_range + FEATURE_* constants, which are defined at TOP-LEVEL of the
+# poisson Shiny component (not 04_utils). UPDATE_MODE autoinit blanket-sources
+# 10_rshinyapp_components/, but #517 is narrowing that sweep — defensively source the
+# component so the precompute never silently no-ops if the sweep drops it. (Top-level =
+# only definitions, no side effects; the !exists guard makes it a no-op once the sweep
+# has already loaded it.) Follow-up: extract those helpers to 04_utils.
+if (!exists("calculate_track_multiplier", mode = "function")) {
+  source(gs("10_rshinyapp_components", "poisson", "poissonFeatureAnalysis", "poissonFeatureAnalysis.R"))
+}
 
 stopifnot(exists("run_D07_01", mode = "function"),
           exists("d07_prompt_registry"),
