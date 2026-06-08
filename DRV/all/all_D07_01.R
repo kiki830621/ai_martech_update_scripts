@@ -62,6 +62,10 @@ if (!exists("build_ai_insight_inputs", mode = "function")) source(gs("08_ai", "f
 # 11_rshinyapp_utils, but source defensively so the csa entries don't silently
 # skip (which would leave the segmentation report unprecomputed).
 if (!exists("fn_get_position_demonstrate_case", mode = "function")) source(gs("11_rshinyapp_utils", "fn_get_position_demonstrate_case.R"))
+# #1223: shared poisson pipeline + platform-name helper for the precision-marketing
+# precompute (mirrors runtime poissonFeatureAnalysis.R via fn_poisson_insight_inputs.R).
+if (!exists("load_poisson_attribute_data", mode = "function")) source(gs("08_ai", "fn_poisson_insight_inputs.R"))
+if (!exists("get_platform_display_name", mode = "function")) source(gs("04_utils", "fn_get_platform_display_name.R"))
 
 stopifnot(exists("run_D07_01", mode = "function"),
           exists("d07_prompt_registry"),
@@ -162,6 +166,26 @@ build_source <- function(name, platform, pl) {
       if (is.null(df_position)) return(NULL)
       tryCatch(build_ansoff_segmentation_profile(df_position, pl), error = function(e) NULL)
     },
+    # poissonFeatureAnalysis.R (#1223): the filtered positive-attribute frame, built
+    # by the SAME shared fns the live component uses (analysis_data + positive_data),
+    # so the precomputed report is byte-identical to the live fallback (#927 parity).
+    "poisson" = {
+      tryCatch(
+        filter_positive_poisson_attributes(
+          load_poisson_attribute_data(app_con, platform, pl)),
+        error = function(e) {
+          warning(sprintf("[D07_01] poisson source failed for %s/%s: %s",
+                          platform, pl, conditionMessage(e)))
+          NULL
+        }
+      )
+    },
+    # #1223 + #1222: dynamic platform display name (scalar, not a frame). The
+    # builder branch injects it as {platform_name}. GLOBAL_DIR is set by autoinit
+    # so get_platform_display_name's seed-CSV fallback resolves at pipeline time.
+    "platform_name" = {
+      get_platform_display_name(platform)
+    },
     # #1062 A2 chain: the FROZEN cluster names this run's csa_segment_naming entry
     # already wrote (registry order guarantees naming precedes csa_market_segments,
     # same platform iteration, same app_con). Read the zh_tw row — both csa prompts
@@ -205,6 +229,17 @@ for (platform in platforms) {
     # Resolve this prompt's product_line scope from its declared pl_source.
     pls <- if (identical(entry$pl_source, "position")) {
       if (is.null(df_position)) character(0) else unique(df_position$product_line_id)
+    } else if (identical(entry$pl_source, "poisson")) {
+      # #1223: product lines from this platform's poisson / market-attribute table,
+      # plus the whole-company "all" (the report supports product_line == "all").
+      mt <- paste0("df_", platform, "_market_attribute_coefficients")
+      tn <- if (DBI::dbExistsTable(app_con, mt)) mt else paste0("df_", platform, "_poisson_analysis_all")
+      poisson_pls <- if (DBI::dbExistsTable(app_con, tn) &&
+                         "product_line_id" %in% DBI::dbListFields(app_con, tn)) {
+        tbl2(app_con, tn) |> dplyr::distinct(product_line_id) |> dplyr::collect() |>
+          dplyr::pull(product_line_id)
+      } else character(0)
+      unique(c("all", poisson_pls))
     } else {
       unique(dna_plat$product_line_id_filter)
     }
