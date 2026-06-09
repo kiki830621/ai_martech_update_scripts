@@ -51,6 +51,7 @@ source("scripts/global_scripts/16_derivations/fn_fit_market_attribute_coefficien
 source("scripts/global_scripts/16_derivations/fn_build_market_attribute_table.R")
 source("scripts/global_scripts/16_derivations/fn_build_market_attribute_coverage_audit.R")  # #1210
 source("scripts/global_scripts/16_derivations/fn_select_market_attr_cols.R")  # #1226 (also exposes MARKET_MODEL_NON_ATTR)
+source("scripts/global_scripts/16_derivations/fn_onehot_market_categoricals.R")  # #1247 (categorical one-hot encoder)
 source("scripts/global_scripts/04_utils/fn_resolve_drv_platform.R")
 
 platform <- resolve_drv_platform()
@@ -168,6 +169,19 @@ for (pl in PRODUCT_LINES) {
   names(prof)[names(prof) == "ASIN"] <- "product_id"
   prof <- prof[!is.na(prof$product_id) & nzchar(as.character(prof$product_id)), , drop = FALSE]
 
+  # #1247: one-hot the genuine categorical PROFILE attrs (色/材質…) into 0/1 NUMERIC dummies
+  # so they ENTER the fit (R1) instead of being dropped as non_numeric. Encode `prof`
+  # BEFORE merging df_position so ONLY product-profile columns are one-hot'd — review
+  # topics are numeric mention proportions; encoding the merged frame would risk
+  # mis-attributing a review col's source_table/predictor_type and polluting the DM_R071
+  # audit (Codex HIGH). DROP the encoded PARENT VARCHARs so they don't surface as stale
+  # non_numeric audit rows; the dummies (parent::level) remain and are selected by
+  # fn_select_market_attr_cols below. Image-mining 圖片_* parents are skipped (their DOUBLE
+  # children already enter). enc$map (parent→children) drives the children-only audit
+  # universe below — since prof now carries the children, that universe is exact.
+  enc <- fn_onehot_market_categoricals(prof, non_attr = MARKET_MODEL_NON_ATTR)
+  prof <- enc$df[, !names(enc$df) %in% names(enc$map), drop = FALSE]
+
   # review-topic attrs from df_position (PL-mapped), keyed by ASIN, LEFT JOIN
   pos <- tbl2(con_app, "df_position") %>% filter(product_line_id == !!pl) %>% collect()
   mapped_rev <- if ("product_id" %in% names(pos))   # #1247: drop 缺點-typed topics from the model
@@ -177,15 +191,6 @@ for (pl in PRODUCT_LINES) {
     pos_rev <- pos[!duplicated(pos$product_id), c("product_id", mapped_rev), drop = FALSE]
     combined <- merge(prof, pos_rev, by = "product_id", all.x = TRUE)
   }
-
-  # #1247: one-hot the genuine categorical profile attrs (色/材質…) into 0/1 NUMERIC dummies
-  # so they ENTER the fit (R1) instead of being dropped as non_numeric. DROP the encoded
-  # PARENT VARCHARs from combined so they don't surface as a stale non_numeric audit row;
-  # the dummies (parent::level) remain and are selected by fn_select_market_attr_cols below.
-  # Image-mining 圖片_* parents are skipped (their DOUBLE children already enter). enc$map
-  # (parent→children) feeds the children-only audit universe (clean bijection).
-  enc <- fn_onehot_market_categoricals(combined, non_attr = MARKET_MODEL_NON_ATTR)
-  combined <- enc$df[, !names(enc$df) %in% names(enc$map), drop = FALSE]
 
   # attribute columns: profile attrs ∪ review attrs, numeric-coercible, excl id/meta.
   # #1226: ownership-classification flags (GSheet 競爭對手 / 標竿產品) are excluded via
@@ -291,13 +296,13 @@ for (pl in PRODUCT_LINES) {
   # Denominator anchored to the DECLARED universe (df_product_profile attr cols ∪
   # config-declared review topics), NOT producer-consumed cols — so a wrong/incomplete
   # source surfaces as source_table_not_consumed instead of false full coverage (D1).
+  # #1247: `prof` was one-hot encoded above (parents dropped, parent::level children kept),
+  # so names(prof) IS already the children-only expanded universe — the categoricals enter
+  # as their dummy children, not the parent VARCHAR. No parent→children swap needed here
+  # (doing one would double-count, since the children are already present). enc$map is kept
+  # only for reference. (Pre-existing image-mining 圖片_*_* children are likewise present.)
   pp_universe <- setdiff(names(prof), MARKET_MODEL_NON_ATTR)  # #1226: same exclusion as selector
   pp_universe <- pp_universe[!grepl("^etl_|^\\.", pp_universe)]
-  # #1247: encoded categoricals enter the fit as their dummy CHILDREN (parent::level), not
-  # the parent VARCHAR. Replace each encoded parent with its children so the audit universe
-  # equals what entered (parent+children double-counts; a kept parent would be a stale
-  # non_numeric row with no fit predictor).
-  pp_universe <- c(setdiff(pp_universe, names(enc$map)), unlist(enc$map, use.names = FALSE))
   rev_universe <- setdiff(prop_cfg$property_name[prop_cfg$product_line_id == pl & !prop_cfg$is_quedian], pp_universe)
   universe_df <- rbind(
     data.frame(source_table = "df_product_profile", attr_name = pp_universe, stringsAsFactors = FALSE),
