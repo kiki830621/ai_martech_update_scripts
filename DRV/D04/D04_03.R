@@ -51,6 +51,7 @@ source("scripts/global_scripts/16_derivations/fn_fit_market_attribute_coefficien
 source("scripts/global_scripts/16_derivations/fn_build_market_attribute_table.R")
 source("scripts/global_scripts/16_derivations/fn_build_market_attribute_coverage_audit.R")  # #1210
 source("scripts/global_scripts/16_derivations/fn_select_market_attr_cols.R")  # #1226 (also exposes MARKET_MODEL_NON_ATTR)
+source("scripts/global_scripts/05_etl_utils/common/string/fn_make_names.R")  # #1258 canonical name sanitizer (slash->_ + lowercase) — explicit source so the canonical wins over the shadow make.names variant
 source("scripts/global_scripts/16_derivations/fn_onehot_market_categoricals.R")  # #1247 (categorical one-hot encoder)
 source("scripts/global_scripts/04_utils/fn_resolve_drv_platform.R")
 
@@ -87,6 +88,17 @@ if (!dbExistsTable(con_raw, "df_all_comment_property")) {
 }
 prop_cfg <- tbl2(con_raw, "df_all_comment_property") %>%
   select(product_line_id, property_name, scale, type) %>% collect()
+# #1258: by_asin aggregation runs make_names on the review-topic column names
+# (slash->'_' , uppercase->lower), so df_position carries the CANONICAL name
+# (安心/保護到位 -> 安心_保護到位) while df_all_comment_property keeps the raw Google
+# Sheet name. Normalize the config name to that same canonical form HERE so every
+# downstream config<->df_position comparison aligns — mapped_rev (model membership),
+# scale_map (is_review/scale/attr_kind classification), rev_universe (coverage audit).
+# Without this, slash/uppercase topics (安心/保護到位 etc.) are silently dropped from
+# the market model AND mislabeled topic_not_rated in the audit, even though they were
+# fully rated. Names without special chars are unchanged, so behavior is identical for
+# the common case.
+prop_cfg$property_name <- make_names(prop_cfg$property_name)
 prop_cfg$scale[is.na(prop_cfg$scale) | prop_cfg$scale == ""] <- "5尺度"  # code fallback (D10)
 # #1247: 缺點 (incl. compound '缺點/場') is excluded from the MARKET MODEL by type at this
 # boundary (NOT by editing comment_property_score_types.yaml — that is dual-purpose and
