@@ -90,9 +90,12 @@ prop_cfg <- tbl2(con_raw, "df_all_comment_property") %>%
 prop_cfg$scale[is.na(prop_cfg$scale) | prop_cfg$scale == ""] <- "5尺度"  # code fallback (D10)
 # #1247: 缺點 (incl. compound '缺點/場') is excluded from the MARKET MODEL by type at this
 # boundary (NOT by editing comment_property_score_types.yaml — that is dual-purpose and
-# would also stop AI scoring + drop 缺點 from df_position display). Flag it BEFORE the
-# dedup and sort so a (pl, property) that has ANY 缺點-typed row keeps that flag — 3 live
-# (pl, property) pairs carry >1 distinct type, so a naive dedup could silently lose it.
+# would also stop AI scoring + drop 缺點 from df_position display). Flag it per-ROW, then
+# sort -is_quedian before the per-(pl,property) dedup so a pair with ANY 缺點-typed row
+# keeps that flag. NOTE (#1247 verify DA): in LIVE data the 3 multi-type (pl,property) pairs
+# are pure non-缺點 2尺度 combos (人/情感, 場/身分認同, 場/文化), so this sort is currently a
+# no-op for exclusion — it is a DEFENSIVE guard against a FUTURE compound 缺點+mention type,
+# not a fix for a present case.
 prop_cfg$is_quedian <- grepl("缺點", prop_cfg$type)
 prop_cfg <- prop_cfg[order(prop_cfg$product_line_id, prop_cfg$property_name, -prop_cfg$is_quedian), ]
 prop_cfg <- prop_cfg[!duplicated(paste(prop_cfg$product_line_id, prop_cfg$property_name)), ]
@@ -180,7 +183,14 @@ for (pl in PRODUCT_LINES) {
   # children already enter). enc$map (parent→children) drives the children-only audit
   # universe below — since prof now carries the children, that universe is exact.
   enc <- fn_onehot_market_categoricals(prof, non_attr = MARKET_MODEL_NON_ATTR)
-  prof <- enc$df[, !names(enc$df) %in% names(enc$map), drop = FALSE]
+  # Drop the encoded parents (enc$map) AND the image-parent VARCHARs (#1247 codex/DA): the
+  # latter are represented by their existing DOUBLE children (圖片_x_y) which already enter,
+  # so keeping the parent VARCHAR would emit a redundant non_numeric audit row for a column
+  # that IS in the model via its children (double-representation — exactly what #1247 avoids).
+  # Genuine non-entries (mojibake/unsafe/all_empty) stay as visible audit rows (precise
+  # per-reason fates → #1252).
+  img_parents <- names(enc$skipped)[enc$skipped == "image_parent"]
+  prof <- enc$df[, !names(enc$df) %in% c(names(enc$map), img_parents), drop = FALSE]
 
   # review-topic attrs from df_position (PL-mapped), keyed by ASIN, LEFT JOIN
   pos <- tbl2(con_app, "df_position") %>% filter(product_line_id == !!pl) %>% collect()
