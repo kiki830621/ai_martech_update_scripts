@@ -197,9 +197,22 @@ for (pl in PRODUCT_LINES) {
   mapped_rev <- if ("product_id" %in% names(pos))   # #1247: drop 缺點-typed topics from the model
     intersect(prop_cfg$property_name[prop_cfg$product_line_id == pl & !prop_cfg$is_quedian], names(pos)) else character(0)
   combined <- prof
+  shared_topics <- character(0)   # #1253: review topics present in BOTH prof and pos
   if (length(mapped_rev) > 0L) {
     pos_rev <- pos[!duplicated(pos$product_id), c("product_id", mapped_rev), drop = FALSE]
-    combined <- merge(prof, pos_rev, by = "product_id", all.x = TRUE)
+    # #1253: prof + pos can carry the SAME review-topic name with DIFFERENT semantics
+    # (prof = product-applicability binary; pos = review-mention proportion). The default
+    # merge suffixes them .x/.y → customer-visible junk in the poissonFeature panel + the
+    # #1248 audit double-count. Suffix ONLY the prof side with （適用） (a distinct
+    # product_attribute); keep the pos side's CANONICAL name so its is_review →
+    # comment_attribute classification (which keys off the canonical topic name) resolves.
+    shared_topics <- intersect(names(prof), mapped_rev)
+    combined <- merge(prof, pos_rev, by = "product_id", all.x = TRUE,
+                      suffixes = c("（適用）", ""))
+    bad <- grep("[.][xy]$", names(combined), value = TRUE)   # #1253 guard: no residual .x/.y
+    if (length(bad) > 0L)
+      stop(sprintf("D04_03 (#1253): unresolved merge collision — columns still suffixed .x/.y: %s",
+                   paste(bad, collapse = ", ")))
   }
 
   # attribute columns: profile attrs ∪ review attrs, numeric-coercible, excl id/meta.
@@ -313,6 +326,13 @@ for (pl in PRODUCT_LINES) {
   # only for reference. (Pre-existing image-mining 圖片_*_* children are likewise present.)
   pp_universe <- setdiff(names(prof), MARKET_MODEL_NON_ATTR)  # #1226: same exclusion as selector
   pp_universe <- pp_universe[!grepl("^etl_|^\\.", pp_universe)]
+  # #1253: prof columns that collided with a df_position review topic were suffixed （適用）
+  # in `combined` (the merge above), so the entered predictor is 射擊（適用） not 射擊 — reflect
+  # that here or the DM_R071 audit marks 射擊 profile-not-entered while the fit carries
+  # 射擊（適用）. This is also the #1248 double-count locus: the old .x/.y produced two universe
+  # rows for one logical attribute; now prof→射擊（適用） (pp_universe) and pos→射擊 (rev_universe)
+  # are distinct, single-counted entries.
+  pp_universe <- ifelse(pp_universe %in% shared_topics, paste0(pp_universe, "（適用）"), pp_universe)
   rev_universe <- setdiff(prop_cfg$property_name[prop_cfg$product_line_id == pl & !prop_cfg$is_quedian], pp_universe)
   universe_df <- rbind(
     data.frame(source_table = "df_product_profile", attr_name = pp_universe, stringsAsFactors = FALSE),
