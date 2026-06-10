@@ -110,6 +110,17 @@ prop_cfg$scale <- trimws(as.character(prop_cfg$scale))
 prop_cfg$scale[prop_cfg$scale %in% c("2", "2尺度")] <- "2尺度"
 prop_cfg$scale[prop_cfg$scale %in% c("5", "5尺度")] <- "5尺度"
 prop_cfg$scale[is.na(prop_cfg$scale) | prop_cfg$scale == ""] <- "5尺度"  # code fallback (D10)
+# MP154/DEV_R055: a THIRD format variant (full-width "２", "2 尺度", "二尺度", bare
+# "3"...) would silently fall through to the rating/product_attribute branch below —
+# the exact silent-misclassification mechanism of #1308. Warn loudly so the next
+# GoogleSheet format drift surfaces as a log line, not as another empty panel.
+.bad_scale <- setdiff(unique(prop_cfg$scale), c("2尺度", "5尺度"))
+if (length(.bad_scale) > 0) {
+  warning("[D04_03] unrecognized scale value(s) in df_all_comment_property: ",
+          paste(.bad_scale, collapse = ", "),
+          " — treated as rating/product_attribute; normalize the GoogleSheet or extend ",
+          "the mapping above (#1308)")
+}
 # #1247: 缺點 (incl. compound '缺點/場') is excluded from the MARKET MODEL by type at this
 # boundary (NOT by editing comment_property_score_types.yaml — that is dual-purpose and
 # would also stop AI scoring + drop 缺點 from df_position display). Flag it per-ROW, then
