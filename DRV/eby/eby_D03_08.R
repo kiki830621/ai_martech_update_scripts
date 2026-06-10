@@ -83,15 +83,19 @@ tryCatch({
 # #1301: sample size is config-driven — app_config.yaml > pipeline > comment_sample_size
 # (company override); absent/invalid falls back to universal default 30.
 if (!exists("fn_get_comment_sample_size", mode = "function")) {
-  # 4-candidate resolution (#1305): cwd is the company root under make run, but
-  # ad-hoc/test invocations may run from update_scripts or a worktree — try the
-  # known layouts in specificity order, first hit wins.
+  # Multi-candidate resolution (#1305): superset of the amz_D03_08 proven
+  # sql_read_candidates pattern so every cwd that can reach autoinit can also
+  # reach the helper (verify #1305 round 1: the first cut dropped ../../../ and
+  # missed when run from the script's own directory). Explicit GLOBAL_DIR env
+  # override ranks first — an env var is the most specific signal.
   .css_cands <- c(
+    if (nzchar(Sys.getenv("GLOBAL_DIR")))
+      file.path(Sys.getenv("GLOBAL_DIR"), "04_utils", "fn_get_comment_sample_size.R"),
     file.path("scripts", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
     file.path("shared", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
     file.path("..", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
-    if (nzchar(Sys.getenv("GLOBAL_DIR")))
-      file.path(Sys.getenv("GLOBAL_DIR"), "04_utils", "fn_get_comment_sample_size.R")
+    file.path("..", "..", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
+    file.path("..", "..", "..", "global_scripts", "04_utils", "fn_get_comment_sample_size.R")
   )
   .css_hit <- Filter(file.exists, .css_cands)
   if (length(.css_hit) > 0) source(.css_hit[[1]])
