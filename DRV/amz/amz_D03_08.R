@@ -140,7 +140,17 @@ tryCatch({
 })
 
 # Execute the comment property ratings analysis with wide-to-long transformation
-comment_sample_size <- 30  # Sample size for comment analysis
+# #1301: sample size is config-driven — app_config.yaml > pipeline > comment_sample_size
+# (company override, e.g. D_RACING: 50); absent/invalid falls back to universal default 30.
+if (!exists("fn_get_comment_sample_size", mode = "function")) {
+  .css_path <- file.path("scripts", "global_scripts", "04_utils",
+                         "fn_get_comment_sample_size.R")
+  if (file.exists(.css_path)) source(.css_path)
+}
+comment_sample_size <- if (exists("fn_get_comment_sample_size", mode = "function")) {
+  fn_get_comment_sample_size()
+} else 30L
+message("[D03_08] comment_sample_size: ", comment_sample_size)
 # #1135: config-driven score types — also score the 6 brand-positioning axes
 # (人/情感/場/場景/身分認同/文化/美學) per product, not just 屬性. Single source
 # in 30_global_data/parameters/scd_type1/comment_property_score_types.yaml.
