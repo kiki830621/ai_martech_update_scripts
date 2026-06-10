@@ -1,6 +1,6 @@
 #####
-# CONSUMES: df_comment_property_ratingonly_*, df_amz_competitor_sales
-# PRODUCES: position tables in app_data
+# CONSUMES: df_comment_property_ratingonly_*, df_amz_competitor_sales, df_all_comment_property
+# PRODUCES: position tables in app_data, df_amz_comment_property_coverage_audit
 # DEPENDS_ON_ETL: none
 # DEPENDS_ON_DRV: amz_D03_10
 #####
@@ -102,6 +102,52 @@ if (!isTRUE(exists("finalize_success") && finalize_success)) {
 
 if (!DBI::dbExistsTable(app_data, "df_position")) {
   stop("D03_05 failed: final table app_data.df_position was not created.")
+}
+
+# Phase 4 (#1277, DM_R071/MP163): comment-property coverage audit.
+# 後算重建每主題 fate（displayed / no_review_mention / insufficient_coverage），
+# 寫 df_amz_comment_property_coverage_audit 供 positionTable「未顯示主題」列表。
+# Graceful：任一 PL 的輸入缺漏只 warning 跳過該 PL，不擋 pipeline（MP163）。
+message("\n== PHASE 4: Comment-property coverage audit (#1277) ==")
+if (!exists("fn_build_comment_property_coverage_audit", mode = "function")) {
+  audit_fn_path <- file.path("scripts", "global_scripts", "04_utils",
+                             "fn_comment_property_coverage_audit.R")
+  if (file.exists(audit_fn_path)) source(audit_fn_path)
+}
+if (exists("fn_build_comment_property_coverage_audit", mode = "function")) {
+  audit_all <- list()
+  for (pl in vec_product_line_id_noall) {
+    themes_df <- tryCatch(
+      dplyr::tbl(raw_data, "df_all_comment_property") %>%
+        dplyr::filter(product_line_id == !!pl) %>%
+        dplyr::select(property_name, type, scale) %>%
+        dplyr::collect(),
+      error = function(e) NULL)
+    pivot_table <- paste0("df_comment_property_ratingonly_by_asin_", pl)
+    pivot_df <- if (DBI::dbExistsTable(processed_data, pivot_table)) {
+      tryCatch(DBI::dbGetQuery(processed_data,
+        paste0("SELECT * FROM ", pivot_table)), error = function(e) NULL)
+    } else NULL
+    if (is.null(themes_df) || nrow(themes_df) == 0) {
+      warning("#1277 coverage audit: no themes for PL '", pl, "' — skipped")
+      next
+    }
+    audit_all[[pl]] <- fn_build_comment_property_coverage_audit(
+      themes_df = themes_df, pivot_df = pivot_df,
+      product_line_id = pl, coverage_threshold = 0.3)
+  }
+  if (length(audit_all) > 0) {
+    audit_df <- do.call(rbind, audit_all)
+    DBI::dbWriteTable(app_data, "df_amz_comment_property_coverage_audit",
+                      audit_df, overwrite = TRUE)
+    message("- Coverage audit: ", nrow(audit_df), " theme rows across ",
+            length(audit_all), " product lines (",
+            sum(audit_df$fate != "displayed"), " not displayed)")
+  } else {
+    warning("#1277 coverage audit: no product line produced audit rows")
+  }
+} else {
+  warning("#1277 coverage audit skipped: fn_build_comment_property_coverage_audit not available")
 }
 
 # Report overall results
