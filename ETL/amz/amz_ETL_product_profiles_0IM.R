@@ -64,10 +64,17 @@ tryCatch({
 
   # #1299: source-side mojibake advisory gate (per-tab accumulation)
   moji_detect_path <- file.path(GLOBAL_DIR, "05_etl_utils", "common", "string",
-                                "fn_detect_mojibake_text.R")
+                                "fn_detect_mojibake_columns.R")
   if (!exists("detect_mojibake_columns", mode = "function") &&
       file.exists(moji_detect_path)) {
     try(source(moji_detect_path), silent = TRUE)
+  }
+  moji_gate_available <- exists("detect_mojibake_columns", mode = "function")
+  if (!moji_gate_available) {
+    # Loud, not silent: a self-disabled gate must be visible, otherwise an
+    # empty audit table reads as a verified-clean run (verify round-1).
+    warning("MAIN: #1299 mojibake gate UNAVAILABLE (detector fn not found at ",
+            moji_detect_path, ") -- encoding audit will NOT be refreshed this run")
   }
   encoding_audit <- list()
 
@@ -259,7 +266,7 @@ tryCatch({
     # text that is visibly encoding-corrupted, e.g. CJK pasted into the sheet
     # as Cyrillic + box-drawing). Surface via warning() + audit table below;
     # never stop() -- the pipeline must run to completion.
-    if (exists("detect_mojibake_columns", mode = "function")) {
+    if (moji_gate_available) {
       moji <- tryCatch(detect_mojibake_columns(df_product_profile),
                        error = function(e) NULL)
       if (!is.null(moji) && nrow(moji) > 0) {
@@ -276,26 +283,32 @@ tryCatch({
     }
   }
 
-  # #1299: persist encoding audit (overwrite each run; empty schema when clean
-  # so a previously-detected hit never lingers as stale)
-  encoding_audit_df <- if (length(encoding_audit) > 0) {
-    do.call(rbind, encoding_audit)
-  } else {
-    data.frame(column_name = character(0), n_suspect = integer(0),
-               sample_value = character(0), product_line_id = character(0),
-               source_tab = character(0),
-               detected_at = as.POSIXct(character(0)),
-               stringsAsFactors = FALSE)
-  }
-  tryCatch(
-    DBI::dbWriteTable(raw_data, "df_product_profile_encoding_audit",
-                      encoding_audit_df, overwrite = TRUE),
-    error = function(e) warning("MAIN: #1299 encoding audit write failed: ",
-                                conditionMessage(e))
-  )
-  if (nrow(encoding_audit_df) > 0) {
-    message("MAIN: #1299 encoding audit: ", nrow(encoding_audit_df),
-            " suspect column(s) recorded in df_product_profile_encoding_audit")
+  # #1299: persist encoding audit. Overwrite ONLY when the detector actually
+  # ran (empty schema then means verified-clean, never lingers stale). When
+  # the gate was unavailable, leave any prior audit untouched -- a disabled
+  # gate must not erase earlier findings with a fake-clean table (verify
+  # round-1: silent self-disable + empty audit is a realistic cross-repo
+  # deployment state, not a hypothetical).
+  if (moji_gate_available) {
+    encoding_audit_df <- if (length(encoding_audit) > 0) {
+      do.call(rbind, encoding_audit)
+    } else {
+      data.frame(column_name = character(0), n_suspect = integer(0),
+                 sample_value = character(0), product_line_id = character(0),
+                 source_tab = character(0),
+                 detected_at = as.POSIXct(character(0)),
+                 stringsAsFactors = FALSE)
+    }
+    tryCatch(
+      DBI::dbWriteTable(raw_data, "df_product_profile_encoding_audit",
+                        encoding_audit_df, overwrite = TRUE),
+      error = function(e) warning("MAIN: #1299 encoding audit write failed: ",
+                                  conditionMessage(e))
+    )
+    if (nrow(encoding_audit_df) > 0) {
+      message("MAIN: #1299 encoding audit: ", nrow(encoding_audit_df),
+              " suspect column(s) recorded in df_product_profile_encoding_audit")
+    }
   }
 
   missing_product_lines <- setdiff(active_product_lines$product_line_id, names(import_result))
