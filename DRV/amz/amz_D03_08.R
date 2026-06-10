@@ -143,9 +143,18 @@ tryCatch({
 # #1301: sample size is config-driven — app_config.yaml > pipeline > comment_sample_size
 # (company override, e.g. D_RACING: 50); absent/invalid falls back to universal default 30.
 if (!exists("fn_get_comment_sample_size", mode = "function")) {
-  .css_path <- file.path("scripts", "global_scripts", "04_utils",
-                         "fn_get_comment_sample_size.R")
-  if (file.exists(.css_path)) source(.css_path)
+  # 4-candidate resolution (#1305): cwd is the company root under make run, but
+  # ad-hoc/test invocations may run from update_scripts or a worktree — try the
+  # known layouts in specificity order, first hit wins.
+  .css_cands <- c(
+    file.path("scripts", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
+    file.path("shared", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
+    file.path("..", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
+    if (nzchar(Sys.getenv("GLOBAL_DIR")))
+      file.path(Sys.getenv("GLOBAL_DIR"), "04_utils", "fn_get_comment_sample_size.R")
+  )
+  .css_hit <- Filter(file.exists, .css_cands)
+  if (length(.css_hit) > 0) source(.css_hit[[1]])
 }
 comment_sample_size <- if (exists("fn_get_comment_sample_size", mode = "function")) {
   fn_get_comment_sample_size()
