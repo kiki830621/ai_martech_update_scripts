@@ -89,7 +89,13 @@ if (!exists("fn_get_comment_sample_size", mode = "function")) {
 }
 comment_sample_size <- if (exists("fn_get_comment_sample_size", mode = "function")) {
   fn_get_comment_sample_size()
-} else 30L
+} else {
+  # loud fallback: a silent 30 here would quietly negate a company's config
+  # override (verify #1301 round 1)
+  warning("[D03_08] fn_get_comment_sample_size unavailable — ",
+          "pipeline.comment_sample_size override ignored, using default 30 (#1301)")
+  30L
+}
 message("[D03_08] comment_sample_size: ", comment_sample_size)
 type_filter <- c("屬性")   # Filter for property types
 
