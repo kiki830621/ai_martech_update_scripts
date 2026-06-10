@@ -2,6 +2,7 @@
 # Following DM_R028, DM_R037 v3.0: Config-Driven Import
 # ETL product_profiles Phase 0IM: Import from Google Sheets
 # Output: raw_data.duckdb → df_product_profile_{product_line_id}
+#         + df_product_profile_encoding_audit (#1299 mojibake advisory gate)
 
 # ==============================================================================
 # 1. INITIALIZE
@@ -60,6 +61,15 @@ tryCatch({
   # DM_R037 v3.0: read connection params from etl_sources config
   src_cfg <- platform_cfg$etl_sources$product_profiles
   gs_id <- googlesheets4::as_sheets_id(src_cfg$sheet_id)
+
+  # #1299: source-side mojibake advisory gate (per-tab accumulation)
+  moji_detect_path <- file.path(GLOBAL_DIR, "05_etl_utils", "common", "string",
+                                "fn_detect_mojibake_text.R")
+  if (!exists("detect_mojibake_columns", mode = "function") &&
+      file.exists(moji_detect_path)) {
+    try(source(moji_detect_path), silent = TRUE)
+  }
+  encoding_audit <- list()
 
   # Product line tab matching rules for AMZ coding sheet.
   #
@@ -244,6 +254,48 @@ tryCatch({
       rows = nrow(df_product_profile)
     )
     message("MAIN: Imported ", nrow(df_product_profile), " rows into ", target_table)
+
+    # #1299 (MP163 advisory gate): detect SOURCE-side mojibake (valid-UTF8
+    # text that is visibly encoding-corrupted, e.g. CJK pasted into the sheet
+    # as Cyrillic + box-drawing). Surface via warning() + audit table below;
+    # never stop() -- the pipeline must run to completion.
+    if (exists("detect_mojibake_columns", mode = "function")) {
+      moji <- tryCatch(detect_mojibake_columns(df_product_profile),
+                       error = function(e) NULL)
+      if (!is.null(moji) && nrow(moji) > 0) {
+        warning("MAIN: #1299 mojibake detected in tab '", resolved_tab, "' (",
+                product_line_id, "): ",
+                paste0(moji$column_name, " (", moji$n_suspect, " rows, e.g. ",
+                       moji$sample_value, ")", collapse = "; "),
+                " -- check the GoogleSheet source cells")
+        moji$product_line_id <- product_line_id
+        moji$source_tab <- resolved_tab
+        moji$detected_at <- Sys.time()
+        encoding_audit[[product_line_id]] <- moji
+      }
+    }
+  }
+
+  # #1299: persist encoding audit (overwrite each run; empty schema when clean
+  # so a previously-detected hit never lingers as stale)
+  encoding_audit_df <- if (length(encoding_audit) > 0) {
+    do.call(rbind, encoding_audit)
+  } else {
+    data.frame(column_name = character(0), n_suspect = integer(0),
+               sample_value = character(0), product_line_id = character(0),
+               source_tab = character(0),
+               detected_at = as.POSIXct(character(0)),
+               stringsAsFactors = FALSE)
+  }
+  tryCatch(
+    DBI::dbWriteTable(raw_data, "df_product_profile_encoding_audit",
+                      encoding_audit_df, overwrite = TRUE),
+    error = function(e) warning("MAIN: #1299 encoding audit write failed: ",
+                                conditionMessage(e))
+  )
+  if (nrow(encoding_audit_df) > 0) {
+    message("MAIN: #1299 encoding audit: ", nrow(encoding_audit_df),
+            " suspect column(s) recorded in df_product_profile_encoding_audit")
   }
 
   missing_product_lines <- setdiff(active_product_lines$product_line_id, names(import_result))
