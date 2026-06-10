@@ -160,6 +160,7 @@ ts_key <- switch(platform, "amz" = "amz_asin", "cbz" = "cbz_item_id",
 
 all_results <- list()
 all_audits <- list()  # #1210 attribute coverage audit (per PL)
+all_expo_audits <- list()  # #1309 per-product exposure audit (per PL)
 tryCatch({
 
 for (pl in PRODUCT_LINES) {
@@ -287,7 +288,13 @@ for (pl in PRODUCT_LINES) {
       select(all_of(c(ts_key, "time", "sales"))) %>% collect()
     expo_own <- fn_compute_months_listed(ts_raw, ts_key, "time", "sales",
                                          mode = "first_to_end")
-    ts_range <- range(as.Date(ts_raw$time), na.rm = TRUE)
+    # Guard (verify #1309 H1): 0-row / all-NA time series would make range()
+    # return c(Inf,-Inf) Dates that poison all_range below and silently kill
+    # the full-period fallback (psg/rpl legit-empty case, #928).
+    if (nrow(ts_raw) > 0L) {
+      tr <- suppressWarnings(range(as.Date(ts_raw$time), na.rm = TRUE))
+      if (all(is.finite(tr))) ts_range <- tr
+    }
   }
   expo_comp <- setNames(numeric(0), character(0))
   cs_range <- as.Date(character(0))
@@ -304,19 +311,28 @@ for (pl in PRODUCT_LINES) {
       cs_dates <- as.character(cs_raw[[cs_date_col]])
       ym <- !is.na(cs_dates) & grepl("^\\d{4}-\\d{2}$", cs_dates)
       cs_dates[ym] <- paste0(cs_dates[ym], "-01")
-      cs_dates <- suppressWarnings(as.Date(cs_dates, optional = TRUE))
-      if (any(!is.na(cs_dates))) cs_range <- range(cs_dates, na.rm = TRUE)
+      # Explicit format = per-value parsing (verify #1309 H1 — bare as.Date
+      # guesses from the first element and NAs the whole vector on one bad value).
+      cs_dates <- suppressWarnings(as.Date(cs_dates, format = "%Y-%m-%d", optional = TRUE))
+      if (any(!is.na(cs_dates))) {
+        cr <- suppressWarnings(range(cs_dates, na.rm = TRUE))
+        if (all(is.finite(cr))) cs_range <- cr
+      }
     }
   }
-  # full-period months across whatever sources exist (fallback exposure)
-  all_range <- suppressWarnings(range(c(ts_range, cs_range), na.rm = TRUE))
+  # full-period months across whatever sources exist (fallback exposure).
+  # Only finite dates enter (verify #1309 H1 — an Inf from an empty side must
+  # not veto the other side's valid range).
+  range_pool <- c(ts_range, cs_range)
+  range_pool <- range_pool[is.finite(range_pool)]
   month_idx <- function(d) as.integer(format(d, "%Y")) * 12L + as.integer(format(d, "%m"))
-  full_period_months <- if (all(is.finite(all_range))) {
-    month_idx(all_range[2]) - month_idx(all_range[1]) + 1
+  full_period_months <- if (length(range_pool) > 0L) {
+    month_idx(max(range_pool)) - month_idx(min(range_pool)) + 1
   } else NA_real_
   expo_lookup <- c(expo_own, expo_comp[setdiff(names(expo_comp), names(expo_own))])
   expo_lookup <- expo_lookup[!is.na(expo_lookup)]
   n_fallback <- 0L
+  missing_expo <- character(0)
   if (is.finite(full_period_months)) {
     missing_expo <- setdiff(as.character(combined$product_id), names(expo_lookup))
     n_fallback <- length(missing_expo)
@@ -325,6 +341,23 @@ for (pl in PRODUCT_LINES) {
   cat(sprintf("  exposure: own=%d comp=%d fallback_full_period=%d (full=%s months)\n",
               length(expo_own[!is.na(expo_own)]), length(expo_comp), n_fallback,
               ifelse(is.finite(full_period_months), full_period_months, "NA")))
+  # Persisted per-product exposure audit (#1309 acceptance: fallback 記入 audit
+  # 欄位 — console log alone is not queryable; verify M1). Rebuildable diagnostic,
+  # same class as the #1210 coverage audit.
+  ids_c <- as.character(combined$product_id)
+  expo_src <- rep("none", length(ids_c))
+  own_ok <- names(expo_own)[!is.na(expo_own)]
+  expo_src[ids_c %in% own_ok] <- "own_first_to_end"
+  expo_src[expo_src == "none" & ids_c %in% names(expo_comp)] <- "competitor_distinct_months"
+  if (exists("missing_expo") && length(missing_expo) > 0L) {
+    expo_src[expo_src == "none" & ids_c %in% missing_expo] <- "fallback_full_period"
+  }
+  all_expo_audits[[pl]] <- data.frame(
+    platform = platform, product_line_id = pl, product_id = ids_c,
+    months_listed = as.numeric(expo_lookup[ids_c]),
+    exposure_source = expo_src,
+    analysis_date = Sys.Date(), computed_at = start_time,
+    stringsAsFactors = FALSE)
 
   # #1234: authoritative ownership from df_amz_product_attributes_{pl}___raw.is_competitor
   # (SKU-aligned: has-SKU=own=FALSE). Lets own-with-SKU brands not yet in the own time
@@ -423,6 +456,17 @@ if (length(all_results) > 0) {
 } else {
   dbWriteTable(con_app, output_table_name, empty_market_schema, overwrite = TRUE)
   cat(sprintf("⚠️  No results; wrote empty schema to %s\n", output_table_name))
+}
+
+# #1309 per-product exposure audit table (app_data; rebuildable diagnostic).
+if (length(all_expo_audits) > 0) {
+  expo_audit_merged <- bind_rows(all_expo_audits)
+  if (nrow(expo_audit_merged) > 0L) {
+    expo_audit_table <- paste0("df_", platform, "_market_exposure_audit")
+    dbWriteTable(con_app, expo_audit_table, expo_audit_merged, overwrite = TRUE)
+    cat(sprintf("✅ Wrote %s: %d rows (exposure audit, #1309)\n",
+                expo_audit_table, nrow(expo_audit_merged)))
+  }
 }
 
 # #1210 attribute coverage audit table (app_data; rebuildable derived diagnostic).
