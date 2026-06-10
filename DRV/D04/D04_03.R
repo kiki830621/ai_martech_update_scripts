@@ -100,6 +100,15 @@ prop_cfg <- tbl2(con_raw, "df_all_comment_property") %>%
 # fully rated. Names without special chars are unchanged, so behavior is identical for
 # the common case.
 prop_cfg$property_name <- make_names(prop_cfg$property_name)
+# #1308: per-company GoogleSheet stores scale as bare "2"/"5" (D_RACING) or
+# "2尺度"/"5尺度" (QEF) — same dual-format already handled point-wise in
+# amz_D03_09.R:74 (#1239). Normalize to canonical "N尺度" at this boundary so the
+# attr_kind classification below (scale == "2尺度") works for every company;
+# without this, D_RACING review topics all fell through to product_attribute and
+# the 市場賽道 panel showed empty despite significant mention attrs (#1308).
+prop_cfg$scale <- trimws(as.character(prop_cfg$scale))
+prop_cfg$scale[prop_cfg$scale %in% c("2", "2尺度")] <- "2尺度"
+prop_cfg$scale[prop_cfg$scale %in% c("5", "5尺度")] <- "5尺度"
 prop_cfg$scale[is.na(prop_cfg$scale) | prop_cfg$scale == ""] <- "5尺度"  # code fallback (D10)
 # #1247: 缺點 (incl. compound '缺點/場') is excluded from the MARKET MODEL by type at this
 # boundary (NOT by editing comment_property_score_types.yaml — that is dual-purpose and
