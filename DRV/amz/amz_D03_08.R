@@ -143,9 +143,22 @@ tryCatch({
 # #1301: sample size is config-driven — app_config.yaml > pipeline > comment_sample_size
 # (company override, e.g. D_RACING: 50); absent/invalid falls back to universal default 30.
 if (!exists("fn_get_comment_sample_size", mode = "function")) {
-  .css_path <- file.path("scripts", "global_scripts", "04_utils",
-                         "fn_get_comment_sample_size.R")
-  if (file.exists(.css_path)) source(.css_path)
+  # Multi-candidate resolution (#1305): superset of this file's proven
+  # sql_read_candidates pattern (lines ~41-46) so every cwd that can reach
+  # autoinit can also reach the helper (verify #1305 round 1: the first cut
+  # dropped ../../../ and missed when run from DRV/amz/). Explicit GLOBAL_DIR
+  # env override ranks first — an env var is the most specific signal.
+  .css_cands <- c(
+    if (nzchar(Sys.getenv("GLOBAL_DIR")))
+      file.path(Sys.getenv("GLOBAL_DIR"), "04_utils", "fn_get_comment_sample_size.R"),
+    file.path("scripts", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
+    file.path("shared", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
+    file.path("..", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
+    file.path("..", "..", "global_scripts", "04_utils", "fn_get_comment_sample_size.R"),
+    file.path("..", "..", "..", "global_scripts", "04_utils", "fn_get_comment_sample_size.R")
+  )
+  .css_hit <- Filter(file.exists, .css_cands)
+  if (length(.css_hit) > 0) source(.css_hit[[1]])
 }
 comment_sample_size <- if (exists("fn_get_comment_sample_size", mode = "function")) {
   fn_get_comment_sample_size()
