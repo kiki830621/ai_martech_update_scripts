@@ -53,6 +53,7 @@ source("scripts/global_scripts/16_derivations/fn_build_market_attribute_coverage
 source("scripts/global_scripts/16_derivations/fn_select_market_attr_cols.R")  # #1226 (also exposes MARKET_MODEL_NON_ATTR)
 source("scripts/global_scripts/05_etl_utils/common/string/fn_make_names.R")  # #1258 canonical name sanitizer (slash->_ + lowercase) — explicit source so the canonical wins over the shadow make.names variant
 source("scripts/global_scripts/16_derivations/fn_onehot_market_categoricals.R")  # #1247 (categorical one-hot encoder)
+source("scripts/global_scripts/16_derivations/fn_compute_months_listed.R")  # #1309 B1 exposure
 source("scripts/global_scripts/04_utils/fn_resolve_drv_platform.R")
 
 platform <- resolve_drv_platform()
@@ -63,7 +64,7 @@ if (!exists("db_path_list", inherits = TRUE)) {
 
 error_occurred <- FALSE; test_passed <- FALSE; rows_processed <- 0
 start_time <- Sys.time()
-DRV_VERSION <- "v1.0_market_attr_DMR066"
+DRV_VERSION <- "v1.1_market_offset_nb"  # #1309: B1 exposure offset + B4 negbin
 output_table_name <- sprintf("df_%s_market_attribute_coefficients", platform)
 
 cat("\n════════════════════════════════════════════════════════════════════\n")
@@ -123,7 +124,7 @@ empty_market_schema <- tibble(
   irr_conf_low = numeric(), irr_conf_high = numeric(),
   predictor_min = numeric(), predictor_max = numeric(), predictor_range = numeric(),
   predictor_is_binary = logical(), track_multiplier = numeric(),
-  convergence = character(),
+  convergence = character(), family_used = character(),  # family_used: #1309 B4
   sample_size = integer(), n_own = integer(), n_competitor = integer(),
   competitor_included = logical(),
   # display columns — schema-compatible with poissonFeatureAnalysis/CommentAnalysis
@@ -273,6 +274,50 @@ for (pl in PRODUCT_LINES) {
     own_lookup <- setNames(as.numeric(agg$s), as.character(agg[[ts_key]]))
   }
 
+  # ---- #1309 B1: months_listed exposure lookups ----
+  # own: first positive-sale month -> data end (complete time series carries
+  # pre-launch zero rows, so record-presence is meaningless for own products).
+  # competitor: distinct months with records (source only carries observed months).
+  # ids missing from both / NA -> full-period fallback (conservative: longest
+  # possible exposure == weakest offset adjustment for that product).
+  expo_own <- setNames(numeric(0), character(0))
+  ts_range <- as.Date(character(0))
+  if (!is.null(ts_key) && dbExistsTable(con_app, ts_tbl)) {
+    ts_raw <- tbl2(con_app, ts_tbl) %>%
+      select(all_of(c(ts_key, "time", "sales"))) %>% collect()
+    expo_own <- fn_compute_months_listed(ts_raw, ts_key, "time", "sales",
+                                         mode = "first_to_end")
+    ts_range <- range(as.Date(ts_raw$time), na.rm = TRUE)
+  }
+  expo_comp <- setNames(numeric(0), character(0))
+  cs_range <- as.Date(character(0))
+  if (!is.null(comp_sales_tbl)) {
+    cs_date_col <- if (comp_sales_tbl == "df_amz_competitor_sales___raw") "sales_month" else "date"
+    cs_raw <- tbl2(con_raw, comp_sales_tbl) %>%
+      filter(product_line_id == !!pl) %>%
+      select(all_of(c("amz_asin", cs_date_col, "sales"))) %>% collect()
+    expo_comp <- fn_compute_months_listed(cs_raw, "amz_asin", cs_date_col, "sales",
+                                          mode = "distinct_months")
+    if (nrow(cs_raw) > 0L) cs_range <- range(as.Date(cs_raw[[cs_date_col]]), na.rm = TRUE)
+  }
+  # full-period months across whatever sources exist (fallback exposure)
+  all_range <- suppressWarnings(range(c(ts_range, cs_range), na.rm = TRUE))
+  month_idx <- function(d) as.integer(format(d, "%Y")) * 12L + as.integer(format(d, "%m"))
+  full_period_months <- if (all(is.finite(all_range))) {
+    month_idx(all_range[2]) - month_idx(all_range[1]) + 1
+  } else NA_real_
+  expo_lookup <- c(expo_own, expo_comp[setdiff(names(expo_comp), names(expo_own))])
+  expo_lookup <- expo_lookup[!is.na(expo_lookup)]
+  n_fallback <- 0L
+  if (is.finite(full_period_months)) {
+    missing_expo <- setdiff(as.character(combined$product_id), names(expo_lookup))
+    n_fallback <- length(missing_expo)
+    if (n_fallback > 0L) expo_lookup[missing_expo] <- full_period_months
+  }
+  cat(sprintf("  exposure: own=%d comp=%d fallback_full_period=%d (full=%s months)\n",
+              length(expo_own[!is.na(expo_own)]), length(expo_comp), n_fallback,
+              ifelse(is.finite(full_period_months), full_period_months, "NA")))
+
   # #1234: authoritative ownership from df_amz_product_attributes_{pl}___raw.is_competitor
   # (SKU-aligned: has-SKU=own=FALSE). Lets own-with-SKU brands not yet in the own time
   # series (e.g. psg WDP100) be classified own instead of falsely competitor. Absent
@@ -291,7 +336,8 @@ for (pl in PRODUCT_LINES) {
     fn_build_market_attribute_table(combined, own_lookup, attr_cols,
                                     platform = platform, product_line = pl,
                                     id_col = "product_id",
-                                    is_competitor_lookup = is_competitor_lookup),
+                                    is_competitor_lookup = is_competitor_lookup,
+                                    exposure_lookup = expo_lookup),
     error = function(e) { cat("  ❌ build failed:", conditionMessage(e), "\n"); NULL })
   if (is.null(out) || nrow(out) == 0L) {
     all_results[[pl]] <- market_sentinel(pl, "build_failed_or_empty"); next
