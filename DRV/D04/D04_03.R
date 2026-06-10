@@ -298,7 +298,15 @@ for (pl in PRODUCT_LINES) {
       select(all_of(c("amz_asin", cs_date_col, "sales"))) %>% collect()
     expo_comp <- fn_compute_months_listed(cs_raw, "amz_asin", cs_date_col, "sales",
                                           mode = "distinct_months")
-    if (nrow(cs_raw) > 0L) cs_range <- range(as.Date(cs_raw[[cs_date_col]]), na.rm = TRUE)
+    if (nrow(cs_raw) > 0L) {
+      # sales_month is VARCHAR 'YYYY-MM' on the canonical table (#1309 fix —
+      # same normalization as fn_compute_months_listed).
+      cs_dates <- as.character(cs_raw[[cs_date_col]])
+      ym <- !is.na(cs_dates) & grepl("^\\d{4}-\\d{2}$", cs_dates)
+      cs_dates[ym] <- paste0(cs_dates[ym], "-01")
+      cs_dates <- suppressWarnings(as.Date(cs_dates, optional = TRUE))
+      if (any(!is.na(cs_dates))) cs_range <- range(cs_dates, na.rm = TRUE)
+    }
   }
   # full-period months across whatever sources exist (fallback exposure)
   all_range <- suppressWarnings(range(c(ts_range, cs_range), na.rm = TRUE))
