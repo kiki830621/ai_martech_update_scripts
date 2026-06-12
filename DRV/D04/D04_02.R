@@ -436,13 +436,25 @@ for (pl in PRODUCT_LINES) {
   # JOIN history. Listing them here keeps the script defensive.
   exclude_cols <- c(
     "eby_item_id", "cbz_item_id", "amz_item_id", "shp_item_id",  # known item-id cols across platforms
-    "time", "sales", "sales_platform",
+    "time", "sales", "sales_platform", "sales_platform.x", "sales_platform.y",
     "product_line_id", "product_line_id.x", "product_line_id.y", "product_line_name",
     "data_source", "filling_method", "filling_timestamp",
     "source_table", "processing_version", "enrichment_version",
     date_col  # Also exclude the date column from predictors
   )
   predictor_cols <- setdiff(names(ts_data), exclude_cols)
+  # Merge-artifact guard (#1323): any `.x`/`.y` suffixed column is join residue
+  # (two sources carried the same name through a merge) — never a real product
+  # attribute. The enumerated list above cannot anticipate every future name
+  # collision; this pattern closes the class. Without it, `sales_platform.x`
+  # reached the Poisson model on MAMBA eby with a spurious p<0.001 and became
+  # the panel's top "attribute" recommendation.
+  artifact_cols <- predictor_cols[grepl("\\.(x|y)$", predictor_cols)]
+  if (length(artifact_cols) > 0) {
+    warning(sprintf("D04_02: excluded %d merge-artifact predictor(s): %s — fix the upstream join producing duplicate-named columns",
+                    length(artifact_cols), paste(artifact_cols, collapse = ", ")))
+    predictor_cols <- setdiff(predictor_cols, artifact_cols)
+  }
 
   cat(sprintf("  ✓ Identified: %d predictor columns (after excluding metadata)\n\n", length(predictor_cols)))
 

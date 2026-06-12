@@ -331,8 +331,13 @@ tryCatch({
 
     # FIX: Join product attributes back to time series
     # This enables Poisson analysis to include product_attribute category (UI_P013)
+    # #1323: also drop profile-side sales_platform — the time series already
+    # carries its own (summed per period above); leaving the profile copy in
+    # made the join emit sales_platform.x/.y, and the .x escaped D04_02's
+    # enumerated exclude list into the Poisson predictors.
     product_attrs <- product_profile %>%
-      select(-product_line_id, -product_line_name)  # Already in time series
+      select(-product_line_id, -product_line_name,  # Already in time series
+             -any_of("sales_platform"))
 
     completed_all <- completed_all %>%
       left_join(product_attrs, by = c("eby_item_id" = "product_sku"))
