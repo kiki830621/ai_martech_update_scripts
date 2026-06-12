@@ -478,20 +478,29 @@ if (script_success) {
                         length(columns), paste(columns, collapse = ", ")))
 
         # Validate customer-specific columns
-        required_customer_columns <- c("customer_id", "import_source", "import_timestamp", "platform_id")
+        # #1323: the raw (0IM) layer stores the API payload as-is — Cyberbiz
+        # returns the key column as `id`; the canonical rename to `customer_id`
+        # is 1ST's responsibility (see cbz_ETL_customers_1ST.R "Mapped 'id' to
+        # 'customer_id'"). Requiring `customer_id` here failed the whole import
+        # on schema-faithful raw data. Accept either name as the identity column.
+        id_col <- intersect(c("customer_id", "id"), columns)[1]
+        required_customer_columns <- c("import_source", "import_timestamp", "platform_id")
         missing_columns <- setdiff(required_customer_columns, columns)
+        if (is.na(id_col)) {
+          missing_columns <- c("customer_id|id", missing_columns)
+        }
         if (length(missing_columns) > 0) {
-          message(sprintf("TEST: ⚠️ Missing required customer columns: %s", 
+          message(sprintf("TEST: ⚠️ Missing required customer columns: %s",
                           paste(missing_columns, collapse = ", ")))
           test_passed <- FALSE
         } else {
-          message("TEST: ✅ All required customer columns present")
+          message(sprintf("TEST: ✅ All required customer columns present (identity column: %s)", id_col))
         }
 
         # Customer data quality checks
-        if ("customer_id" %in% columns) {
+        if (!is.na(id_col)) {
           unique_customers <- sql_read(raw_data, paste0(
-            "SELECT COUNT(DISTINCT customer_id) as unique_customers FROM ", table_name
+            "SELECT COUNT(DISTINCT \"", id_col, "\") as unique_customers FROM ", table_name
           ))
           message(sprintf("TEST: 👥 Unique customers: %d", unique_customers$unique_customers))
         }
