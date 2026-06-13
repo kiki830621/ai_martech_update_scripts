@@ -339,6 +339,19 @@ tryCatch({
       select(-product_line_id, -product_line_name,  # Already in time series
              -any_of("sales_platform"))
 
+    # #1331 defense-in-depth: product_profile is already distinct(product_sku) at
+    # construction, so product_attrs inherits uniqueness and this join cannot fan
+    # out. Assert that invariant explicitly here — a future refactor that drops the
+    # upstream distinct() would otherwise silently multiply the time series (→
+    # inflated per-period sales → corrupted Poisson input). No-op when the upstream
+    # distinct holds; loud + self-healing if it ever regresses.
+    dup_sku <- sum(duplicated(product_attrs$product_sku))
+    if (dup_sku > 0) {
+      warning(sprintf("eby 2TR: product_attrs had %d duplicate product_sku before the time-series join — deduping to prevent fan-out. The upstream distinct(product_sku) at product_profile construction may have regressed.",
+                      dup_sku))
+      product_attrs <- product_attrs %>% distinct(product_sku, .keep_all = TRUE)
+    }
+
     completed_all <- completed_all %>%
       left_join(product_attrs, by = c("eby_item_id" = "product_sku"))
 
