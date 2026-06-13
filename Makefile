@@ -166,8 +166,14 @@ upload:
 
 # Internal: conditionally invoke upload based on mtime drift threshold.
 # should_upload() exit convention: status 10 = upload needed, 0 = up-to-date.
+# #1326: the `cd "$(PROJECT_ROOT)"` is wrapped in a ( ) subshell so it stays
+# scoped to the should_upload check. Without the subshell the cd leaked into the
+# same recipe shell (lines joined by `\`), so the later `$(MAKE) upload` ran from
+# PROJECT_ROOT (the company root, which has no Makefile) → "No rule to make target
+# 'upload'". The `upload` target self-cd's into PROJECT_ROOT, so this caller must
+# stay in $(CURDIR) for the sub-make to find it.
 _maybe-upload:
-	@cd "$(PROJECT_ROOT)" && $(R) -e 'source("$(GLOBAL_SCRIPTS)/23_deployment/03_deploy/fn_should_upload.R"); quit(status = if (isTRUE(should_upload(project_root = "."))) 10L else 0L)' ; \
+	@( cd "$(PROJECT_ROOT)" && $(R) -e 'source("$(GLOBAL_SCRIPTS)/23_deployment/03_deploy/fn_should_upload.R"); quit(status = if (isTRUE(should_upload(project_root = "."))) 10L else 0L)' ) ; \
 	rc=$$? ; \
 	if [ $$rc -eq 10 ]; then \
 		echo "→ Supabase upload needed (DuckDB mtime > last upload)" ; \
