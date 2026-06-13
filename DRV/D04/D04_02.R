@@ -436,25 +436,28 @@ for (pl in PRODUCT_LINES) {
   # JOIN history. Listing them here keeps the script defensive.
   exclude_cols <- c(
     "eby_item_id", "cbz_item_id", "amz_item_id", "shp_item_id",  # known item-id cols across platforms
-    "time", "sales", "sales_platform", "sales_platform.x", "sales_platform.y",
+    "time", "sales", "sales_platform",
     "product_line_id", "product_line_id.x", "product_line_id.y", "product_line_name",
     "data_source", "filling_method", "filling_timestamp",
     "source_table", "processing_version", "enrichment_version",
     date_col  # Also exclude the date column from predictors
   )
-  predictor_cols <- setdiff(names(ts_data), exclude_cols)
-  # Merge-artifact guard (#1323): any `.x`/`.y` suffixed column is join residue
-  # (two sources carried the same name through a merge) — never a real product
-  # attribute. The enumerated list above cannot anticipate every future name
-  # collision; this pattern closes the class. Without it, `sales_platform.x`
-  # reached the Poisson model on MAMBA eby with a spurious p<0.001 and became
-  # the panel's top "attribute" recommendation.
-  artifact_cols <- predictor_cols[grepl("\\.(x|y)$", predictor_cols)]
+  # Merge-artifact guard (#1323/#1330): any `.x`/`.y` suffixed column is join
+  # residue (two sources carried the same name through a merge) — never a real
+  # product attribute. Detect from names(ts_data) BEFORE exclusion so the loud
+  # warning fires even for names that would otherwise be silently dropped by the
+  # enumerated exclude_cols above (#1330: `sales_platform.x` used to be enumerated,
+  # so the guard never saw it → no warning if the #1323 upstream join regressed;
+  # it is now removed from exclude_cols and caught here). product_line_id.x/.y are
+  # INTENTIONAL #1165 join keys (the per-PL filter), not residue — kept in
+  # exclude_cols and exempted from the warning (silently dropped, no false alarm).
+  intentional_xy <- c("product_line_id.x", "product_line_id.y")
+  artifact_cols <- setdiff(grep("\\.(x|y)$", names(ts_data), value = TRUE), intentional_xy)
   if (length(artifact_cols) > 0) {
     warning(sprintf("D04_02: excluded %d merge-artifact predictor(s): %s — fix the upstream join producing duplicate-named columns",
                     length(artifact_cols), paste(artifact_cols, collapse = ", ")))
-    predictor_cols <- setdiff(predictor_cols, artifact_cols)
   }
+  predictor_cols <- setdiff(names(ts_data), union(exclude_cols, artifact_cols))
 
   cat(sprintf("  ✓ Identified: %d predictor columns (after excluding metadata)\n\n", length(predictor_cols)))
 
