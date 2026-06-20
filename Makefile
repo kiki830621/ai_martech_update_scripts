@@ -24,6 +24,11 @@ PLATFORM ?= all
 TARGET ?=
 LAYER ?= both
 
+# #1360: `make refresh GROUP=<g> [WITH_ETL=1]` — force-refresh a frozen
+# (precompute_freeze) DRV group's chain without a nuclear rebuild.
+GROUP ?=
+WITH_ETL ?=
+
 # DM_R069 Deploy Data Sync Discipline: `make run` conditionally chains Supabase
 # upload (mtime drift threshold). Override with `make run-no-upload` (sets =0).
 UPLOAD_CHAIN ?= 1
@@ -53,7 +58,7 @@ TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
 # MAIN TARGETS
 # =============================================================================
 
-.PHONY: help run run-dry status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs e2e e2e-filter e2e-login e2e-vitalsigns upload run-no-upload _maybe-upload _stale-warn verify-partial-month verify-drv verify-dataflow
+.PHONY: help run run-dry refresh status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs e2e e2e-filter e2e-login e2e-vitalsigns upload run-no-upload _maybe-upload _stale-warn verify-partial-month verify-drv verify-dataflow
 
 help:
 	@echo "L4 Enterprise Pipeline Orchestration"
@@ -65,6 +70,8 @@ help:
 	@echo "  make run TARGET=cbz_D04_02   Run specific target with dependencies"
 	@echo "  make run LAYER=etl           Run ETL layer only (etl|drv|both)"
 	@echo "  make run-dry                 Show what would run (no execution)"
+	@echo "  make refresh GROUP=D07       Force-refresh a frozen DRV group (no nuclear)"
+	@echo "  make refresh GROUP=D07 WITH_ETL=1   ...also re-run its upstream ETL"
 	@echo ""
 	@echo "Status Commands:"
 	@echo "  make status                  Check pipeline status"
@@ -193,6 +200,41 @@ _stale-warn:
 # Still warns to stderr if Supabase is stale (never fully silent, per DM_R069).
 run-no-upload:
 	@$(MAKE) --no-print-directory run UPLOAD_CHAIN=0
+
+# #1360: middle-tier force-refresh of a frozen DRV group (precompute_freeze).
+# Unlike `make run FORCE=1` (nuclear: tar_destroy + full rebuild), this ONLY
+# invalidates the named group's chain and reruns it — overriding the group's
+# tar_cue(mode="never") freeze. `WITH_ETL=1` extends invalidation to the
+# chain's upstream ETL feeders. Honors DM_R069 (chains conditional upload,
+# since refreshing D07 changes df_ai_insight in app_data).
+#   make refresh GROUP=D07
+#   make refresh GROUP=D07 WITH_ETL=1
+refresh:
+	@if [ -z "$(GROUP)" ]; then \
+		echo "✗ make refresh requires GROUP=<drv-group> (e.g. make refresh GROUP=D07)"; \
+		exit 1; \
+	fi
+	@echo "═══════════════════════════════════════════════════════════════════"
+	@echo "$(notdir $(PROJECT_ROOT)) Selective Force-Refresh"
+	@echo "Group: $(GROUP) | WITH_ETL: $(WITH_ETL) | Platform: $(PLATFORM)"
+	@echo "Started: $$(date)"
+	@echo "═══════════════════════════════════════════════════════════════════"
+	@mkdir -p $(LOGS_DIR)
+	MAMBA_PROJECT_ROOT=$(PROJECT_ROOT) \
+	MAMBA_PLATFORM=$(PLATFORM) \
+	MAMBA_LAYER=$(LAYER) \
+	MAMBA_TARGET=$(TARGET) \
+	REFRESH=$(GROUP) \
+	WITH_ETL=$(WITH_ETL) \
+	$(R) $(PIPELINE_DIR)/orchestration/fn_output_presence.R \
+		"$(PROJECT_ROOT)" "$(STORE_DIR)" "$(TARGET_SCRIPT)" 2>&1 \
+		| tee $(LOGS_DIR)/refresh_$(TIMESTAMP).log
+	@echo ""
+	@echo "═══════════════════════════════════════════════════════════════════"
+	@echo "Completed: $$(date)"
+	@echo "Log: $(LOGS_DIR)/refresh_$(TIMESTAMP).log"
+	@echo "═══════════════════════════════════════════════════════════════════"
+	@if [ "$(UPLOAD_CHAIN)" = "1" ]; then $(MAKE) --no-print-directory _maybe-upload; else $(MAKE) --no-print-directory _stale-warn; fi
 
 # MP165 v1.3 (#668) DRV-Layer Step 2 propagation gate.
 # Runs `drv_output_shape_gate.R` against the per-company contract yaml

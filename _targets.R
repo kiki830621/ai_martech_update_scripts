@@ -281,13 +281,18 @@ create_command <- function(deps, call_str) {
 build_definitions <- function(config, platforms) {
   defs <- list()
 
-  add_def <- function(name, type, platform, script, deps) {
+  # #1360: `group` carries the DRV group token (e.g. "D07") so build_targets()
+  # can decide whether the target belongs to a `precompute_freeze` group and
+  # attach cue = tar_cue(mode = "never"). ETL defs have group = NA (never
+  # frozen — freeze is a DRV-group concept).
+  add_def <- function(name, type, platform, script, deps, group = NA_character_) {
     defs[[name]] <<- list(
       name = name,
       type = type,
       platform = platform,
       script = script,
-      deps = deps
+      deps = deps,
+      group = group
     )
   }
 
@@ -327,7 +332,8 @@ build_definitions <- function(config, platforms) {
           if (!is.null(script_def$depends_drv)) {
             deps <- c(deps, vapply(script_def$depends_drv, script_to_target_name, character(1)))
           }
-          add_def(target_name, "drv", platform, script_name, unique(deps))
+          add_def(target_name, "drv", platform, script_name, unique(deps),
+                  group = group_name)
         }
       }
     }
@@ -359,6 +365,21 @@ collect_allowed <- function(defs, start_set) {
 # -----------------------------------------------------------------------------
 build_targets <- function() {
   config <- yaml::read_yaml(config_path)
+
+  # #1360: precompute_freeze — DRV groups that are frozen-by-default. A frozen
+  # group's target gets cue = tar_cue(mode = "never"), so a plain `make run`
+  # (run_selective -> tar_make) will NOT re-invalidate it when upstream data
+  # changes (the stored df_* keeps serving). It still builds the FIRST time
+  # (cue "never" reruns when no metadata record exists) and after an error.
+  # An explicit `make refresh GROUP=<g>` (run_selective_force -> tar_invalidate
+  # + tar_make) is the middle-tier escape hatch that overrides the freeze for
+  # just that chain. Default: empty (no group frozen — full backward compat).
+  freeze_groups <- config$precompute_freeze
+  if (is.null(freeze_groups)) {
+    freeze_groups <- character()
+  } else {
+    freeze_groups <- as.character(unlist(freeze_groups, use.names = FALSE))
+  }
 
   if (target_platform == "all") {
     platforms <- names(config$platforms)
@@ -413,7 +434,15 @@ build_targets <- function() {
       sprintf("run_drv_script(%s, %s)", shQuote(def$script), shQuote(def$platform))
     }
     command <- create_command(deps, run_call)
-    target <- tar_target_raw(name = def$name, command = command)
+    # #1360: freeze DRV targets whose group is listed in precompute_freeze.
+    # cue NULL = default (thorough) for everything else — unchanged behavior.
+    target_cue <- if (def$type == "drv" && !is.na(def$group) &&
+                      def$group %in% freeze_groups) {
+      targets::tar_cue(mode = "never")
+    } else {
+      NULL
+    }
+    target <- tar_target_raw(name = def$name, command = command, cue = target_cue)
     targets <- c(targets, list(target))
   }
 

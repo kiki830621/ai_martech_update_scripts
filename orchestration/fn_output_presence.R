@@ -197,12 +197,38 @@ check_db_layers_presence <- function(project_root, yaml_path = NULL) {
 #' @return invisible(list(mode, missing_layers))
 #' @export
 check_and_run <- function(project_root, store_path, target_script) {
-  force_mode <- nzchar(Sys.getenv("FORCE", ""))
+  force_mode   <- nzchar(Sys.getenv("FORCE", ""))
+  refresh_grp  <- Sys.getenv("REFRESH", "")
+  with_etl     <- nzchar(Sys.getenv("WITH_ETL", ""))
 
   if (force_mode) {
     message("⚠ FORCE=1 detected: nuclear rebuild (tar_destroy + full tar_make)")
     run_nuclear(store_path, target_script)
     return(invisible(list(mode = "nuclear", missing_layers = character())))
+  }
+
+  # #1360: middle-tier selective-force. `make refresh GROUP=<g>` sets REFRESH=<g>
+  # to invalidate ONLY that frozen DRV group's chain (overriding its never-cue)
+  # and rerun it — without the nuclear tar_destroy + full rebuild. WITH_ETL=1
+  # extends invalidation to the chain's upstream ETL targets.
+  if (nzchar(refresh_grp)) {
+    message(sprintf(
+      "↻ REFRESH=%s detected: selective force-refresh of group '%s'%s (no nuclear destroy)",
+      refresh_grp, refresh_grp, if (with_etl) " + upstream ETL" else ""))
+    chain <- resolve_freeze_chain(
+      group = refresh_grp, target_script = target_script,
+      store_path = store_path, with_etl = with_etl)
+    if (length(chain) == 0L) {
+      stop(sprintf(
+        "REFRESH=%s matched no targets. Check the group token (e.g. D07) against the pipeline manifest.",
+        refresh_grp), call. = FALSE)
+    }
+    message(sprintf("  invalidating %d target(s): %s",
+                    length(chain), paste(chain, collapse = ", ")))
+    run_selective_force(target_script = target_script, store_path = store_path,
+                        chain = chain, with_etl = with_etl)
+    return(invisible(list(mode = "selective-force", refresh_group = refresh_grp,
+                          chain = chain, with_etl = with_etl)))
   }
 
   result <- check_db_layers_presence(project_root)
@@ -253,6 +279,69 @@ check_and_run <- function(project_root, store_path, target_script) {
 
 run_selective <- function(target_script, store_path) {
   targets::tar_make(script = target_script, store = store_path)
+}
+
+# #1360 middle tier: selective force-refresh. Invalidates the metadata records
+# for `chain` (so cue="never" frozen targets rerun — invalidation removes the
+# metadata record, which is cue rule 1 "no metadata record" => outdated), then
+# runs tar_make. NOT nuclear: only the chain's targets (and their downstream
+# dependents, which tar_make reruns automatically) are recomputed; everything
+# else stays cached. `with_etl` is informational here (the caller already
+# resolved whether ETL names are in `chain`); kept in the signature per the
+# approved #1360 plan so the function self-documents its two modes.
+run_selective_force <- function(target_script, store_path, chain, with_etl = FALSE) {
+  chain <- as.character(chain)
+  chain <- chain[nzchar(chain)]
+  if (length(chain) == 0L) {
+    stop("run_selective_force: `chain` is empty — nothing to invalidate.", call. = FALSE)
+  }
+  # tar_invalidate() errors on names with no metadata record (tidyselect strict
+  # semantics). Restrict invalidation to chain targets that have actually been
+  # built — a never-built target needs no invalidation (tar_make builds it
+  # anyway). This keeps first-refresh (nothing in store yet) safe AND lets the
+  # stub in tests capture a plain character vector instead of a tidyselect call.
+  existing <- tryCatch(targets::tar_meta(store = store_path, fields = "name")$name,
+                       error = function(e) character())
+  to_invalidate <- intersect(chain, existing)
+  if (length(to_invalidate) > 0L) {
+    targets::tar_invalidate(names = tidyselect::all_of(to_invalidate),
+                            store = store_path)
+  }
+  targets::tar_make(script = target_script, store = store_path)
+}
+
+# #1360: resolve which target names belong to a frozen DRV group, optionally
+# extended to the chain's upstream ETL ancestors. Uses tar_network() to read
+# the static dependency graph (no pipeline execution). A DRV group's targets
+# are those whose name contains the group token bounded by `_` (e.g. group
+# "D07" matches "all_D07_01", "amz_D07_02"); this mirrors the `_D{group}_`
+# convention used elsewhere in _targets.R.
+resolve_freeze_chain <- function(group, target_script, store_path, with_etl = FALSE) {
+  net <- targets::tar_network(
+    targets_only = TRUE, callr_function = NULL,
+    script = target_script, store = store_path
+  )
+  all_names <- net$vertices$name
+  grp_pat <- sprintf("(^|_)%s_", group)
+  group_targets <- all_names[grepl(grp_pat, all_names)]
+  if (length(group_targets) == 0L) return(character())
+
+  if (!isTRUE(with_etl)) return(group_targets)
+
+  # Walk all transitive upstream ancestors of the group targets via edges.
+  edges <- net$edges  # data.frame(from, to)
+  ancestors <- character()
+  frontier <- group_targets
+  while (length(frontier) > 0L) {
+    parents <- edges$from[edges$to %in% frontier]
+    parents <- setdiff(unique(parents), c(ancestors, group_targets))
+    ancestors <- c(ancestors, parents)
+    frontier <- parents
+  }
+  # Restrict the added ancestors to ETL targets (don't drag in other DRV
+  # groups' upstream DRV targets — WITH_ETL means "also the ETL feeders").
+  etl_ancestors <- ancestors[grepl("_ETL_", ancestors)]
+  unique(c(group_targets, etl_ancestors))
 }
 
 run_nuclear <- function(store_path, target_script) {
