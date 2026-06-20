@@ -1,5 +1,6 @@
 # Makefile
-# MAMBA Pipeline Orchestration CLI
+# L4 Enterprise Pipeline Orchestration CLI (shared by all companies; the
+# legacy MAMBA_* env-var names are a functional contract, see DM_R066 DRV_PLATFORM migration)
 # Per MP140: Pipeline Orchestration Principle
 # Per MP141: Scheduled Execution Pattern
 # Per MP142: Configuration-Driven Pipeline
@@ -55,7 +56,7 @@ TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
 .PHONY: help run run-dry status vis clean config-merge config-scan config-full config-validate schedule unschedule schedule-status logs e2e e2e-filter e2e-login e2e-vitalsigns upload run-no-upload _maybe-upload _stale-warn verify-partial-month verify-drv verify-dataflow
 
 help:
-	@echo "MAMBA Pipeline Orchestration"
+	@echo "L4 Enterprise Pipeline Orchestration"
 	@echo "============================"
 	@echo ""
 	@echo "Run Commands:"
@@ -103,7 +104,7 @@ help:
 
 run:
 	@echo "═══════════════════════════════════════════════════════════════════"
-	@echo "MAMBA Pipeline Execution"
+	@echo "$(notdir $(PROJECT_ROOT)) Pipeline Execution"
 	@echo "Platform: $(PLATFORM) | Layer: $(LAYER) | Target: $(TARGET) | FORCE: $(FORCE)"
 	@echo "Started: $$(date)"
 	@echo "═══════════════════════════════════════════════════════════════════"
