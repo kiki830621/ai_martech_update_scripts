@@ -9,7 +9,7 @@
 #          to populate df_macro_monthly_summary in app_data
 # CORE_FUNCTION: global_scripts/16_derivations/fn_D05_01_core.R
 # CONSUMES: transformed_data.df_{platform}_sales___standardized
-# PRODUCES: app_data.df_macro_monthly_summary
+# PRODUCES: app_data.df_macro_monthly_summary, app_data.df_macro_annual_summary (#1352), app_data.df_macro_quarterly_summary (#1382)
 # DEPENDS_ON_ETL: {platform}_ETL_sales_2TS
 # PRINCIPLE: MP064, MP140, MP142, DM_R044
 #####
@@ -21,7 +21,7 @@
 #'   write_platform_table_d05() to preserve other platforms' rows when
 #'   writing df_macro_monthly_summary.
 #' @input_tables df_{platform}_sales___standardized (transformed_data)
-#' @output_tables df_macro_monthly_summary (app_data)
+#' @output_tables df_macro_monthly_summary, df_macro_annual_summary (#1352), df_macro_quarterly_summary (#1382) (app_data)
 #' @platform all
 #' @date 2026-04-13
 
