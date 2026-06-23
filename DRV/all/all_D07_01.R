@@ -76,6 +76,18 @@ if (!exists("get_platform_display_name", mode = "function")) source(gs("04_utils
 if (!exists("calculate_track_multiplier", mode = "function")) {
   source(gs("10_rshinyapp_components", "poisson", "poissonFeatureAnalysis", "poissonFeatureAnalysis.R"))
 }
+# #1234 (csa own-share recompute): the csa builders call analyze_clusters, which uses
+# translate() for the #1346 "Others / Mixed" fold bucket label. translate is assigned to
+# .GlobalEnv by initialize_ui_translation() at APP startup (union_production_test.R), but
+# UPDATE_MODE precompute never calls it (autoinit #517 sweep narrowing) — so the recompute
+# errored "could not find function translate" and halted (0 cells written). Defensively
+# initialize the UI translation here so analyze_clusters resolves the bucket label, mirroring
+# the live app (honors app_configs$language -> zh_TW for byte parity with the live csa report).
+if (!exists("translate", mode = "function")) {
+  if (!exists("initialize_ui_translation", mode = "function")) source(gs("04_utils", "fn_initialize_ui_translation.R"))
+  if (!exists("initialize_translation_system", mode = "function")) source(gs("04_utils", "fn_translation.R"))
+  translate <- initialize_ui_translation()  # assigns translate to .GlobalEnv; identity fallback if unavailable
+}
 
 stopifnot(exists("run_D07_01", mode = "function"),
           exists("d07_prompt_registry"),
@@ -230,12 +242,21 @@ platforms <- platforms[nzchar(platforms)]
 message(sprintf("[D07_01] active platforms: %s", paste(platforms, collapse = ", ")))
 
 LOCALES <- c("zh_tw", "en")
+# #1234 ops hook (guarded; no default change): D07_ONLY_LOCALES / D07_ONLY_PROMPTS let an
+# operator scope a force-refresh to a subset (e.g. recompute just the zh_TW csa own-share
+# report for a client deadline) without recomputing every locale x prompt. Empty -> full run.
+if (nzchar(Sys.getenv("D07_ONLY_LOCALES"))) {
+  LOCALES <- trimws(strsplit(Sys.getenv("D07_ONLY_LOCALES"), ",")[[1]])
+}
 tot_written <- 0L; tot_skipped <- 0L; tot_unchanged <- 0L
 
 for (platform in platforms) {
   dna_plat <- dna_full[dna_full$platform_id == platform, , drop = FALSE]
 
   for (entry in d07_prompt_registry) {
+    # #1234 ops hook: skip prompts outside D07_ONLY_PROMPTS allowlist when set (else full run).
+    if (nzchar(Sys.getenv("D07_ONLY_PROMPTS")) &&
+        !(entry$prompt_key %in% trimws(strsplit(Sys.getenv("D07_ONLY_PROMPTS"), ",")[[1]]))) next
     # Resolve this prompt's product_line scope from its declared pl_source.
     pls <- if (identical(entry$pl_source, "position")) {
       if (is.null(df_position)) character(0) else unique(df_position$product_line_id)
