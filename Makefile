@@ -43,7 +43,14 @@ R := Rscript
 # the superproject. See #364 for details.
 PIPELINE_DIR ?= $(CURDIR)
 PROJECT_ROOT ?= $(if $(MAMBA_PROJECT_ROOT),$(MAMBA_PROJECT_ROOT),$(shell cd "$$PWD/../.." && pwd))
-GLOBAL_SCRIPTS ?= $(shell cd "$(PIPELINE_DIR)/../global_scripts" && pwd)
+# GLOBAL_SCRIPTS: resolve via the company's scripts/global_scripts symlink
+# (PROJECT_ROOT), NOT PIPELINE_DIR/../global_scripts. The latter assumed
+# update_scripts and global_scripts are siblings (true when both lived under
+# shared/), but update_scripts was moved out of Dropbox to a standalone repo
+# (/Users/che/Developer/update_scripts, ff17130) while global_scripts stays at
+# shared/global_scripts — so the sibling assumption broke (resolved to a
+# non-existent /Users/che/Developer/global_scripts -> empty GLOBAL_SCRIPTS).
+GLOBAL_SCRIPTS ?= $(shell cd "$(PROJECT_ROOT)/scripts/global_scripts" && pwd)
 CONFIG_PATH ?= $(PROJECT_ROOT)/_targets_config.yaml
 BASE_TEMPLATE ?= $(GLOBAL_SCRIPTS)/21_rshinyapp_templates/config/_targets_config.base.yaml
 APP_CONFIG ?= $(PROJECT_ROOT)/app_config.yaml
@@ -244,8 +251,8 @@ refresh:
 verify-drv:
 	@COMPANY=$$(basename $(PROJECT_ROOT)); \
 	YAML_NAME=$$(echo $$COMPANY | tr '[:upper:]' '[:lower:]'); \
-	GATE=$(PIPELINE_DIR)/../global_scripts/23_deployment/drv_output_shape_gate.R; \
-	YAML=$(PIPELINE_DIR)/../global_scripts/98_test/e2e/contracts/$${YAML_NAME}_drv.yaml; \
+	GATE=$(GLOBAL_SCRIPTS)/23_deployment/drv_output_shape_gate.R; \
+	YAML=$(GLOBAL_SCRIPTS)/98_test/e2e/contracts/$${YAML_NAME}_drv.yaml; \
 	DB=$(PROJECT_ROOT)/data/app_data/app_data.duckdb; \
 	REV=$(PROJECT_ROOT)/data/local_data/scd_type2/comment_property_rating_results.duckdb; \
 	MODE_FLAG=$${DRV_GATE_MODE:+--$${DRV_GATE_MODE}-mode}; \
@@ -262,8 +269,8 @@ verify-drv:
 verify-dataflow:
 	@COMPANY=$$(basename $(PROJECT_ROOT)); \
 	YAML_NAME=$$(echo $$COMPANY | tr '[:upper:]' '[:lower:]'); \
-	GATE=$(PIPELINE_DIR)/../global_scripts/23_deployment/dataflow_audit_gate.R; \
-	YAML=$(PIPELINE_DIR)/../global_scripts/98_test/e2e/contracts/$${YAML_NAME}_dataflow.yaml; \
+	GATE=$(GLOBAL_SCRIPTS)/23_deployment/dataflow_audit_gate.R; \
+	YAML=$(GLOBAL_SCRIPTS)/98_test/e2e/contracts/$${YAML_NAME}_dataflow.yaml; \
 	MODE_FLAG=$${DATAFLOW_GATE_MODE:+--$${DATAFLOW_GATE_MODE}-mode}; \
 	echo "═══ Dataflow Content-Lineage Gate ($$COMPANY) #955 ═══"; \
 	Rscript $$GATE --company $$COMPANY --db-root $(PROJECT_ROOT)/data --contracts-path $$YAML $$MODE_FLAG
@@ -274,7 +281,7 @@ verify-dataflow:
 # chained into `make run` (source lint, orthogonal to the data pipeline).
 verify-partial-month:
 	@echo "=== Partial-month reader lint (#910) ==="; \
-	Rscript $(PIPELINE_DIR)/../global_scripts/23_deployment/check_partial_month_filter.R
+	Rscript $(GLOBAL_SCRIPTS)/23_deployment/check_partial_month_filter.R
 
 # =============================================================================
 # STATUS COMMANDS
