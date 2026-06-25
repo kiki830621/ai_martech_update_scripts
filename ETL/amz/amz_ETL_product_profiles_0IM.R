@@ -371,8 +371,22 @@ tryCatch({
 
     if (length(master_rows_list) > 0) {
       df_master <- do.call(rbind, master_rows_list)
-      # Dedup on (amz_asin, marketplace) — same ASIN must not appear twice.
-      df_master <- df_master[!duplicated(df_master[, c("amz_asin", "marketplace")]), , drop = FALSE]
+      # #1176: dedup PL-aware — keep legitimate fan-out (one ASIN can belong to
+      # multiple product_lines, MP169). `marketplace` is a single constant
+      # (marketplace_default) in this ETL, so dedup on (amz_asin, marketplace)
+      # degenerates to amz_asin → first-row-wins COLLAPSES fan-out ASINs to one
+      # product_line (the #943/#1165 family of PL-blind distinct-steal). Including
+      # product_line_id in the key preserves every legitimate (asin, PL) membership;
+      # only genuinely-duplicate (asin, marketplace, PL) rows are dropped.
+      n_pre <- nrow(df_master)
+      df_master <- df_master[
+        !duplicated(df_master[, c("amz_asin", "marketplace", "product_line_id")]),
+        , drop = FALSE]
+      if (nrow(df_master) < n_pre) {
+        message(sprintf(
+          "MAIN: dropped %d exact-duplicate (amz_asin, marketplace, product_line_id) row(s); fan-out preserved",
+          n_pre - nrow(df_master)))
+      }
       DBI::dbWriteTable(raw_data, "df_amz_product_master", df_master, overwrite = TRUE)
       message(sprintf(
         "MAIN: Wrote df_amz_product_master: %d ASINs across %d product lines (marketplace_default=%s)",

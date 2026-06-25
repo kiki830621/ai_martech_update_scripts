@@ -1,7 +1,8 @@
 # amz_ETL_product_master_2TR.R - Validate product master (catalogue layer)
 # Implements qef-product-master-redesign spectra change task 3.3.
 #
-# 2TR Phase: PK uniqueness on (amz_asin, marketplace) + ASIN format check.
+# 2TR Phase: PK uniqueness on (amz_asin, marketplace, product_line_id) + ASIN format check.
+#   (#1176: product_line_id is part of the PK — one ASIN can fan out to multiple PLs, MP169.)
 # Source: staged_data.df_amz_product_master___staged
 # Output: transformed_data.df_amz_product_master___transformed
 
@@ -41,11 +42,15 @@ tryCatch({
   message(sprintf("MAIN: Read %d rows from %s", n_in, source_table))
 
   if (n_in > 0) {
-    pk <- paste(df$amz_asin, df$marketplace, sep = "\x1f")
+    # #1176: PK is (amz_asin, marketplace, product_line_id). One ASIN can legitimately
+    # belong to multiple product_lines (fan-out, MP169), so product_line_id is part of
+    # the key — otherwise the 0IM PL-aware dedup's fan-out rows would false-trip this
+    # check (same (asin, marketplace) across PLs is correct, not a duplicate).
+    pk <- paste(df$amz_asin, df$marketplace, df$product_line_id, sep = "\x1f")
     dup_keys <- pk[duplicated(pk)]
     if (length(dup_keys) > 0) {
       stop(sprintf(
-        "PK violation: %d duplicate (amz_asin, marketplace) pairs in df_amz_product_master. Sample: %s",
+        "PK violation: %d duplicate (amz_asin, marketplace, product_line_id) keys in df_amz_product_master. Sample: %s",
         length(dup_keys), paste(head(unique(dup_keys), 3), collapse = "; ")
       ))
     }
