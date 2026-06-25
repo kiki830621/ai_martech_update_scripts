@@ -51,6 +51,7 @@ source("scripts/global_scripts/16_derivations/fn_fit_market_attribute_coefficien
 source("scripts/global_scripts/16_derivations/fn_build_market_attribute_table.R")
 source("scripts/global_scripts/16_derivations/fn_build_market_attribute_coverage_audit.R")  # #1210
 source("scripts/global_scripts/16_derivations/fn_select_market_attr_cols.R")  # #1226 (also exposes MARKET_MODEL_NON_ATTR)
+source("scripts/global_scripts/16_derivations/fn_is_modelable_review_type.R")  # #1406 (review-topic keep-list: only 屬性 enters the model)
 source("scripts/global_scripts/05_etl_utils/common/string/fn_make_names.R")  # #1258 canonical name sanitizer (slash->_ + lowercase) — explicit source so the canonical wins over the shadow make.names variant
 source("scripts/global_scripts/16_derivations/fn_onehot_market_categoricals.R")  # #1247 (categorical one-hot encoder)
 source("scripts/global_scripts/16_derivations/fn_compute_months_listed.R")  # #1309 B1 exposure
@@ -121,16 +122,20 @@ if (length(.bad_scale) > 0) {
           " — treated as rating/product_attribute; normalize the GoogleSheet or extend ",
           "the mapping above (#1308)")
 }
-# #1247: 缺點 (incl. compound '缺點/場') is excluded from the MARKET MODEL by type at this
-# boundary (NOT by editing comment_property_score_types.yaml — that is dual-purpose and
-# would also stop AI scoring + drop 缺點 from df_position display). Flag it per-ROW, then
-# sort -is_quedian before the per-(pl,property) dedup so a pair with ANY 缺點-typed row
-# keeps that flag. NOTE (#1247 verify DA): in LIVE data the 3 multi-type (pl,property) pairs
-# are pure non-缺點 2尺度 combos (人/情感, 場/身分認同, 場/文化), so this sort is currently a
-# no-op for exclusion — it is a DEFENSIVE guard against a FUTURE compound 缺點+mention type,
-# not a fix for a present case.
-prop_cfg$is_quedian <- grepl("缺點", prop_cfg$type)
-prop_cfg <- prop_cfg[order(prop_cfg$product_line_id, prop_cfg$property_name, -prop_cfg$is_quedian), ]
+# #1406 (向創建議_20260623): the MARKET MODEL must use ONLY product-attribute review
+# topics (type = 屬性 — the「顧客評論檔 K欄屬性」) plus the GoogleSheet/image-mining
+# profile params (which never pass through prop_cfg). The brand-positioning axes
+# (情感/人/場/場景/身分認同/文化/美學) and 缺點 must NOT enter as predictors. This
+# GENERALIZES the earlier #1247 缺點-only exclusion into a positive keep-list,
+# externalized to config (DEV_R050; NOT comment_property_score_types.yaml, which is
+# dual-purpose for AI scoring + df_position display — a topic is still scored and
+# reaches df_position even when it is not a model predictor). A topic is modelable iff
+# EVERY '/'-split type component is in the keep-list; a (pl,property) pair with ANY
+# non-modelable type row stays non-modelable (sort is_modelable ASC → FALSE wins the
+# per-pair dedup). is_modelable replaces the old is_quedian flag at every downstream
+# site (predictor selection + #1210 audit universe).
+prop_cfg$is_modelable <- fn_is_modelable_review_type(prop_cfg$type)
+prop_cfg <- prop_cfg[order(prop_cfg$product_line_id, prop_cfg$property_name, prop_cfg$is_modelable), ]
 prop_cfg <- prop_cfg[!duplicated(paste(prop_cfg$product_line_id, prop_cfg$property_name)), ]
 
 # Output schema (superset of fn_build_market_attribute_table + scale label + run meta).
@@ -228,8 +233,8 @@ for (pl in PRODUCT_LINES) {
 
   # review-topic attrs from df_position (PL-mapped), keyed by ASIN, LEFT JOIN
   pos <- tbl2(con_app, "df_position") %>% filter(product_line_id == !!pl) %>% collect()
-  mapped_rev <- if ("product_id" %in% names(pos))   # #1247: drop 缺點-typed topics from the model
-    intersect(prop_cfg$property_name[prop_cfg$product_line_id == pl & !prop_cfg$is_quedian], names(pos)) else character(0)
+  mapped_rev <- if ("product_id" %in% names(pos))   # #1406: keep only 屬性-typed review topics (K欄屬性) as model predictors
+    intersect(prop_cfg$property_name[prop_cfg$product_line_id == pl & prop_cfg$is_modelable], names(pos)) else character(0)
   combined <- prof
   shared_topics <- character(0)   # #1253: review topics present in BOTH prof and pos
   if (length(mapped_rev) > 0L) {
@@ -452,7 +457,7 @@ for (pl in PRODUCT_LINES) {
   # rows for one logical attribute; now prof→射擊（適用） (pp_universe) and pos→射擊 (rev_universe)
   # are distinct, single-counted entries.
   pp_universe <- ifelse(pp_universe %in% shared_topics, paste0(pp_universe, "（適用）"), pp_universe)
-  rev_universe <- setdiff(prop_cfg$property_name[prop_cfg$product_line_id == pl & !prop_cfg$is_quedian], pp_universe)
+  rev_universe <- setdiff(prop_cfg$property_name[prop_cfg$product_line_id == pl & prop_cfg$is_modelable], pp_universe)  # #1406: audit universe matches model keep-list (only 屬性)
   universe_df <- rbind(
     data.frame(source_table = "df_product_profile", attr_name = pp_universe, stringsAsFactors = FALSE),
     data.frame(source_table = "df_position",        attr_name = rev_universe, stringsAsFactors = FALSE)
