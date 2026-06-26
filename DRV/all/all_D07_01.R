@@ -1,9 +1,17 @@
 #####
-# CONSUMES: df_dna_by_customer, df_position, df_macro_monthly_summary, df_geo_sales_by_country
+# CONSUMES: df_dna_by_customer, df_position, df_macro_monthly_summary, df_geo_sales_by_country, df_market_segmentation_summary, df_market_segmentation
 # PRODUCES: df_ai_insight
 # DEPENDS_ON_ETL: none
-# DEPENDS_ON_DRV: all_D01_08, amz_D03_11, all_D05_01
+# DEPENDS_ON_DRV: all_D01_08, amz_D03_11, all_D05_01, all_D07_02
 #####
+# change market-segmentation-shared-snapshot (Task 2.1/2.2): the
+# csa_market_segments narrative now READS the deterministic snapshot produced by
+# all_D07_02 (df_market_segmentation*), so this run DEPENDS_ON_DRV all_D07_02 —
+# the snapshot is materialized BEFORE this narrative (Decision 2 lockstep). NOTE:
+# the targets DAG order is set by the pipeline config (config-scan / app_config
+# pipeline section), NOT by these header markers; Task 6.1 must ensure all_D07_01
+# depends on all_D07_02 in config (the numeric-sequence default would instead make
+# all_D07_02 depend on all_D07_01 — see implementation note).
 #
 # all_D07_01.R — D07_01 pipeline DRV: AI-insight precompute (cross-platform).
 # Spectra change: mp167-d07-incremental-recompute (Task 4.2; implements design D5+D6).
@@ -229,6 +237,14 @@ build_source <- function(name, platform, pl) {
       if (is.null(res) || nrow(res) == 0) return(NULL)
       res$insight_text[1]
     },
+    # change market-segmentation-shared-snapshot (Task 2.2): the csa_market_segments
+    # narrative now READS the deterministic snapshot (df_market_segmentation* —
+    # produced by all_D07_02 BEFORE this run) via the app_data connection instead
+    # of re-clustering. Supply the connection + (platform, product_line) scope;
+    # .build_csa_market_segments_inputs reads the two snapshot tables itself.
+    "seg_con"          = app_con,
+    "seg_platform"     = platform,
+    "seg_product_line" = pl,
     NULL
   )
 }
