@@ -1,17 +1,16 @@
 #####
-# CONSUMES: df_dna_by_customer, df_position, df_macro_monthly_summary, df_geo_sales_by_country, df_market_segmentation_summary, df_market_segmentation
-# PRODUCES: df_ai_insight
+# CONSUMES: df_dna_by_customer, df_position, df_all_comment_property, df_macro_monthly_summary, df_geo_sales_by_country
+# PRODUCES: df_ai_insight, df_market_segmentation, df_market_segmentation_summary
 # DEPENDS_ON_ETL: none
-# DEPENDS_ON_DRV: all_D01_08, amz_D03_11, all_D05_01, all_D07_02
+# DEPENDS_ON_DRV: all_D01_08, amz_D03_11, all_D05_01
 #####
-# change market-segmentation-shared-snapshot (Task 2.1/2.2): the
-# csa_market_segments narrative now READS the deterministic snapshot produced by
-# all_D07_02 (df_market_segmentation*), so this run DEPENDS_ON_DRV all_D07_02 —
-# the snapshot is materialized BEFORE this narrative (Decision 2 lockstep). NOTE:
-# the targets DAG order is set by the pipeline config (config-scan / app_config
-# pipeline section), NOT by these header markers; Task 6.1 must ensure all_D07_01
-# depends on all_D07_02 in config (the numeric-sequence default would instead make
-# all_D07_02 depend on all_D07_01 — see implementation note).
+# change market-segmentation-shared-snapshot (Task 2.1/2.2): the deterministic
+# market-segmentation snapshot (df_market_segmentation + _summary) is materialized
+# as the FIRST step of THIS run (run_D07_02, folded from the former all_D07_02.R),
+# BEFORE the csa_market_segments narrative loop reads it (Decision 2 lockstep).
+# The snapshot is folded in (not a separate all_D07_02 target) so the order is
+# guaranteed by execution order, not by the config-scan numeric-sequence heuristic
+# (which mis-ordered a separate D07_02 target as depending on D07_01).
 #
 # all_D07_01.R — D07_01 pipeline DRV: AI-insight precompute (cross-platform).
 # Spectra change: mp167-d07-incremental-recompute (Task 4.2; implements design D5+D6).
@@ -121,6 +120,62 @@ dna_full <- tbl2(app_con, "df_dna_by_customer") |> dplyr::collect()
 df_position <- if (DBI::dbExistsTable(app_con, "df_position")) {
   tbl2(app_con, "df_position") |> dplyr::collect()
 } else NULL
+
+# --- Decision 2 pre-step: materialize the market-segmentation snapshot FIRST ---
+# (folded from the former all_D07_02.R). The csa_market_segments narrative below
+# READS df_market_segmentation_summary (Task 2.2), so the snapshot MUST exist
+# before the prompt loop. Folding guarantees this order by execution sequence,
+# not by the config-scan heuristic. Deterministic + LLM-free + idempotent per
+# (platform, product_line); cheap to co-locate (Decision 1/2).
+source(gs("16_derivations", "fn_market_segmentation_snapshot_helpers.R"))
+source(gs("16_derivations", "fn_D07_02_core.R"))
+if (!exists("generate_create_table_query", mode = "function"))
+  source(gs("01_db", "generate_create_table_query", "fn_generate_create_table_query.R"))
+if (!exists("create_df_market_segmentation_tables", mode = "function"))
+  source(gs("01_db", "fn_create_df_market_segmentation_tables.R"))
+if (!exists("perform_csa_analysis", mode = "function") || !exists("analyze_clusters", mode = "function"))
+  source(gs("10_rshinyapp_components", "position", "positionMSPlotly", "positionMSPlotly.R"))
+if (!exists("compute_cluster_top_var", mode = "function") || !exists("compute_profile_deviation_table", mode = "function"))
+  source(gs("10_rshinyapp_components", "position", "marketSegmentationKmeans", "marketSegmentationKmeans.R"))
+if (!exists("make_names", mode = "function")) source(gs("05_etl_utils", "common", "string", "fn_make_names.R"))
+
+seg_comment_property <- if (DBI::dbExistsTable(app_con, "df_all_comment_property")) {
+  tbl2(app_con, "df_all_comment_property") |> dplyr::collect()
+} else NULL
+if (!is.null(seg_comment_property) && "property_name" %in% names(seg_comment_property) &&
+    exists("make_names", mode = "function")) {
+  seg_comment_property$property_name <- make_names(trimws(as.character(seg_comment_property$property_name)))
+}
+seg_theme_axis_map <- build_theme_axis_map(seg_comment_property)
+if (length(seg_theme_axis_map) == 0L) {
+  message("[D07_01/seg] WARNING: theme->axis map empty (df_all_comment_property missing/unmapped) — 6-axis profile empty (Others/Mixed sentinel downstream).")
+}
+seg_own_brand <- tryCatch(
+  if (exists("resolve_company_brand", mode = "function")) resolve_company_brand() else NULL,
+  error = function(e) NULL)
+# df_position is PLATFORM-AGNOSTIC (no platform_id col), so derive the active
+# platforms from dna_full (the same source the narrative loop uses below), then
+# materialize the snapshot once per platform stamping that platform_id.
+seg_platforms <- {
+  p <- if (exists("dna_full") && "platform_id" %in% names(dna_full)) unique(stats::na.omit(dna_full$platform_id)) else character(0)
+  if (!is.null(df_position) && "platform_id" %in% names(df_position)) p <- union(p, unique(stats::na.omit(df_position$platform_id)))
+  p[nzchar(p)]
+}
+if (length(seg_platforms) > 0L && !is.null(df_position)) {
+  seg_tot_p <- 0L; seg_tot_s <- 0L
+  for (seg_pf in seg_platforms) {
+    res_seg <- tryCatch(
+      run_D07_02(platform_id = seg_pf, position_data = df_position, app_data_con = app_con,
+                 theme_axis_map = seg_theme_axis_map, own_brand = seg_own_brand),
+      error = function(e) { message("[D07_01/seg] snapshot materialize failed for ", seg_pf, ": ", conditionMessage(e)); c(df_market_segmentation = 0L, df_market_segmentation_summary = 0L) })
+    seg_tot_p <- seg_tot_p + res_seg[["df_market_segmentation"]]
+    seg_tot_s <- seg_tot_s + res_seg[["df_market_segmentation_summary"]]
+  }
+  message(sprintf("[D07_01/seg] snapshot: df_market_segmentation=%d, df_market_segmentation_summary=%d rows across %d platform(s)",
+                  seg_tot_p, seg_tot_s, length(seg_platforms)))
+} else {
+  message("[D07_01/seg] df_position absent/empty — no segmentation snapshot to materialize (MP163).")
+}
 
 # MP163 sentinel product lines are gap markers, not real lines to precompute.
 SENTINEL_PL <- c("unclassified", "UNKNOWN")
